@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-chain-ops/state"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-service/bsc"
 )
 
 var (
@@ -430,9 +431,10 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 	if block.Number() == nil {
 		return storage, errors.New("block number not set")
 	}
-	if block.BaseFee() == nil {
-		return storage, errors.New("block base fee not set")
-	}
+	// BSC block base fee is nil
+	//if block.BaseFee() == nil {
+	//	return storage, errors.New("block base fee not set")
+	//}
 
 	storage["L2ToL1MessagePasser"] = state.StorageValues{
 		"msgNonce": 0,
@@ -446,7 +448,7 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 	storage["L1Block"] = state.StorageValues{
 		"number":         block.Number(),
 		"timestamp":      block.Time(),
-		"basefee":        block.BaseFee(),
+		"basefee":        bsc.BaseFeeByTransactions(block.Transactions()),
 		"hash":           block.Hash(),
 		"sequenceNumber": 0,
 		"batcherHash":    config.BatchSenderAddress.Hash(),

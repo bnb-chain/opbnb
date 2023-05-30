@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/ethereum-optimism/optimism/op-service/bsc"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 )
 
@@ -192,22 +193,24 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 		rawTx.Gas = candidate.GasLimit
 	} else {
 		// Calculate the intrinsic gas for the transaction
-		gas, err := m.backend.EstimateGas(ctx, ethereum.CallMsg{
+		gas, err := m.backend.EstimateGas(ctx, bsc.ToLegacyCallMsg(ethereum.CallMsg{
 			From:      m.cfg.From,
 			To:        candidate.To,
 			GasFeeCap: gasFeeCap,
 			GasTipCap: gasTipCap,
 			Data:      rawTx.Data,
-		})
+		}))
 		if err != nil {
 			return nil, fmt.Errorf("failed to estimate gas: %w", err)
 		}
 		rawTx.Gas = gas
 	}
 
+	legacyTx := bsc.ToLegacyTx(rawTx)
+
 	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	return m.cfg.Signer(ctx, m.cfg.From, types.NewTx(rawTx))
+	return m.cfg.Signer(ctx, m.cfg.From, types.NewTx(legacyTx))
 }
 
 // nextNonce returns a nonce to use for the next transaction. It uses
@@ -450,9 +453,12 @@ func (m *SimpleTxManager) increaseGasPrice(ctx context.Context, tx *types.Transa
 		Data:       tx.Data(),
 		AccessList: tx.AccessList(),
 	}
+
+	legacyTx := bsc.ToLegacyTx(rawTx)
+
 	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	newTx, err := m.cfg.Signer(ctx, m.cfg.From, types.NewTx(rawTx))
+	newTx, err := m.cfg.Signer(ctx, m.cfg.From, types.NewTx(legacyTx))
 	if err != nil {
 		m.l.Warn("failed to sign new transaction", "err", err)
 		return tx
@@ -478,7 +484,10 @@ func (m *SimpleTxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *b
 		m.metr.RPCError()
 		return nil, nil, fmt.Errorf("failed to fetch the suggested basefee: %w", err)
 	} else if head.BaseFee == nil {
-		return nil, nil, errors.New("txmgr does not support pre-london blocks that do not have a basefee")
+		//return nil, nil, errors.New("txmgr does not support pre-london blocks that do not have a basefee")
+
+		// Compatible to BSC
+		return tip, big.NewInt(0), nil
 	}
 	return tip, head.BaseFee, nil
 }

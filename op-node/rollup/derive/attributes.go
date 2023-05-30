@@ -11,11 +11,13 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-service/bsc"
 )
 
 // L1ReceiptsFetcher fetches L1 header info and receipts for the payload attributes derivation (the info tx and deposits)
 type L1ReceiptsFetcher interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
+	InfoAndTxsByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, types.Transactions, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
 }
 
@@ -52,6 +54,13 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	if err != nil {
 		return nil, NewTemporaryError(fmt.Errorf("failed to retrieve L2 parent block: %w", err))
 	}
+
+	// Calculate bsc block base fee
+	_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+	if err != nil {
+		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+	}
+	l1BaseFee := bsc.BaseFeeByTransactions(transactions)
 
 	// If the L1 origin changed this block, then we are in the first block of the epoch. In this
 	// case we need to fetch all transaction receipts from the L1 origin block so we can scan for
@@ -92,6 +101,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		depositTxs = nil
 		seqNumber = l2Parent.SequenceNumber + 1
 	}
+
+	l1Info = bsc.NewBlockInfoBSCWrapper(l1Info, l1BaseFee)
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
 	nextL2Time := l2Parent.Time + ba.cfg.BlockTime
