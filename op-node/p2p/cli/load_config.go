@@ -209,7 +209,6 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
 		return fmt.Errorf("failed to open discovery db: %w", err)
 	}
 
-	conf.Bootnodes = p2p.DefaultBootnodes
 	records := strings.Split(ctx.GlobalString(flags.Bootnodes.Name), ",")
 	for i, recordB64 := range records {
 		recordB64 = strings.TrimSpace(recordB64)
