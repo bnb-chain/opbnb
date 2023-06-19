@@ -95,11 +95,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -110,7 +107,7 @@ jobs:
           context: .
           file: ./l2geth/Dockerfile
           push: true
-          tags: ethereumoptimism/l2geth:${{ needs.release.outputs.l2geth }},ethereumoptimism/l2geth:latest
+          tags: opbnb/l2geth:${{ needs.release.outputs.l2geth }},opbnb/l2geth:latest
 
   gas-oracle:
     name: Publish Gas Oracle Version ${{ needs.release.outputs.gas-oracle }}
@@ -121,11 +118,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -136,7 +130,7 @@ jobs:
           context: .
           file: ./gas-oracle/Dockerfile
           push: true
-          tags: ethereumoptimism/gas-oracle:${{ needs.release.outputs.gas-oracle }},ethereumoptimism/gas-oracle:latest
+          tags: opbnb/gas-oracle:${{ needs.release.outputs.gas-oracle }},opbnb/gas-oracle:latest
 
   hardhat-node:
     name: Publish Hardhat Node ${{ needs.release.outputs.hardhat-node }}
@@ -147,11 +141,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -162,7 +153,7 @@ jobs:
           context: ./ops/docker/hardhat
           file: ./ops/docker/hardhat/Dockerfile
           push: true
-          tags: ethereumoptimism/hardhat-node:${{ needs.release.outputs.hardhat-node }},ethereumoptimism/hardhat-node:latest
+          tags: opbnb/hardhat-node:${{ needs.release.outputs.hardhat-node }},opbnb/hardhat-node:latest
 
   foundry:
     name: Publish foundry ${{ needs.release.outputs.foundry }}
@@ -173,11 +164,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -188,7 +176,7 @@ jobs:
           context: .
           file: ./ops/docker/foundry/Dockerfile
           push: true
-          tags: ethereumoptimism/foundry:${{ needs.release.outputs.foundry }},ethereumoptimism/foundry:latest
+          tags: opbnb/foundry:${{ needs.release.outputs.foundry }},opbnb/foundry:latest
 
   l2geth-exporter:
     name: Publish l2geth-exporter Version ${{ needs.release.outputs.l2geth-exporter}}
@@ -202,11 +190,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set build args
         id: build_args
@@ -221,7 +206,7 @@ jobs:
           context: .
           file: ./l2geth-exporter/Dockerfile
           push: true
-          tags: ethereumoptimism/l2geth-exporter:${{ needs.release.outputs.l2geth-exporter }},ethereumoptimism/l2geth-exporter:latest
+          tags: opbnb/l2geth-exporter:${{ needs.release.outputs.l2geth-exporter }},opbnb/l2geth-exporter:latest
           build-args: |
             GITDATE=${{ steps.build_args.outputs.GITDATE }}
             GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
@@ -239,11 +224,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set build args
         id: build_args
@@ -258,7 +240,7 @@ jobs:
           context: .
           file: ./op-exporter/Dockerfile
           push: true
-          tags: ethereumoptimism/op-exporter:${{ needs.release.outputs.op-exporter }},ethereumoptimism/op-exporter:latest
+          tags: opbnb/op-exporter:${{ needs.release.outputs.op-exporter }},opbnb/op-exporter:latest
           build-args: |
             GITDATE=${{ steps.build_args.outputs.GITDATE }}
             GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
@@ -276,11 +258,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -289,7 +268,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: message-relayer
           push: true
-          tags: ethereumoptimism/message-relayer:${{ needs.release.outputs.message-relayer }},ethereumoptimism/message-relayer:latest
+          tags: opbnb/message-relayer:${{ needs.release.outputs.message-relayer }},opbnb/message-relayer:latest
 
   fault-detector:
     name: Publish Fault Detector Version ${{ needs.release.outputs.fault-detector }}
@@ -303,11 +282,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -316,7 +292,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: fault-detector
           push: true
-          tags: ethereumoptimism/fault-detector:${{ needs.release.outputs.fault-detector }},ethereumoptimism/fault-detector:latest
+          tags: opbnb/fault-detector:${{ needs.release.outputs.fault-detector }},opbnb/fault-detector:latest
 
   wd-mon:
     name: Publish Withdrawal Monitor Version ${{ needs.release.outputs.wd-mon }}
@@ -330,11 +306,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -343,7 +316,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: wd-mon
           push: true
-          tags: ethereumoptimism/wd-mon:${{ needs.release.outputs.wd-mon }},ethereumoptimism/wd-mon:latest
+          tags: opbnb/wd-mon:${{ needs.release.outputs.wd-mon }},opbnb/wd-mon:latest
 
   balance-mon:
     name: Publish Balance Monitor Version ${{ needs.release.outputs.balance-mon }}
@@ -357,11 +330,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -370,7 +340,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: balance-mon
           push: true
-          tags: ethereumoptimism/balance-mon:${{ needs.release.outputs.balance-mon }},ethereumoptimism/balance-mon:latest
+          tags: opbnb/balance-mon:${{ needs.release.outputs.balance-mon }},opbnb/balance-mon:latest
 
   drippie-mon:
     name: Publish Drippie Monitor Version ${{ needs.release.outputs.drippie-mon }}
@@ -384,11 +354,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -397,7 +364,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: drippie-mon
           push: true
-          tags: ethereumoptimism/drippie-mon:${{ needs.release.outputs.drippie-mon }},ethereumoptimism/drippie-mon:latest
+          tags: opbnb/drippie-mon:${{ needs.release.outputs.drippie-mon }},opbnb/drippie-mon:latest
 
   data-transport-layer:
     name: Publish Data Transport Layer Version ${{ needs.release.outputs.data-transport-layer }}
@@ -411,11 +378,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -424,7 +388,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: data-transport-layer
           push: true
-          tags: ethereumoptimism/data-transport-layer:${{ needs.release.outputs.data-transport-layer }},ethereumoptimism/data-transport-layer:latest
+          tags: opbnb/data-transport-layer:${{ needs.release.outputs.data-transport-layer }},opbnb/data-transport-layer:latest
 
   contracts:
     name: Publish Deployer Version ${{ needs.release.outputs.contracts }}
@@ -438,11 +402,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -451,7 +412,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: deployer
           push: true
-          tags: ethereumoptimism/deployer:${{ needs.release.outputs.contracts }},ethereumoptimism/deployer:latest
+          tags: opbnb/deployer:${{ needs.release.outputs.contracts }},opbnb/deployer:latest
 
   contracts-bedrock:
     name: Publish deployer-bedrock Version ${{ needs.release.outputs.contracts-bedrock }}
@@ -465,11 +426,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -478,7 +436,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: deployer-bedrock
           push: true
-          tags: ethereumoptimism/deployer-bedrock:${{ needs.release.outputs.contracts-bedrock }},ethereumoptimism/deployer-bedrock:latest
+          tags: opbnb/deployer-bedrock:${{ needs.release.outputs.contracts-bedrock }},opbnb/deployer-bedrock:latest
 
   balance-monitor:
     name: Publish balance-monitor Version ${{ needs.release.outputs.balance-monitor }}
@@ -492,11 +450,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -505,7 +460,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: balance-monitor
           push: true
-          tags: ethereumoptimism/balance-monitor:${{ needs.release.outputs.balance-monitor }},ethereumoptimism/balance-monitor:latest
+          tags: opbnb/balance-monitor:${{ needs.release.outputs.balance-monitor }},opbnb/balance-monitor:latest
 
   integration_tests:
     name: Publish Integration tests ${{ needs.release.outputs.integration-tests }}
@@ -519,11 +474,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -532,7 +484,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: integration-tests
           push: true
-          tags: ethereumoptimism/integration-tests:${{ needs.release.outputs.integration-tests }},ethereumoptimism/integration-tests:latest
+          tags: opbnb/integration-tests:${{ needs.release.outputs.integration-tests }},opbnb/integration-tests:latest
 
   replica-healthcheck:
     name: Publish Replica Healthcheck Version ${{ needs.release.outputs.replica-healthcheck }}
@@ -546,11 +498,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -559,7 +508,7 @@ jobs:
           file: ./ops/docker/Dockerfile.packages
           target: replica-healthcheck
           push: true
-          tags: ethereumoptimism/replica-healthcheck:${{ needs.release.outputs.replica-healthcheck }},ethereumoptimism/replica-healthcheck:latest
+          tags: opbnb/replica-healthcheck:${{ needs.release.outputs.replica-healthcheck }},opbnb/replica-healthcheck:latest
 
   batch-submitter-service:
     name: Publish batch-submitter-service Version ${{ needs.release.outputs.batch-submitter-service }}
@@ -573,11 +522,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -585,7 +531,7 @@ jobs:
           context: .
           file: ./batch-submitter/Dockerfile
           push: true
-          tags: ethereumoptimism/batch-submitter-service:${{ needs.release.outputs.batch-submitter-service }},ethereumoptimism/batch-submitter-service:latest
+          tags: opbnb/batch-submitter-service:${{ needs.release.outputs.batch-submitter-service }},opbnb/batch-submitter-service:latest
 
   endpoint-monitor:
     name: Publish endpoint-monitor Version ${{ needs.release.outputs.endpoint-monitor}}
@@ -599,11 +545,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
+      - name: Login to Docker registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
       - name: Set build args
         id: build_args
@@ -618,7 +561,7 @@ jobs:
           context: .
           file: ./endpoint-monitor/Dockerfile
           push: true
-          tags: ethereumoptimism/endpoint-monitor:${{ needs.release.outputs.endpoint-monitor }},ethereumoptimism/endpoint-monitor:latest
+          tags: opbnb/endpoint-monitor:${{ needs.release.outputs.endpoint-monitor }},opbnb/endpoint-monitor:latest
           build-args: |
             GITDATE=${{ steps.build_args.outputs.GITDATE }}
             GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
