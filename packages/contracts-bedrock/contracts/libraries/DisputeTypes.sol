@@ -34,28 +34,42 @@ type Timestamp is uint64;
 type Duration is uint64;
 
 /**
+ * @notice A `GameId` represents a packed 12 byte timestamp and a 20 byte address.
+ * @dev The packed layout of this type is as follows:
+ * ┌────────────┬────────────────┐
+ * │    Bits    │     Value      │
+ * ├────────────┼────────────────┤
+ * │ [0, 96)    │ Timestamp      │
+ * │ [96, 256)  │ Address        │
+ * └────────────┴────────────────┘
+ */
+type GameId is bytes32;
+
+/**
  * @notice A `Clock` represents a packed `Duration` and `Timestamp`
  * @dev The packed layout of this type is as follows:
  * ┌────────────┬────────────────┐
  * │    Bits    │     Value      │
  * ├────────────┼────────────────┤
- * │ [0, 128)   │ Duration       │
- * │ [128, 256) │ Timestamp      │
+ * │ [0, 64)    │ Duration       │
+ * │ [64, 128)  │ Timestamp      │
  * └────────────┴────────────────┘
  */
-type Clock is uint256;
+type Clock is uint128;
 
 /**
  * @notice A `Position` represents a position of a claim within the game tree.
- * @dev The packed layout of this type is as follows:
- * ┌────────────┬────────────────┐
- * │    Bits    │     Value      │
- * ├────────────┼────────────────┤
- * │ [0, 128)   │ Depth          │
- * │ [128, 256) │ Index at depth │
- * └────────────┴────────────────┘
+ * @dev This is represented as a "generalized index" where the high-order bit
+ * is the level in the tree and the remaining bits is a unique bit pattern, allowing
+ * a unique identifier for each node in the tree. Mathematically, it is calculated
+ * as 2^{depth} + indexAtDepth.
  */
-type Position is uint256;
+type Position is uint128;
+
+/**
+ * @notice A `GameType` represents the type of game being played.
+ */
+type GameType is uint8;
 
 /**
  * @notice The current status of the dispute game.
@@ -70,13 +84,22 @@ enum GameStatus {
 }
 
 /**
- * @notice The type of proof system being used.
+ * @title GameTypes
+ * @notice A library that defines the IDs of games that can be played.
  */
-enum GameType {
-    // The game will use a `IDisputeGame` implementation that utilizes fault proofs.
-    FAULT,
-    // The game will use a `IDisputeGame` implementation that utilizes validity proofs.
-    VALIDITY,
-    // The game will use a `IDisputeGame` implementation that utilizes attestation proofs.
-    ATTESTATION
+library GameTypes {
+    /**
+     * @dev The game will use a `IDisputeGame` implementation that utilizes fault proofs.
+     */
+    GameType internal constant FAULT = GameType.wrap(0);
+
+    /**
+     * @dev The game will use a `IDisputeGame` implementation that utilizes validity proofs.
+     */
+    GameType internal constant VALIDITY = GameType.wrap(1);
+
+    /**
+     * @dev The game will use a `IDisputeGame` implementation that utilizes attestation proofs.
+     */
+    GameType internal constant ATTESTATION = GameType.wrap(2);
 }
