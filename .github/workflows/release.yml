@@ -14,23 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     # map the step outputs to job outputs
     outputs:
-      l2geth: ${{ steps.packages.outputs.l2geth }}
-      message-relayer: ${{ steps.packages.outputs.message-relayer }}
       fault-detector: ${{ steps.packages.outputs.fault-detector }}
       balance-mon: ${{ steps.packages.outputs.drippie-mon }}
       drippie-mon: ${{ steps.packages.outputs.drippie-mon }}
       wd-mon: ${{ steps.packages.outputs.wd-mon }}
-      data-transport-layer: ${{ steps.packages.outputs.data-transport-layer }}
-      contracts: ${{ steps.packages.outputs.contracts }}
-      contracts-bedrock: ${{ steps.packages.outputs.contracts-bedrock }}
-      balance-monitor: ${{ steps.packages.outputs.balance-monitor }}
-      gas-oracle: ${{ steps.packages.outputs.gas-oracle }}
       replica-healthcheck: ${{ steps.packages.outputs.replica-healthcheck }}
-      hardhat-node: ${{ steps.packages.outputs.hardhat-node }}
       op-exporter: ${{ steps.packages.outputs.op-exporter }}
-      l2geth-exporter: ${{ steps.packages.outputs.l2geth-exporter }}
-      batch-submitter-service: ${{ steps.packages.outputs.batch-submitter-service }}
-      foundry: ${{ steps.packages.outputs.foundry }}
       endpoint-monitor: ${{ steps.packages.outputs.endpoint-monitor }}
 
     steps:
@@ -86,132 +75,6 @@ jobs:
         run: |
           node ops/scripts/ci-versions.js ${{ toJSON(steps.changesets.outputs.publishedPackages) }}
 
-  l2geth:
-    name: Publish L2Geth Version ${{ needs.release.outputs.l2geth }}
-    needs: release
-    if: needs.release.outputs.l2geth != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Publish L2Geth
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./l2geth/Dockerfile
-          push: true
-          tags: opbnb/l2geth:${{ needs.release.outputs.l2geth }},opbnb/l2geth:latest
-
-  gas-oracle:
-    name: Publish Gas Oracle Version ${{ needs.release.outputs.gas-oracle }}
-    needs: release
-    if: needs.release.outputs.gas-oracle != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Publish Gas Oracle
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./gas-oracle/Dockerfile
-          push: true
-          tags: opbnb/gas-oracle:${{ needs.release.outputs.gas-oracle }},opbnb/gas-oracle:latest
-
-  hardhat-node:
-    name: Publish Hardhat Node ${{ needs.release.outputs.hardhat-node }}
-    needs: release
-    if: needs.release.outputs.hardhat-node != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Publish Hardhat Node
-        uses: docker/build-push-action@v2
-        with:
-          context: ./ops/docker/hardhat
-          file: ./ops/docker/hardhat/Dockerfile
-          push: true
-          tags: opbnb/hardhat-node:${{ needs.release.outputs.hardhat-node }},opbnb/hardhat-node:latest
-
-  foundry:
-    name: Publish foundry ${{ needs.release.outputs.foundry }}
-    needs: release
-    if: needs.release.outputs.foundry != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Publish foundry
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/foundry/Dockerfile
-          push: true
-          tags: opbnb/foundry:${{ needs.release.outputs.foundry }},opbnb/foundry:latest
-
-  l2geth-exporter:
-    name: Publish l2geth-exporter Version ${{ needs.release.outputs.l2geth-exporter}}
-    needs: release
-    if: needs.release.outputs.l2geth-exporter != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Set build args
-        id: build_args
-        run: |
-          echo ::set-output name=GITDATE::"$(date +%d-%m-%Y)"
-          echo ::set-output name=GITVERSION::$(jq -r .version ./l2geth-exporter/package.json)
-          echo ::set-output name=GITCOMMIT::"$GITHUB_SHA"
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./l2geth-exporter/Dockerfile
-          push: true
-          tags: opbnb/l2geth-exporter:${{ needs.release.outputs.l2geth-exporter }},opbnb/l2geth-exporter:latest
-          build-args: |
-            GITDATE=${{ steps.build_args.outputs.GITDATE }}
-            GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
-            GITVERSION=${{ steps.build_args.outputs.GITVERSION }}
-
   op-exporter:
     name: Publish op-exporter Version ${{ needs.release.outputs.op-exporter}}
     needs: release
@@ -245,30 +108,6 @@ jobs:
             GITDATE=${{ steps.build_args.outputs.GITDATE }}
             GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
             GITVERSION=${{ steps.build_args.outputs.GITVERSION }}
-
-  message-relayer:
-    name: Publish Message Relayer Version ${{ needs.release.outputs.message-relayer }}
-    needs: release
-    if: needs.release.outputs.message-relayer != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: message-relayer
-          push: true
-          tags: opbnb/message-relayer:${{ needs.release.outputs.message-relayer }},opbnb/message-relayer:latest
 
   fault-detector:
     name: Publish Fault Detector Version ${{ needs.release.outputs.fault-detector }}
@@ -366,126 +205,6 @@ jobs:
           push: true
           tags: opbnb/drippie-mon:${{ needs.release.outputs.drippie-mon }},opbnb/drippie-mon:latest
 
-  data-transport-layer:
-    name: Publish Data Transport Layer Version ${{ needs.release.outputs.data-transport-layer }}
-    needs: release
-    if: needs.release.outputs.data-transport-layer != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: data-transport-layer
-          push: true
-          tags: opbnb/data-transport-layer:${{ needs.release.outputs.data-transport-layer }},opbnb/data-transport-layer:latest
-
-  contracts:
-    name: Publish Deployer Version ${{ needs.release.outputs.contracts }}
-    needs: release
-    if: needs.release.outputs.contracts != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: deployer
-          push: true
-          tags: opbnb/deployer:${{ needs.release.outputs.contracts }},opbnb/deployer:latest
-
-  contracts-bedrock:
-    name: Publish deployer-bedrock Version ${{ needs.release.outputs.contracts-bedrock }}
-    needs: release
-    if: needs.release.outputs.contracts != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: deployer-bedrock
-          push: true
-          tags: opbnb/deployer-bedrock:${{ needs.release.outputs.contracts-bedrock }},opbnb/deployer-bedrock:latest
-
-  balance-monitor:
-    name: Publish balance-monitor Version ${{ needs.release.outputs.balance-monitor }}
-    needs: release
-    if: needs.release.outputs.balance-monitor != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: balance-monitor
-          push: true
-          tags: opbnb/balance-monitor:${{ needs.release.outputs.balance-monitor }},opbnb/balance-monitor:latest
-
-  integration_tests:
-    name: Publish Integration tests ${{ needs.release.outputs.integration-tests }}
-    needs: release
-    if: needs.release.outputs.integration-tests != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./ops/docker/Dockerfile.packages
-          target: integration-tests
-          push: true
-          tags: opbnb/integration-tests:${{ needs.release.outputs.integration-tests }},opbnb/integration-tests:latest
-
   replica-healthcheck:
     name: Publish Replica Healthcheck Version ${{ needs.release.outputs.replica-healthcheck }}
     needs: release
@@ -509,29 +228,6 @@ jobs:
           target: replica-healthcheck
           push: true
           tags: opbnb/replica-healthcheck:${{ needs.release.outputs.replica-healthcheck }},opbnb/replica-healthcheck:latest
-
-  batch-submitter-service:
-    name: Publish batch-submitter-service Version ${{ needs.release.outputs.batch-submitter-service }}
-    needs: release
-    if: needs.release.outputs.batch-submitter-service != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./batch-submitter/Dockerfile
-          push: true
-          tags: opbnb/batch-submitter-service:${{ needs.release.outputs.batch-submitter-service }},opbnb/batch-submitter-service:latest
 
   endpoint-monitor:
     name: Publish endpoint-monitor Version ${{ needs.release.outputs.endpoint-monitor}}
