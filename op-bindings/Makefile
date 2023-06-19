@@ -30,7 +30,10 @@ bindings: l1block-bindings \
 	optimism-mintable-erc721-factory-bindings \
 	l1-fee-vault-bindings \
 	basefee-vault-bindings \
-	legacy-erc20-eth-bindings
+	legacy-erc20-eth-bindings \
+	dispute-game-factory-bindings \
+	standard-bridge-bindings \
+	cross-domain-messenger-bindings
 
 version:
 	forge --version
@@ -121,6 +124,15 @@ deployer-whitelist-bindings: compile
 
 l1-blocknumber-bindings: compile
 	./gen_bindings.sh contracts/legacy/L1BlockNumber.sol:L1BlockNumber $(pkg)
+
+dispute-game-factory-bindings: compile
+	./gen_bindings.sh contracts/dispute/DisputeGameFactory.sol:DisputeGameFactory $(pkg)
+
+standard-bridge-bindings: compile
+	./gen_bindings.sh contracts/universal/StandardBridge.sol:StandardBridge $(pkg)
+
+cross-domain-messenger-bindings: compile
+	./gen_bindings.sh contracts/universal/CrossDomainMessenger.sol:CrossDomainMessenger $(pkg)
 
 more:
 	go run ./gen/main.go \
