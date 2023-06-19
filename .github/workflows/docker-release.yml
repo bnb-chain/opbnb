@@ -2,9 +2,6 @@ name: DockerImage for op-node
 
 on:
   push:
-    branches:
-      - main
-      - develop
     # Publish `v1.2.3` tags as releases.
     tags:
       - v*
