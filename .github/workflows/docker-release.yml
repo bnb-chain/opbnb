@@ -43,7 +43,7 @@ jobs:
           context: .
           file: ./op-node/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }}
+          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
 
   push-op-batcher:
     runs-on: ubuntu-latest
@@ -80,7 +80,7 @@ jobs:
           context: .
           file: ./op-batcher/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }}
+          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
   push-op-proposer:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
@@ -116,4 +116,4 @@ jobs:
           context: .
           file: ./op-proposer/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }}
+          tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
