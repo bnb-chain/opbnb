@@ -44,6 +44,8 @@ jobs:
           file: ./op-node/Dockerfile
           push: true
           tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache,mode=max
 
   push-op-batcher:
     runs-on: ubuntu-latest
@@ -81,6 +83,8 @@ jobs:
           file: ./op-batcher/Dockerfile
           push: true
           tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache,mode=max
   push-op-proposer:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
@@ -117,3 +121,5 @@ jobs:
           file: ./op-proposer/Dockerfile
           push: true
           tags: ${{ steps.image.outputs.IMAGE_ID }}:${{ steps.image.outputs.VERSION }},${{ steps.image.outputs.IMAGE_ID }}:latest
+          cache-from: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.IMAGE_ID }}:buildcache,mode=max
