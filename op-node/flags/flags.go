@@ -60,7 +60,7 @@ var (
 	}
 	RPCAdminPersistence = &cli.StringFlag{
 		Name:   "rpc.admin-state",
-		Usage:  "File path used to persist state changes made via the admin API so they persist across restarts",
+		Usage:  "File path used to persist state changes made via the admin API so they persist across restarts. Disabled if not set.",
 		EnvVar: prefixEnvVar("RPC_ADMIN_STATE"),
 	}
 
