@@ -17,6 +17,8 @@ type Config struct {
 	L2     L2EndpointSetup
 	L2Sync L2SyncEndpointSetup
 
+	Coordinator CoordinatorConfig
+
 	Driver driver.Config
 
 	Rollup rollup.Config
@@ -85,6 +87,9 @@ func (cfg *Config) Check() error {
 	}
 	if err := cfg.Rollup.Check(); err != nil {
 		return fmt.Errorf("rollup config error: %w", err)
+	}
+	if err := cfg.Coordinator.Check(); err != nil {
+		return fmt.Errorf("coordinator config error: %w", err)
 	}
 	if err := cfg.Metrics.Check(); err != nil {
 		return fmt.Errorf("metrics config error: %w", err)
