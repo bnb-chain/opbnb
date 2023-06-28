@@ -36,6 +36,33 @@ type L1EndpointSetup interface {
 	Check() error
 }
 
+type CoordinatorConfig struct {
+	// Enabled is true when the driver should request permission from op-coordinator before building new blocks.
+	// Default is false.
+	Enabled bool
+
+	// The sequencer id configured in the coordinator, used by Coordinator to distinguish different sequencers.
+	// It must be unique and same as the name of the sequencer node configured in the Coordinator service.
+	SequencerId string
+
+	// Address of the Coordinator JSON-RPC endpoint to use (opcoordinator namespace required).
+	CoordinatorAddr string
+}
+
+func (cfg *CoordinatorConfig) Check() error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if cfg.SequencerId == "" {
+		return errors.New("empty Sequencer Id")
+	}
+	if cfg.CoordinatorAddr == "" {
+		return errors.New("empty Coordinator Address")
+	}
+
+	return nil
+}
+
 type L2EndpointConfig struct {
 	L2EngineAddr string // Address of L2 Engine JSON-RPC endpoint to use (engine and eth namespace required)
 

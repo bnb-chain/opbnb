@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum-optimism/optimism/op-node/client"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -34,6 +35,8 @@ type Sequencer struct {
 	log    log.Logger
 	config *rollup.Config
 
+	coordinatorClient *client.CoordinatorClient
+
 	engine derive.ResettableEngineControl
 
 	attrBuilder      derive.AttributesBuilder
@@ -47,20 +50,27 @@ type Sequencer struct {
 	nextAction time.Time
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, coordinatorClient *client.CoordinatorClient, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
 	return &Sequencer{
-		log:              log,
-		config:           cfg,
-		engine:           engine,
-		timeNow:          time.Now,
-		attrBuilder:      attributesBuilder,
-		l1OriginSelector: l1OriginSelector,
-		metrics:          metrics,
+		log:               log,
+		config:            cfg,
+		engine:            engine,
+		coordinatorClient: coordinatorClient,
+		timeNow:           time.Now,
+		attrBuilder:       attributesBuilder,
+		l1OriginSelector:  l1OriginSelector,
+		metrics:           metrics,
 	}
 }
 
 // StartBuildingBlock initiates a block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
 func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
+	// External coordinator mode (configured by --coordinator.enabled=true): Sequencer requests permission to build
+	// new blocks from the external coordinator by calling RequestBuildingBlock().
+	if d.coordinatorClient != nil && !d.coordinatorClient.RequestBuildingBlock() {
+		return errors.New("failed to request permission for building block from coordinator")
+	}
+
 	l2Head := d.engine.UnsafeL2Head()
 
 	// Figure out which L1 origin block we're going to be building on top of.

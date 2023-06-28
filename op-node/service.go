@@ -56,13 +56,15 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 	}
 
 	l2SyncEndpoint := NewL2SyncEndpointConfig(ctx)
+	coordinator := NewCoordinatorConfig(ctx)
 
 	cfg := &node.Config{
-		L1:     l1Endpoint,
-		L2:     l2Endpoint,
-		L2Sync: l2SyncEndpoint,
-		Rollup: *rollupConfig,
-		Driver: *driverConfig,
+		L1:          l1Endpoint,
+		L2:          l2Endpoint,
+		L2Sync:      l2SyncEndpoint,
+		Coordinator: *coordinator,
+		Rollup:      *rollupConfig,
+		Driver:      *driverConfig,
 		RPC: node.RPCConfig{
 			ListenAddr:  ctx.GlobalString(flags.RPCListenAddr.Name),
 			ListenPort:  ctx.GlobalInt(flags.RPCListenPort.Name),
@@ -140,6 +142,14 @@ func NewL2SyncEndpointConfig(ctx *cli.Context) *node.L2SyncEndpointConfig {
 	return &node.L2SyncEndpointConfig{
 		L2NodeAddr: ctx.GlobalString(flags.BackupL2UnsafeSyncRPC.Name),
 		TrustRPC:   ctx.GlobalBool(flags.BackupL2UnsafeSyncRPCTrustRPC.Name),
+	}
+}
+
+func NewCoordinatorConfig(ctx *cli.Context) *node.CoordinatorConfig {
+	return &node.CoordinatorConfig{
+		Enabled:         ctx.GlobalBool(flags.CoordinatorEnabledFlag.Name),
+		CoordinatorAddr: ctx.GlobalString(flags.CoordinatorAddrFlag.Name),
+		SequencerId:     ctx.GlobalString(flags.CoordinatorSequencerIdFlag.Name),
 	}
 }
 
