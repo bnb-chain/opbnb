@@ -40,8 +40,6 @@ type OpNode struct {
 	tracer    Tracer                // tracer to get events for testing/debugging
 	runCfg    *RuntimeConfig        // runtime configurables
 
-	coordinatorClient *client.CoordinatorClient // Coordinator RPC
-
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
 	resourcesCtx   context.Context
@@ -83,9 +81,6 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	if err := n.initL1(ctx, cfg); err != nil {
 		return err
 	}
-	if err := n.initOpCoordinator(ctx, cfg); err != nil {
-		return err
-	}
 	if err := n.initRuntimeConfig(ctx, cfg); err != nil {
 		return err
 	}
@@ -117,22 +112,6 @@ func (n *OpNode) initTracer(ctx context.Context, cfg *Config) error {
 	} else {
 		n.tracer = new(noOpTracer)
 	}
-	return nil
-}
-
-func (n *OpNode) initOpCoordinator(ctx context.Context, cfg *Config) error {
-	if err := cfg.Coordinator.Check(); err != nil {
-		return fmt.Errorf("coordinator config is invalid: %w", err)
-	}
-
-	if cfg.Coordinator.Enabled {
-		var err error
-		n.coordinatorClient, err = client.NewCoordinatorClient(cfg.Coordinator.CoordinatorAddr, cfg.Coordinator.SequencerId)
-		if err != nil {
-			return fmt.Errorf("failed to get Coordinator RPC client: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -220,7 +199,10 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 		return err
 	}
 
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n.coordinatorClient, n, n.log, snapshotLog, n.metrics)
+	n.l2Driver, err = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics)
+	if err != nil {
+		return fmt.Errorf("failed to create driver: %w", err)
+	}
 
 	return nil
 }

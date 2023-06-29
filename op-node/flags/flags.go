@@ -132,6 +132,24 @@ var (
 		Required: false,
 		Value:    4,
 	}
+	SequencerCoordinatorEnabledFlag = cli.BoolFlag{
+		Name:     "sequencer.coordinator.enabled",
+		Usage:    "Enable the external coordinator sequencing mode, default to false",
+		EnvVar:   prefixEnvVar("SEQUENCER_COORDINATOR_ENABLED"),
+		Required: false,
+	}
+	SequencerCoordinatorAddr = cli.StringFlag{
+		Name:     "sequencer.coordinator.addr",
+		Usage:    "Coordinator listening address",
+		EnvVar:   prefixEnvVar("SEQUENCER_COORDINATOR_ADDR"),
+		Required: false,
+	}
+	SequencerCoordinatorSequencerIdFlag = cli.StringFlag{
+		Name:     "sequencer.coordinator.sequencer-id",
+		Usage:    "the sequencer id configured in the Coordinator, used by Coordinator to distinguish different sequencers",
+		EnvVar:   prefixEnvVar("SEQUENCER_COORDINATOR_SEQUENCER_ID"),
+		Required: false,
+	}
 	L1EpochPollIntervalFlag = cli.DurationFlag{
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
@@ -207,24 +225,6 @@ var (
 		EnvVar:   prefixEnvVar("L2_BACKUP_UNSAFE_SYNC_RPC_TRUST_RPC"),
 		Required: false,
 	}
-	CoordinatorEnabledFlag = cli.BoolFlag{
-		Name:     "coordinator.enabled",
-		Usage:    "Enable the external coordinator mode",
-		EnvVar:   prefixEnvVar("COORDINATOR_ENABLED"),
-		Required: false,
-	}
-	CoordinatorAddrFlag = cli.StringFlag{
-		Name:     "coordinator.addr",
-		Usage:    "Coordinator listening address",
-		EnvVar:   prefixEnvVar("COORDINATOR_ADDR"),
-		Required: false,
-	}
-	CoordinatorSequencerIdFlag = cli.StringFlag{
-		Name:     "coordinator.sequencer-id",
-		Usage:    "the sequencer id configured in the Coordinator, used by Coordinator to distinguish different sequencers",
-		EnvVar:   prefixEnvVar("COORDINATOR_SEQUENCER_ID"),
-		Required: false,
-	}
 )
 
 var requiredFlags = []cli.Flag{
@@ -248,6 +248,9 @@ var optionalFlags = []cli.Flag{
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
 	SequencerL1Confs,
+	SequencerCoordinatorEnabledFlag,
+	SequencerCoordinatorAddr,
+	SequencerCoordinatorSequencerIdFlag,
 	L1EpochPollIntervalFlag,
 	RPCEnableAdmin,
 	MetricsEnabledFlag,
@@ -262,9 +265,6 @@ var optionalFlags = []cli.Flag{
 	HeartbeatURLFlag,
 	BackupL2UnsafeSyncRPC,
 	BackupL2UnsafeSyncRPCTrustRPC,
-	CoordinatorEnabledFlag,
-	CoordinatorAddrFlag,
-	CoordinatorSequencerIdFlag,
 }
 
 // Flags contains the list of configuration options available to the binary.

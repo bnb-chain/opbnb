@@ -56,15 +56,13 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 	}
 
 	l2SyncEndpoint := NewL2SyncEndpointConfig(ctx)
-	coordinator := NewCoordinatorConfig(ctx)
 
 	cfg := &node.Config{
-		L1:          l1Endpoint,
-		L2:          l2Endpoint,
-		L2Sync:      l2SyncEndpoint,
-		Coordinator: *coordinator,
-		Rollup:      *rollupConfig,
-		Driver:      *driverConfig,
+		L1:     l1Endpoint,
+		L2:     l2Endpoint,
+		L2Sync: l2SyncEndpoint,
+		Rollup: *rollupConfig,
+		Driver: *driverConfig,
 		RPC: node.RPCConfig{
 			ListenAddr:  ctx.GlobalString(flags.RPCListenAddr.Name),
 			ListenPort:  ctx.GlobalInt(flags.RPCListenPort.Name),
@@ -145,21 +143,16 @@ func NewL2SyncEndpointConfig(ctx *cli.Context) *node.L2SyncEndpointConfig {
 	}
 }
 
-func NewCoordinatorConfig(ctx *cli.Context) *node.CoordinatorConfig {
-	return &node.CoordinatorConfig{
-		Enabled:         ctx.GlobalBool(flags.CoordinatorEnabledFlag.Name),
-		CoordinatorAddr: ctx.GlobalString(flags.CoordinatorAddrFlag.Name),
-		SequencerId:     ctx.GlobalString(flags.CoordinatorSequencerIdFlag.Name),
-	}
-}
-
 func NewDriverConfig(ctx *cli.Context) *driver.Config {
 	return &driver.Config{
-		VerifierConfDepth:   ctx.GlobalUint64(flags.VerifierL1Confs.Name),
-		SequencerConfDepth:  ctx.GlobalUint64(flags.SequencerL1Confs.Name),
-		SequencerEnabled:    ctx.GlobalBool(flags.SequencerEnabledFlag.Name),
-		SequencerStopped:    ctx.GlobalBool(flags.SequencerStoppedFlag.Name),
-		SequencerMaxSafeLag: ctx.GlobalUint64(flags.SequencerMaxSafeLagFlag.Name),
+		VerifierConfDepth:               ctx.GlobalUint64(flags.VerifierL1Confs.Name),
+		SequencerConfDepth:              ctx.GlobalUint64(flags.SequencerL1Confs.Name),
+		SequencerEnabled:                ctx.GlobalBool(flags.SequencerEnabledFlag.Name),
+		SequencerStopped:                ctx.GlobalBool(flags.SequencerStoppedFlag.Name),
+		SequencerMaxSafeLag:             ctx.GlobalUint64(flags.SequencerMaxSafeLagFlag.Name),
+		SequencerCoordinatorEnabled:     ctx.GlobalBool(flags.SequencerCoordinatorEnabledFlag.Name),
+		SequencerCoordinatorAddr:        ctx.GlobalString(flags.SequencerCoordinatorAddr.Name),
+		SequencerCoordinatorSequencerId: ctx.GlobalString(flags.SequencerCoordinatorSequencerIdFlag.Name),
 	}
 }
 

@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/ethereum/go-ethereum/log"
+	"fmt"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -24,16 +24,14 @@ func NewCoordinatorClient(url string, sequencerId string) (*CoordinatorClient, e
 }
 
 // RequestBuildingBlock is called by the sequencer to request a building block when using coordinator-mode.
-func (c *CoordinatorClient) RequestBuildingBlock() bool {
+func (c *CoordinatorClient) RequestBuildingBlock() error {
 	var respErr error
 	err := c.rpc.Call(respErr, "coordinator_requestBuildingBlock", c.sequencerId)
 	if err != nil {
-		log.Warn("Failed to call coordinator_requestBuildingBlock", "error", err)
-		return false
+		return fmt.Errorf("failed to call coordinator_requestBuildingBlock: %w", err)
 	}
 	if respErr != nil {
-		log.Warn("coordinator_requestBuildingBlock refused request", "error", respErr)
-		return false
+		return fmt.Errorf("coordinator_requestBuildingBlock refused request: %w", respErr)
 	}
-	return true
+	return nil
 }

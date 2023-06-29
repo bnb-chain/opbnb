@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -40,20 +39,24 @@ type L2Sequencer struct {
 	mockL1OriginSelector *MockL1OriginSelector
 }
 
-func NewL2Sequencer(t Testing, log log.Logger, l1 derive.L1Fetcher, eng L2API, cfg *rollup.Config, seqConfDepth uint64) *L2Sequencer {
+func NewL2Sequencer(t Testing, log log.Logger, l1 derive.L1Fetcher, eng L2API, cfg *rollup.Config, seqConfDepth uint64) (*L2Sequencer, error) {
 	ver := NewL2Verifier(t, log, l1, eng, cfg)
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, eng)
 	seqConfDepthL1 := driver.NewConfDepth(seqConfDepth, ver.l1State.L1Head, l1)
 	l1OriginSelector := &MockL1OriginSelector{
 		actual: driver.NewL1OriginSelector(log, cfg, seqConfDepthL1),
 	}
-	var coordinatorClient *client.CoordinatorClient
+	sequencer, err := driver.NewSequencer(log, nil, cfg, ver.derivation, attrBuilder, l1OriginSelector, metrics.NoopMetrics)
+	if err != nil {
+		return nil, err
+	}
+
 	return &L2Sequencer{
 		L2Verifier:              *ver,
-		sequencer:               driver.NewSequencer(log, cfg, ver.derivation, coordinatorClient, attrBuilder, l1OriginSelector, metrics.NoopMetrics),
+		sequencer:               sequencer,
 		mockL1OriginSelector:    l1OriginSelector,
 		failL2GossipUnsafeBlock: nil,
-	}
+	}, nil
 }
 
 // ActL2StartBlock starts building of a new L2 block on top of the head

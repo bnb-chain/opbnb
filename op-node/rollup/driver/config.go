@@ -20,4 +20,15 @@ type Config struct {
 	// SequencerMaxSafeLag is the maximum number of L2 blocks for restricting the distance between L2 safe and unsafe.
 	// Disabled if 0.
 	SequencerMaxSafeLag uint64 `json:"sequencer_max_safe_lag"`
+
+	// SequencerCoordinatorEnabled is true when the driver should request permission from op-coordinator before
+	// building new blocks.
+	SequencerCoordinatorEnabled bool `json:"sequencer_coordinator_enabled"`
+
+	// SequencerCoordinatorAddr is address of the Coordinator JSON-RPC endpoint.
+	SequencerCoordinatorAddr string `json:"sequencer_coordinator_addr"`
+
+	// SequencerCoordinatorSequencerId is used by Coordinator to distinguish different sequencers. It must be unique
+	// and same as the name of the sequencer node configured in the Coordinator service.
+	SequencerCoordinatorSequencerId string `json:"sequencer_coordinator_sequencer_id"`
 }

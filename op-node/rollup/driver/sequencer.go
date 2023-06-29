@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum-optimism/optimism/op-node/client"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -50,7 +50,22 @@ type Sequencer struct {
 	nextAction time.Time
 }
 
-func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, coordinatorClient *client.CoordinatorClient, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
+func NewSequencer(log log.Logger, driverCfg *Config, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) (*Sequencer, error) {
+	var coordinatorClient *client.CoordinatorClient
+	var err error
+	if driverCfg != nil && driverCfg.SequencerCoordinatorEnabled {
+		if driverCfg.SequencerCoordinatorAddr == "" {
+			return nil, errors.New("sequencer coordinator enabled but no address provided")
+		}
+		if driverCfg.SequencerCoordinatorSequencerId == "" {
+			return nil, errors.New("sequencer coordinator enabled but no sequencer id provided")
+		}
+		coordinatorClient, err = client.NewCoordinatorClient(driverCfg.SequencerCoordinatorAddr, driverCfg.SequencerCoordinatorSequencerId)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Sequencer{
 		log:               log,
 		config:            cfg,
@@ -60,17 +75,11 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 		attrBuilder:       attributesBuilder,
 		l1OriginSelector:  l1OriginSelector,
 		metrics:           metrics,
-	}
+	}, nil
 }
 
 // StartBuildingBlock initiates a block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
 func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
-	// External coordinator mode (configured by --coordinator.enabled=true): Sequencer requests permission to build
-	// new blocks from the external coordinator by calling RequestBuildingBlock().
-	if d.coordinatorClient != nil && !d.coordinatorClient.RequestBuildingBlock() {
-		return errors.New("failed to request permission for building block from coordinator")
-	}
-
 	l2Head := d.engine.UnsafeL2Head()
 
 	// Figure out which L1 origin block we're going to be building on top of.
@@ -240,6 +249,11 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			return payload, nil
 		}
 	} else {
+		if err := d.CanStartBuildingBlock(); err != nil {
+			d.log.Error("sequencer is not allowed to build block", "err", err)
+			d.nextAction = d.timeNow().Add(time.Second)
+			return nil, err
+		}
 		err := d.StartBuildingBlock(ctx)
 		if err != nil {
 			if errors.Is(err, derive.ErrCritical) {
@@ -262,4 +276,14 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 		}
 		return nil, nil
 	}
+}
+
+func (d *Sequencer) CanStartBuildingBlock() error {
+	if d.coordinatorClient == nil {
+		return nil
+	}
+
+	// External coordinator mode (configured by --coordinator.enabled=true): Sequencer requests permission to build
+	// new blocks from the external coordinator by calling RequestBuildingBlock().
+	return d.coordinatorClient.RequestBuildingBlock()
 }
