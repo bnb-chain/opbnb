@@ -47,6 +47,11 @@ type Driver struct {
 	// It tells the caller that the sequencer stopped by returning the latest sequenced L2 block hash.
 	stopSequencer chan chan hashAndError
 
+	// Upon receiving a channel in this channel, the current sequencer status is queried.
+	// It tells the caller the status by outputting a boolean to the provided channel:
+	// true when the sequencer is active, false when it is not.
+	sequencerActive chan chan bool
+
 	// Rollup config: rollup chain configuration
 	config *rollup.Config
 
@@ -347,6 +352,8 @@ func (s *Driver) eventLoop() {
 				s.driverConfig.SequencerStopped = true
 				respCh <- hashAndError{hash: s.derivation.UnsafeL2Head().Hash}
 			}
+		case respCh := <-s.sequencerActive:
+			respCh <- !s.driverConfig.SequencerStopped
 		case <-s.done:
 			return
 		}
@@ -406,6 +413,24 @@ func (s *Driver) StopSequencer(ctx context.Context) (common.Hash, error) {
 			return common.Hash{}, ctx.Err()
 		case he := <-respCh:
 			return he.hash, he.err
+		}
+	}
+}
+
+func (s *Driver) SequencerActive(ctx context.Context) (bool, error) {
+	if !s.driverConfig.SequencerEnabled {
+		return false, nil
+	}
+	respCh := make(chan bool, 1)
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	case s.sequencerActive <- respCh:
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case active := <-respCh:
+			return active, nil
 		}
 	}
 }

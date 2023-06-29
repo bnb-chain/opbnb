@@ -122,6 +122,7 @@ func NewDriver(driverCfg *Config, cfg *rollup.Config, l2 L2Chain, l1 L1Chain, al
 		forceReset:       make(chan chan struct{}, 10),
 		startSequencer:   make(chan hashAndErrorChannel, 10),
 		stopSequencer:    make(chan chan hashAndError, 10),
+		sequencerActive:  make(chan chan bool, 10),
 		config:           cfg,
 		driverConfig:     driverCfg,
 		done:             make(chan struct{}),
