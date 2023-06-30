@@ -12,16 +12,22 @@ volumes:
 
 services:
   l1:
-    build:
-      context: .
-      dockerfile: Dockerfile.l1
+    image: ghcr.io/bnb-chain/bsc:latest
+    platform: linux/amd64
     ports:
       - "8545:8545"
       - "7060:6060"
+    env_file:
+      - ./l1.env
+    user: root
     volumes:
       - "l1_data:/db"
-      - "${PWD}/../.devnet/genesis-l1.json:/genesis.json"
-      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
+      - "./l1-entrypoint.sh:/l1-entrypoint.sh"
+      - "./create_bls_key.sh:/create_bls_key.sh"
+      - "./config.toml:/config.toml"
+      - "./init_holders.template:/init_holders.template"
+      - "./bootnode:/bootnode"
+    entrypoint: /l1-entrypoint.sh
 
   l2:
     build:
@@ -48,21 +54,22 @@ services:
       dockerfile: ./op-node/Dockerfile
     command: >
       op-node
-      --l1=ws://l1:8546
+      --l1.trustrpc
+      --l1=http://l1:8545
       --l2=http://l2:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
       --sequencer.enabled
-      --sequencer.l1-confs=0
-      --verifier.l1-confs=0
+      --sequencer.l1-confs=15
+      --verifier.l1-confs=15
+      --l1.http-poll-interval=3s
+      --l1.epoch-poll-interval=3s
+      --l1.rpc-max-batch-size=20
       --p2p.sequencer.key=8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
       --rollup.config=/rollup.json
       --rpc.addr=0.0.0.0
       --rpc.port=8545
-      --p2p.listen.ip=0.0.0.0
-      --p2p.listen.tcp=9003
-      --p2p.listen.udp=9003
-      --p2p.scoring.peers=light
-      --p2p.ban.peers=true
+      --p2p.disable
+      --rpc.enable-admin
       --snapshotlog.file=/op_log/snapshot.log
       --p2p.priv.path=/config/p2p-node-key.txt
       --metrics.enabled
@@ -72,7 +79,6 @@ services:
       --rpc.enable-admin
     ports:
       - "7545:8545"
-      - "9003:9003"
       - "7300:7300"
       - "6060:6060"
     volumes:
@@ -98,12 +104,14 @@ services:
       OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
       OP_PROPOSER_POLL_INTERVAL: 1s
       OP_PROPOSER_NUM_CONFIRMATIONS: 1
-      OP_PROPOSER_MNEMONIC: test test test test test test test test test test test junk
-      OP_PROPOSER_L2_OUTPUT_HD_PATH: "m/44'/60'/0'/0/1"
+      OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT: 3
+      OP_PROPOSER_RESUBMISSION_TIMEOUT: "30s"
+      OP_PROPOSER_LOG_TERMINAL: "true"
       OP_PROPOSER_L2OO_ADDRESS: "${L2OO_ADDRESS}"
       OP_PROPOSER_PPROF_ENABLED: "true"
       OP_PROPOSER_METRICS_ENABLED: "true"
-      OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
+      OP_PROPOSER_ALLOW_NON_FINALIZED: "false"
+      OP_PROPOSER_PRIVATE_KEY: 59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8
 
   op-batcher:
     depends_on:
@@ -121,26 +129,35 @@ services:
       OP_BATCHER_L1_ETH_RPC: http://l1:8545
       OP_BATCHER_L2_ETH_RPC: http://l2:8545
       OP_BATCHER_ROLLUP_RPC: http://op-node:8545
-      OP_BATCHER_MAX_CHANNEL_DURATION: 1
-      OP_BATCHER_SUB_SAFETY_MARGIN: 4 # SWS is 15, ChannelTimeout is 40
+      OP_BATCHER_MAX_L1_TX_SIZE_BYTES: 120000
+      OP_BATCHER_TARGET_L1_TX_SIZE_BYTES: 100000
+      OP_BATCHER_TARGET_NUM_FRAMES: 30
+      OP_BATCHER_APPROX_COMPR_RATIO: "0.4"
+      OP_BATCHER_MAX_CHANNEL_DURATION: 120
+      OP_BATCHER_CHANNEL_TIMEOUT: 40
       OP_BATCHER_POLL_INTERVAL: 1s
+      OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT: 3
       OP_BATCHER_NUM_CONFIRMATIONS: 1
-      OP_BATCHER_MNEMONIC: test test test test test test test test test test test junk
-      OP_BATCHER_SEQUENCER_HD_PATH: "m/44'/60'/0'/0/2"
+      OP_BATCHER_TXMGR_RECEIPT_QUERY_INTERVAL: 1s
+      OP_BATCHER_RESUBMISSION_TIMEOUT: "30s"
+      OP_BATCHER_PRIVATE_KEY: 59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8
       OP_BATCHER_PPROF_ENABLED: "true"
       OP_BATCHER_METRICS_ENABLED: "true"
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
+      OP_BATCHER_LOG_TERMINAL: "true"
+      OP_BATCHER_SUB_SAFETY_MARGIN: 30 # SWS is 15, ChannelTimeout is 40
+      OP_BATCHER_MAX_PENDING_TX: 100
 
-  stateviz:
-    build:
-      context: ../
-      dockerfile: ./ops-bedrock/Dockerfile.stateviz
-    command:
-      - stateviz
-      - -addr=0.0.0.0:8080
-      - -snapshot=/op_log/snapshot.log
-      - -refresh=10s
-    ports:
-      - "9090:8080"
-    volumes:
-      - op_log:/op_log:ro
+#  stateviz:
+#    build:
+#      context: ../
+#      dockerfile: ./ops-bedrock/Dockerfile.stateviz
+#    command:
+#      - stateviz
+#      - -addr=0.0.0.0:8080
+#      - -snapshot=/op_log/snapshot.log
+#      - -refresh=10s
+#    ports:
+#      - "9090:8080"
+#    volumes:
+#      - op_log:/op_log:ro

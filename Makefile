@@ -66,7 +66,7 @@ nuke: clean devnet-clean
 .PHONY: nuke
 
 devnet-up:
-	@bash ./ops-bedrock/devnet-up.sh
+	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
 devnet-up-deploy:
