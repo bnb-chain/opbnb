@@ -74,6 +74,7 @@ nuke: clean devnet-clean
 .PHONY: nuke
 
 devnet-up:
+	pip3 install python-dotenv
 	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 

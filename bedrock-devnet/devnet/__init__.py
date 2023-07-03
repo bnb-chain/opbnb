@@ -12,6 +12,7 @@ import shutil
 
 import devnet.log_setup
 from devnet.genesis import GENESIS_TMPL
+from dotenv import dotenv_values
 
 pjoin = os.path.join
 
@@ -51,6 +52,11 @@ def main():
     )
 
     os.makedirs(devnet_dir, exist_ok=True)
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    bscChainId = l1env['BSC_CHAIN_ID']
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
 
     if args.deploy:
       log.info('Devnet with upcoming smart contract deployments')
@@ -131,9 +137,9 @@ def devnet_deploy(paths):
     else:
         log.info('Deploying contracts.')
         run_command(['yarn', 'hardhat', '--network', 'devnetL1', 'deploy', '--tags', 'l1'], env={
-            'CHAIN_ID': '900',
+            'CHAIN_ID': bscChainId,
             'L1_RPC': 'http://localhost:8545',
-            'PRIVATE_KEY_DEPLOYER': '59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8'
+            'PRIVATE_KEY_DEPLOYER': l1_init_holder_prv
         }, cwd=paths.contracts_bedrock_dir)
         contracts = os.listdir(paths.deployment_dir)
         addresses = {}
@@ -168,6 +174,17 @@ def devnet_deploy(paths):
         print(l1BlockTimestamp)
         deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
         deploy_config['l1StartingBlockTag'] = l1BlockTag
+        deploy_config['l1ChainID'] = int(bscChainId,10)
+        deploy_config['batchSenderAddress'] = l1_init_holder
+        deploy_config['l2OutputOracleProposer'] = l1_init_holder
+        deploy_config['baseFeeVaultRecipient'] = l1_init_holder
+        deploy_config['l1FeeVaultRecipient'] = l1_init_holder
+        deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
+        deploy_config['proxyAdminOwner'] = l1_init_holder
+        deploy_config['finalSystemOwner'] = l1_init_holder
+        deploy_config['portalGuardian'] = l1_init_holder
+        deploy_config['controller'] = l1_init_holder
+        deploy_config['governanceTokenOwner'] = l1_init_holder
         write_json(devnet_cfg_orig, deploy_config)
         log.info('Generating L2 genesis and rollup configs.')
         run_command([
@@ -188,7 +205,7 @@ def devnet_deploy(paths):
     run_command(['docker-compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    wait_up(9545)
+    wait_up_url("http://127.0.0.1:9545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}',"wait L2 geth up...")
 
     log.info('Bringing up everything else.')
     run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
@@ -196,6 +213,7 @@ def devnet_deploy(paths):
         'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
         'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
         'OP_BATCHER_SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
+        'INIT_HOLDER_PRV': l1_init_holder_prv
     })
 
     log.info('Devnet ready.')
