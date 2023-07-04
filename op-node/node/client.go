@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/sources"
+	service_client "github.com/ethereum-optimism/optimism/op-service/client"
 
 	"github.com/ethereum/go-ethereum/log"
 	gn "github.com/ethereum/go-ethereum/node"
@@ -175,10 +176,21 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
 	}
 
-	l1Node, err := client.NewRPC(ctx, log, cfg.L1NodeAddr, opts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to dial L1 address (%s): %w", cfg.L1NodeAddr, err)
+	L1NodeAddrUse := cfg.L1NodeAddr
+	isMultiUrl, urlList := service_client.MultiUrlParse(cfg.L1NodeAddr)
+	if isMultiUrl {
+		L1NodeAddrUse = urlList[0]
 	}
+	l1Node, err := client.NewRPC(ctx, log, L1NodeAddrUse, opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to dial L1 address (%s): %w", L1NodeAddrUse, err)
+	}
+	if isMultiUrl {
+		l1Node = sources.NewFallbackClient(l1Node, urlList, log, func(url string) (client.RPC, error) {
+			return client.NewRPC(ctx, log, url, opts...)
+		})
+	}
+
 	rpcCfg := sources.L1ClientDefaultConfig(rollupCfg, cfg.L1TrustRPC, cfg.L1RPCKind)
 	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
 	return l1Node, rpcCfg, nil
