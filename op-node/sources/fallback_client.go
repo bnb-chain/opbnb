@@ -82,6 +82,9 @@ func (l *FallbackClient) EthSubscribe(ctx context.Context, channel any, args ...
 func (l *FallbackClient) switchCurrentRpc() {
 	l.mx.Lock()
 	defer l.mx.Unlock()
+	if l.lastMinuteFail.Load() <= 10 {
+		return
+	}
 	l.currentIndex++
 	if l.currentIndex >= len(l.urlList) {
 		log.Error("fallback client has tried all urls")
