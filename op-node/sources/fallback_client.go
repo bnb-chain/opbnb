@@ -5,6 +5,8 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"sync"
@@ -22,6 +24,8 @@ type FallbackClient struct {
 	mx                sync.Mutex
 	log               log.Logger
 	isInFallbackState bool
+	subscribeFunc     func() (event.Subscription, error)
+	l1HeadsSub        *ethereum.Subscription
 }
 
 func NewFallbackClient(rpc client.RPC, urlList []string, log log.Logger, rpcInitFunc func(url string) (client.RPC, error)) client.RPC {
@@ -38,6 +42,10 @@ func NewFallbackClient(rpc client.RPC, urlList []string, log log.Logger, rpcInit
 	return fallbackClient
 }
 
+func (l *FallbackClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	return l.EthSubscribe(ctx, ch, "newHeads")
+}
+
 func (l *FallbackClient) Close() {
 	l.currentRpc.Close()
 	if l.currentRpc != l.firstRpc {
@@ -46,7 +54,7 @@ func (l *FallbackClient) Close() {
 }
 
 func (l *FallbackClient) CallContext(ctx context.Context, result any, method string, args ...any) error {
-	err := l.currentRpc.CallContext(ctx, result, method, args)
+	err := l.currentRpc.CallContext(ctx, result, method, args...)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -72,7 +80,7 @@ func (l *FallbackClient) BatchCallContext(ctx context.Context, b []rpc.BatchElem
 }
 
 func (l *FallbackClient) EthSubscribe(ctx context.Context, channel any, args ...any) (ethereum.Subscription, error) {
-	subscribe, err := l.currentRpc.EthSubscribe(ctx, channel, args)
+	subscribe, err := l.currentRpc.EthSubscribe(ctx, channel, args...)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -101,22 +109,41 @@ func (l *FallbackClient) switchCurrentRpc() {
 	}
 	l.lastMinuteFail.Store(0)
 	l.currentRpc = newRpc
+	if l.subscribeFunc != nil {
+		l.reSubscribeNewRpc(url)
+	}
+	log.Info("switch current rpc new url", "url", url)
 	if !l.isInFallbackState {
 		l.isInFallbackState = true
 		l.recoverIfFirstRpcHealth()
 	}
 }
 
+func (l *FallbackClient) reSubscribeNewRpc(url string) {
+	(*l.l1HeadsSub).Unsubscribe()
+	subscriptionNew, err := l.subscribeFunc()
+	if err != nil {
+		l.log.Error("can not subscribe new url", "url", url, "err", err)
+	} else {
+		*l.l1HeadsSub = subscriptionNew
+	}
+}
+
 func (l *FallbackClient) recoverIfFirstRpcHealth() {
 	go func() {
+		count := 0
 		for {
 			var id hexutil.Big
 			err := l.firstRpc.CallContext(context.Background(), &id, "eth_chainId")
 			if err != nil {
+				count = 0
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			break
+			count++
+			if count >= 3 {
+				break
+			}
 		}
 		l.mx.Lock()
 		defer l.mx.Unlock()
@@ -128,5 +155,14 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		l.currentRpc = l.firstRpc
 		l.currentIndex = 0
 		l.isInFallbackState = false
+		if l.subscribeFunc != nil {
+			l.reSubscribeNewRpc(l.urlList[0])
+		}
+		log.Info("recover current rpc to first rpc", "url", l.urlList[0])
 	}()
+}
+
+func (l *FallbackClient) RegisterSubscribeFunc(f func() (event.Subscription, error), l1HeadsSub *ethereum.Subscription) {
+	l.subscribeFunc = f
+	l.l1HeadsSub = l1HeadsSub
 }
