@@ -8,10 +8,10 @@ import (
 	"time"
 
 	opservice "github.com/ethereum-optimism/optimism/op-service"
+	service_client "github.com/ethereum-optimism/optimism/op-service/client"
 	opcrypto "github.com/ethereum-optimism/optimism/op-service/crypto"
 	"github.com/ethereum-optimism/optimism/op-signer/client"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli"
 )
@@ -181,7 +181,7 @@ func NewConfig(cfg CLIConfig, l log.Logger) (Config, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.NetworkTimeout)
 	defer cancel()
-	l1, err := ethclient.DialContext(ctx, cfg.L1RPCURL)
+	l1, err := service_client.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1RPCURL, service_client.DefaultDialTimeout, l)
 	if err != nil {
 		return Config{}, fmt.Errorf("could not dial eth client: %w", err)
 	}
