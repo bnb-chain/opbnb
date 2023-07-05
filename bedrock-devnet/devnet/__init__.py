@@ -169,9 +169,9 @@ def devnet_deploy(paths):
         shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
         deploy_config = read_json(devnet_cfg_orig)
         l1BlockTag = l1BlockTagGet()["result"]
-        print(l1BlockTag)
+        log.info(l1BlockTag)
         l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
-        print(l1BlockTimestamp)
+        log.info(l1BlockTimestamp)
         deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
         deploy_config['l1StartingBlockTag'] = l1BlockTag
         deploy_config['l1ChainID'] = int(bscChainId,10)
@@ -249,7 +249,7 @@ def wait_up(port, retries=10, wait_secs=1):
 
 def wait_up_url(url,body,wait_msg):
     status = True
-    print(wait_msg)
+    log.info(wait_msg)
     while status:
         try:
             headers = {
@@ -260,7 +260,7 @@ def wait_up_url(url,body,wait_msg):
             if response.status_code != 200:
                 time.sleep(5)
             else:
-                print("Status code is 200, continue next step")
+                log.info("Status code is 200, continue next step")
                 status = False
         except requests.exceptions.ConnectionError:
                 time.sleep(5)
@@ -272,11 +272,11 @@ def l1BlockTagGet():
     try:
         response = requests.post("http://127.0.0.1:8545",headers=headers,data='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}')
         if response.status_code != 200:
-            print(f'l1BlockTagGet resp status code is not 200, is {response.status_code}')
+            log.info(f'l1BlockTagGet resp status code is not 200, is {response.status_code}')
             raise Exception("l1BlockTagGet status not 200!")
         else:
             result=response.json()
-            print(result)
+            log.info(result)
             return result
     except requests.exceptions.ConnectionError:
         raise Exception("l1BlockTagGet connection fail")
@@ -288,7 +288,7 @@ def l1BlockTimestampGet(block_tag):
     try:
         response = requests.post("http://127.0.0.1:8545",headers=headers,data=f'{{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["{block_tag}", false],"id":74}}')
         if response.status_code != 200:
-            print(f'l1BlockTimestampGet resp status code is not 200, is {response.status_code}')
+            log.info(f'l1BlockTimestampGet resp status code is not 200, is {response.status_code}')
             raise Exception("l1BlockTimestampGet status not 200!")
         else:
             return response.json()
