@@ -64,7 +64,7 @@ func (l *FallbackClient) TransactionReceipt(ctx context.Context, txHash common.H
 }
 
 func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	err := l.SendTransaction(ctx, tx)
+	err := l.currentClient.SendTransaction(ctx, tx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -72,7 +72,7 @@ func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transact
 }
 
 func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	tipCap, err := l.SuggestGasTipCap(ctx)
+	tipCap, err := l.currentClient.SuggestGasTipCap(ctx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -80,7 +80,7 @@ func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
 func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
-	at, err := l.PendingNonceAt(ctx, account)
+	at, err := l.currentClient.PendingNonceAt(ctx, account)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -88,7 +88,7 @@ func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Addr
 }
 
 func (l *FallbackClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
-	estimateGas, err := l.EstimateGas(ctx, msg)
+	estimateGas, err := l.currentClient.EstimateGas(ctx, msg)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -119,23 +119,43 @@ func (l *FallbackClient) ChainID(ctx context.Context) (*big.Int, error) {
 }
 
 func (l *FallbackClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
-	return l.currentClient.BalanceAt(ctx, account, blockNumber)
+	balanceAt, err := l.currentClient.BalanceAt(ctx, account, blockNumber)
+	if err != nil {
+		l.handleErr(err)
+	}
+	return balanceAt, err
 }
 
 func (l *FallbackClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
-	return l.HeaderByNumber(ctx, number)
+	headerByNumber, err := l.currentClient.HeaderByNumber(ctx, number)
+	if err != nil {
+		l.handleErr(err)
+	}
+	return headerByNumber, err
 }
 
 func (l *FallbackClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
-	return l.StorageAt(ctx, account, key, blockNumber)
+	storageAt, err := l.currentClient.StorageAt(ctx, account, key, blockNumber)
+	if err != nil {
+		l.handleErr(err)
+	}
+	return storageAt, err
 }
 
 func (l *FallbackClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
-	return l.CodeAt(ctx, account, blockNumber)
+	codeAt, err := l.currentClient.CodeAt(ctx, account, blockNumber)
+	if err != nil {
+		l.handleErr(err)
+	}
+	return codeAt, err
 }
 
 func (l *FallbackClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
-	return l.NonceAt(ctx, account, blockNumber)
+	nonceAt, err := l.currentClient.NonceAt(ctx, account, blockNumber)
+	if err != nil {
+		l.handleErr(err)
+	}
+	return nonceAt, err
 }
 
 func (l *FallbackClient) handleErr(err error) {
