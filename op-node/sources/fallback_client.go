@@ -35,6 +35,7 @@ func NewFallbackClient(rpc client.RPC, urlList []string, log log.Logger, rpcInit
 		for {
 			select {
 			case <-ticker.C:
+				log.Debug("FallbackClient clear lastMinuteFail 0")
 				fallbackClient.lastMinuteFail.Store(0)
 			}
 		}
@@ -107,8 +108,8 @@ func (l *FallbackClient) switchCurrentRpc() {
 	if l.currentRpc != l.firstRpc {
 		l.currentRpc.Close()
 	}
-	l.lastMinuteFail.Store(0)
 	l.currentRpc = newRpc
+	l.lastMinuteFail.Store(0)
 	if l.subscribeFunc != nil {
 		l.reSubscribeNewRpc(url)
 	}
@@ -151,8 +152,8 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 			return
 		}
 		l.currentRpc.Close()
-		l.lastMinuteFail.Store(0)
 		l.currentRpc = l.firstRpc
+		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
 		if l.subscribeFunc != nil {
