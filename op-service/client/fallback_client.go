@@ -186,13 +186,13 @@ func (l *FallbackClient) switchCurrentClient() {
 	}
 	l.currentIndex++
 	if l.currentIndex >= len(l.urlList) {
-		log.Error("fallback client has tried all urls")
+		l.log.Error("fallback client has tried all urls")
 		return
 	}
 	url := l.urlList[l.currentIndex]
 	newClient, err := l.clientInitFunc(url)
 	if err != nil {
-		log.Error("fallback client switch current client fail", "url", url, "err", err)
+		l.log.Error("fallback client switch current client fail", "url", url, "err", err)
 		return
 	}
 	lastClient := l.currentClient
@@ -201,7 +201,7 @@ func (l *FallbackClient) switchCurrentClient() {
 		lastClient.Close()
 	}
 	l.lastMinuteFail.Store(0)
-	log.Info("switch current client new url", "url", url)
+	l.log.Info("switch current client new url", "url", url)
 	if !l.isInFallbackState {
 		l.isInFallbackState = true
 		l.recoverIfFirstRpcHealth()
@@ -234,6 +234,6 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
-		log.Info("recover current client to first client", "url", l.urlList[0])
+		l.log.Info("recover current client to first client", "url", l.urlList[0])
 	}()
 }
