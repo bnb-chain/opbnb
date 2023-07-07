@@ -26,7 +26,6 @@ services:
       - "./create_bls_key.sh:/create_bls_key.sh"
       - "./config.toml:/config.toml"
       - "./init_holders.template:/init_holders.template"
-      - "./bootnode:/bootnode"
     entrypoint: /l1-entrypoint.sh
 
   l2:
