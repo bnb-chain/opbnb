@@ -21,7 +21,11 @@ func MultiUrlParse(url string) (isMultiUrl bool, urlList []string) {
 	return false, []string{}
 }
 
+// FallbackClient is an EthClient, it can automatically switch to the next l1 endpoint
+// when there is a problem with the current l1 endpoint
+// and automatically switch back after the first l1 endpoint recovers.
 type FallbackClient struct {
+	// firstClient is created by the first of the l1 urls, it should be used first in a healthy state
 	firstClient       EthClient
 	urlList           []string
 	clientInitFunc    func(url string) (EthClient, error)
@@ -31,9 +35,11 @@ type FallbackClient struct {
 	mx                sync.Mutex
 	log               log.Logger
 	isInFallbackState bool
+	// fallbackThreshold specifies how many errors have occurred in the past 1 minute to trigger the switching logic
 	fallbackThreshold int64
 }
 
+// NewFallbackClient returns a new FallbackClient.
 func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallbackThreshold int64, clientInitFunc func(url string) (EthClient, error)) EthClient {
 	fallbackClient := &FallbackClient{
 		firstClient:       rpc,
@@ -186,13 +192,13 @@ func (l *FallbackClient) switchCurrentClient() {
 	}
 	l.currentIndex++
 	if l.currentIndex >= len(l.urlList) {
-		l.log.Error("fallback client has tried all urls")
+		l.log.Error("the fallback client has tried all urls")
 		return
 	}
 	url := l.urlList[l.currentIndex]
 	newClient, err := l.clientInitFunc(url)
 	if err != nil {
-		l.log.Error("fallback client switch current client fail", "url", url, "err", err)
+		l.log.Error("the fallback client failed to switch the current client", "url", url, "err", err)
 		return
 	}
 	lastClient := l.currentClient
@@ -201,7 +207,7 @@ func (l *FallbackClient) switchCurrentClient() {
 		lastClient.Close()
 	}
 	l.lastMinuteFail.Store(0)
-	l.log.Info("switch current client new url", "url", url)
+	l.log.Info("switched current rpc to new url", "url", url)
 	if !l.isInFallbackState {
 		l.isInFallbackState = true
 		l.recoverIfFirstRpcHealth()
@@ -234,6 +240,6 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
-		l.log.Info("recover current client to first client", "url", l.urlList[0])
+		l.log.Info("recover the current client to the first client", "url", l.urlList[0])
 	}()
 }
