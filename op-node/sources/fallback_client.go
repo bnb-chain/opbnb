@@ -17,7 +17,11 @@ import (
 	"time"
 )
 
+// FallbackClient is an RPC client, it can automatically switch to the next l1 endpoint
+// when there is a problem with the current l1 endpoint
+// and automatically switch back after the first l1 endpoint recovers.
 type FallbackClient struct {
+	// firstRpc is created by the first of the l1 urls, it should be used first in a healthy state
 	firstRpc          client.RPC
 	urlList           []string
 	rpcInitFunc       func(url string) (client.RPC, error)
@@ -34,6 +38,8 @@ type FallbackClient struct {
 	ctx               context.Context
 }
 
+// NewFallbackClient returns a new FallbackClient. l1ChainId and l1Block are used to check
+// whether the newly switched rpc is legal.
 func NewFallbackClient(ctx context.Context, rpc client.RPC, urlList []string, log log.Logger, l1ChainId *big.Int, l1Block eth.BlockID, rpcInitFunc func(url string) (client.RPC, error)) client.RPC {
 	fallbackClient := &FallbackClient{
 		ctx:          ctx,
@@ -114,7 +120,7 @@ func (l *FallbackClient) switchCurrentRpc() {
 		l.currentIndex++
 		err := l.switchCurrentRpcLogic()
 		if err != nil {
-			l.log.Warn("fallback client switch current rpc fail", "err", err)
+			l.log.Warn("the fallback client failed to switch the current client", "err", err)
 		} else {
 			break
 		}
@@ -123,12 +129,12 @@ func (l *FallbackClient) switchCurrentRpc() {
 
 func (l *FallbackClient) switchCurrentRpcLogic() error {
 	if l.currentIndex >= len(l.urlList) {
-		return fmt.Errorf("fallback client has tried all urls")
+		return fmt.Errorf("the fallback client has tried all urls")
 	}
 	url := l.urlList[l.currentIndex]
 	newRpc, err := l.rpcInitFunc(url)
 	if err != nil {
-		return fmt.Errorf("fallback client init RPC fail,url:%s, err:%v", url, err)
+		return fmt.Errorf("the fallback client init RPC failed,url:%s, err:%v", url, err)
 	}
 	vErr := l.validateRpc(newRpc)
 	if vErr != nil {
@@ -143,7 +149,7 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 	if l.subscribeFunc != nil {
 		l.reSubscribeNewRpc(url)
 	}
-	l.log.Info("switch current rpc new url", "url", url)
+	l.log.Info("switched current rpc to new url", "url", url)
 	if !l.isInFallbackState {
 		l.isInFallbackState = true
 		l.recoverIfFirstRpcHealth()
@@ -191,7 +197,7 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		if l.subscribeFunc != nil {
 			l.reSubscribeNewRpc(l.urlList[0])
 		}
-		l.log.Info("recover current rpc to first rpc", "url", l.urlList[0])
+		l.log.Info("recover the current rpc to the first rpc", "url", l.urlList[0])
 	}()
 }
 
