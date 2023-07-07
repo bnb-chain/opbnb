@@ -105,10 +105,11 @@ func (l *FallbackClient) switchCurrentRpc() {
 		log.Error("fallback client switch current RPC fail", "url", url, "err", err)
 		return
 	}
-	if l.currentRpc != l.firstRpc {
-		l.currentRpc.Close()
-	}
+	lastRpc := l.currentRpc
 	l.currentRpc = newRpc
+	if lastRpc != l.firstRpc {
+		lastRpc.Close()
+	}
 	l.lastMinuteFail.Store(0)
 	if l.subscribeFunc != nil {
 		l.reSubscribeNewRpc(url)
@@ -151,8 +152,9 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		if !l.isInFallbackState {
 			return
 		}
-		l.currentRpc.Close()
+		lastRpc := l.currentRpc
 		l.currentRpc = l.firstRpc
+		lastRpc.Close()
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
