@@ -31,10 +31,19 @@ type FallbackClient struct {
 	mx                sync.Mutex
 	log               log.Logger
 	isInFallbackState bool
+	fallbackThreshold int64
 }
 
-func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, clientInitFunc func(url string) (EthClient, error)) EthClient {
-	fallbackClient := &FallbackClient{firstClient: rpc, urlList: urlList, log: log, clientInitFunc: clientInitFunc, currentClient: rpc, currentIndex: 0}
+func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallbackThreshold int64, clientInitFunc func(url string) (EthClient, error)) EthClient {
+	fallbackClient := &FallbackClient{
+		firstClient:       rpc,
+		urlList:           urlList,
+		log:               log,
+		clientInitFunc:    clientInitFunc,
+		currentClient:     rpc,
+		currentIndex:      0,
+		fallbackThreshold: fallbackThreshold,
+	}
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		for {
@@ -164,7 +173,7 @@ func (l *FallbackClient) handleErr(err error) {
 		return
 	}
 	errCount := l.lastMinuteFail.Add(1)
-	if errCount > 10 {
+	if errCount > l.fallbackThreshold {
 		l.switchCurrentClient()
 	}
 }
@@ -172,7 +181,7 @@ func (l *FallbackClient) handleErr(err error) {
 func (l *FallbackClient) switchCurrentClient() {
 	l.mx.Lock()
 	defer l.mx.Unlock()
-	if l.lastMinuteFail.Load() <= 10 {
+	if l.lastMinuteFail.Load() <= l.fallbackThreshold {
 		return
 	}
 	l.currentIndex++
@@ -186,10 +195,11 @@ func (l *FallbackClient) switchCurrentClient() {
 		log.Error("fallback client switch current client fail", "url", url, "err", err)
 		return
 	}
-	if l.currentClient != l.firstClient {
-		l.currentClient.Close()
-	}
+	lastClient := l.currentClient
 	l.currentClient = newClient
+	if lastClient != l.firstClient {
+		lastClient.Close()
+	}
 	l.lastMinuteFail.Store(0)
 	log.Info("switch current client new url", "url", url)
 	if !l.isInFallbackState {
@@ -218,8 +228,9 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		if !l.isInFallbackState {
 			return
 		}
-		l.currentClient.Close()
+		lastClient := l.currentClient
 		l.currentClient = l.firstClient
+		lastClient.Close()
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false

@@ -23,7 +23,7 @@ func DialEthClientWithTimeout(ctx context.Context, url string, timeout time.Dura
 }
 
 // DialEthClientWithTimeoutAndFallback s
-func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger) (EthClient, error) {
+func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64) (EthClient, error) {
 	ctxt, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	isMultiUrl, urlList := MultiUrlParse(url)
@@ -32,7 +32,7 @@ func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeou
 		if err != nil {
 			return nil, err
 		}
-		fallbackClient := NewFallbackClient(firstEthClient, urlList, l, func(url string) (EthClient, error) {
+		fallbackClient := NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, func(url string) (EthClient, error) {
 			ctxtIn, cancelIn := context.WithTimeout(ctx, timeout)
 			defer cancelIn()
 			ethClientNew, err := ethclient.DialContext(ctxtIn, url)
