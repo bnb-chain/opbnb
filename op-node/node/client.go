@@ -186,7 +186,7 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 		return nil, nil, fmt.Errorf("failed to dial L1 address (%s): %w", L1NodeAddrUse, err)
 	}
 	if isMultiUrl {
-		l1Node = sources.NewFallbackClient(l1Node, urlList, log, func(url string) (client.RPC, error) {
+		l1Node = sources.NewFallbackClient(ctx, l1Node, urlList, log, rollupCfg.L1ChainID, rollupCfg.Genesis.L1, func(url string) (client.RPC, error) {
 			return client.NewRPC(ctx, log, url, opts...)
 		})
 	}
