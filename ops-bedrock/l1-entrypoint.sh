@@ -73,37 +73,10 @@ else
    echo "genesis.json exists."
 fi
 
-function generate_static_peers() {
-    tool=/bootnode
-    num=$1
-    target=$2
-    staticPeers=""
-    for ((i=0;i<$num;i++)); do
-        if [ $i -eq $target ]
-        then
-           continue
-        fi
-
-        file=${workspace}/bsc/clusterNetwork/node${i}/geth/nodekey
-        if [ ! -f "$file" ]; then
-            $tool -genkey $file
-        fi
-        port=30311
-        domain="bsc-node-${i}.bsc.svc.cluster.local"
-        if [ ! -z "$staticPeers" ]
-        then
-            staticPeers+=","
-        fi
-        staticPeers+='"'"enode://$($tool -nodekey $file -writeaddress)@$domain:$port"'"'
-    done
-
-    echo $staticPeers
-}
-
 function generate() {
     cd /
     geth init-network --init.dir ${workspace}/bsc/clusterNetwork --init.size=1 --config /config.toml ${genesisDir}/genesis.json
-    staticPeers=$(generate_static_peers 1 0)
+    staticPeers=""
     line=`grep -n -e 'StaticNodes' ${workspace}/bsc/clusterNetwork/node0/config.toml | cut -d : -f 1`
     head -n $((line-1)) ${workspace}/bsc/clusterNetwork/node0/config.toml >> ${workspace}/bsc/clusterNetwork/node0/config.toml-e
     echo "StaticNodes = [${staticPeers}]" >> ${workspace}/bsc/clusterNetwork/node0/config.toml-e
