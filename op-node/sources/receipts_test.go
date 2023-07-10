@@ -49,6 +49,15 @@ func (b *alchemyBackend) GetTransactionReceipts(p blockHashParameter) (*receipts
 	return &receiptsWrapper{Receipts: out[0].([]*types.Receipt)}, *out[1].(*error)
 }
 
+type noderealBackend struct {
+	*mock.Mock
+}
+
+func (b *noderealBackend) GetTransactionReceiptsByBlockHash(p common.Hash) ([]*types.Receipt, error) {
+	out := b.Mock.MethodCalled("nr_getTransactionReceiptsByBlockHash", p)
+	return out[0].([]*types.Receipt), *out[1].(*error)
+}
+
 type debugBackend struct {
 	*mock.Mock
 }
@@ -99,6 +108,7 @@ func (tc *ReceiptsTestCase) Run(t *testing.T) {
 	require.NoError(t, srv.RegisterName("alchemy", &alchemyBackend{Mock: m}))
 	require.NoError(t, srv.RegisterName("debug", &debugBackend{Mock: m}))
 	require.NoError(t, srv.RegisterName("parity", &parityBackend{Mock: m}))
+	require.NoError(t, srv.RegisterName("nr", &noderealBackend{Mock: m}))
 
 	block, requests := tc.setup(t)
 
@@ -127,6 +137,8 @@ func (tc *ReceiptsTestCase) Run(t *testing.T) {
 			m.On("parity_getBlockReceipts", block.Hash.String()).Once().Return(req.result, &req.err)
 		case EthGetBlockReceipts:
 			m.On("eth_getBlockReceipts", block.Hash.String()).Once().Return(req.result, &req.err)
+		case NodeRealGetTransactionReceiptsByBlockHash:
+			m.On("nr_getTransactionReceiptsByBlockHash", block.Hash).Once().Return(req.result, &req.err)
 		default:
 			t.Fatalf("unrecognized request method: %d", uint64(req.method))
 		}
@@ -308,6 +320,16 @@ func TestEthClient_FetchReceipts(t *testing.T) {
 				EthGetBlockReceipts,
 				ParityGetBlockReceipts,
 			),
+		},
+		{
+			name:         "nodereal",
+			providerKind: RPCKindNodeReal,
+			setup:        fallbackCase(30, NodeRealGetTransactionReceiptsByBlockHash),
+		},
+		{
+			name:         "nodereal low tx count cost saving",
+			providerKind: RPCKindNodeReal,
+			setup:        fallbackCase(4, EthGetTransactionReceiptBatch),
 		},
 	}
 

@@ -123,6 +123,7 @@ const (
 	RPCKindErigon     RPCProviderKind = "erigon"
 	RPCKindBasic      RPCProviderKind = "basic" // try only the standard most basic receipt fetching
 	RPCKindAny        RPCProviderKind = "any"   // try any method available
+	RPCKindNodeReal   RPCProviderKind = "nodereal"
 )
 
 var RPCProviderKinds = []RPCProviderKind{
@@ -135,6 +136,7 @@ var RPCProviderKinds = []RPCProviderKind{
 	RPCKindErigon,
 	RPCKindBasic,
 	RPCKindAny,
+	RPCKindNodeReal,
 }
 
 func (kind RPCProviderKind) String() string {
@@ -179,6 +181,7 @@ func (r ReceiptsFetchingMethod) String() string {
 	addMaybe(DebugGetRawReceipts, "debug_getRawReceipts")
 	addMaybe(ParityGetBlockReceipts, "parity_getBlockReceipts")
 	addMaybe(EthGetBlockReceipts, "eth_getBlockReceipts")
+	addMaybe(NodeRealGetTransactionReceiptsByBlockHash, "nr_getTransactionReceiptsByBlockHash")
 	addMaybe(^ReceiptsFetchingMethod(0), "unknown") // if anything is left, describe it as unknown
 	return out
 }
@@ -245,6 +248,8 @@ const (
 	//   - Alchemy: https://docs.alchemy.com/reference/eth-getblockreceipts
 	EthGetBlockReceipts
 
+	NodeRealGetTransactionReceiptsByBlockHash
+
 	// Other:
 	//  - 250 credits, not supported, strictly worse than other options. In quicknode price-table.
 	// qn_getBlockWithReceipts - in price table, ? undocumented, but in quicknode "Single Flight RPC" description
@@ -276,6 +281,8 @@ func AvailableReceiptsFetchingMethods(kind RPCProviderKind) ReceiptsFetchingMeth
 		// if it's any kind of RPC provider, then try all methods
 		return AlchemyGetTransactionReceipts | EthGetBlockReceipts |
 			DebugGetRawReceipts | ParityGetBlockReceipts | EthGetTransactionReceiptBatch
+	case RPCKindNodeReal:
+		return NodeRealGetTransactionReceiptsByBlockHash | EthGetTransactionReceiptBatch
 	default:
 		return EthGetTransactionReceiptBatch
 	}
@@ -315,6 +322,11 @@ func PickBestReceiptsFetchingMethod(kind RPCProviderKind, available ReceiptsFetc
 	}
 	if available&ParityGetBlockReceipts != 0 {
 		return ParityGetBlockReceipts
+	}
+	if kind == RPCKindNodeReal {
+		if available&NodeRealGetTransactionReceiptsByBlockHash != 0 && txCount > 250/15 {
+			return NodeRealGetTransactionReceiptsByBlockHash
+		}
 	}
 	// otherwise fall back on per-tx fetching
 	return EthGetTransactionReceiptBatch
@@ -428,6 +440,8 @@ func (job *receiptsFetchingJob) runAltMethod(ctx context.Context, m ReceiptsFetc
 		err = job.client.CallContext(ctx, &result, "parity_getBlockReceipts", job.block.Hash)
 	case EthGetBlockReceipts:
 		err = job.client.CallContext(ctx, &result, "eth_getBlockReceipts", job.block.Hash)
+	case NodeRealGetTransactionReceiptsByBlockHash:
+		err = job.client.CallContext(ctx, &result, "nr_getTransactionReceiptsByBlockHash", job.block.Hash)
 	default:
 		err = fmt.Errorf("unknown receipt fetching method: %d", uint64(m))
 	}
