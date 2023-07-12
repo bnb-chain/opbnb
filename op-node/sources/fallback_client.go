@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/event"
@@ -36,6 +37,7 @@ type FallbackClient struct {
 	l1Block           eth.BlockID
 	ctx               context.Context
 	isClose           chan struct{}
+	metrics           metrics.Metricer
 }
 
 const threshold int64 = 10
@@ -97,6 +99,9 @@ func (l *FallbackClient) handleErr(err error) {
 	if err == rpc.ErrNoResult {
 		return
 	}
+	if _, ok := err.(rpc.Error); ok {
+		return
+	}
 	l.lastMinuteFail.Add(1)
 }
 
@@ -125,6 +130,9 @@ func (l *FallbackClient) switchCurrentRpc() {
 	defer l.mx.Unlock()
 	if l.lastMinuteFail.Load() <= threshold {
 		return
+	}
+	if l.metrics != nil {
+		l.metrics.RecordL1UrlSwitchEvent()
 	}
 	for {
 		l.currentIndex++
@@ -259,4 +267,8 @@ func (l *FallbackClient) l1BlockRefByNumber(ctx context.Context, number uint64, 
 		return nil, err
 	}
 	return header, nil
+}
+
+func (l *FallbackClient) RegisterMetrics(metrics metrics.Metricer) {
+	l.metrics = metrics
 }
