@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 	"math/big"
 	"time"
 
@@ -174,14 +175,14 @@ func ReadCLIConfig(ctx *cli.Context) CLIConfig {
 	}
 }
 
-func NewConfig(cfg CLIConfig, l log.Logger) (Config, error) {
+func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, error) {
 	if err := cfg.Check(); err != nil {
 		return Config{}, fmt.Errorf("invalid config: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.NetworkTimeout)
 	defer cancel()
-	l1, err := service_client.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1RPCURL, service_client.DefaultDialTimeout, l, 3)
+	l1, err := service_client.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1RPCURL, service_client.DefaultDialTimeout, l, 3, m)
 	if err != nil {
 		return Config{}, fmt.Errorf("could not dial eth client: %w", err)
 	}

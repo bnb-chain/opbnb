@@ -2,12 +2,14 @@ package client
 
 import (
 	"context"
+	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +21,24 @@ func MultiUrlParse(url string) (isMultiUrl bool, urlList []string) {
 		return true, strings.Split(url, ",")
 	}
 	return false, []string{}
+}
+
+type FallbackClientMetricer interface {
+	RecordL1UrlSwitchEvt(url string)
+}
+
+type FallbackClientMetrics struct {
+	l1UrlSwitchEvt opmetrics.EventVec
+}
+
+func (f *FallbackClientMetrics) RecordL1UrlSwitchEvt(url string) {
+	f.l1UrlSwitchEvt.Record(url)
+}
+
+func NewFallbackClientMetrics(ns string, factory opmetrics.Factory) *FallbackClientMetrics {
+	return &FallbackClientMetrics{
+		l1UrlSwitchEvt: opmetrics.NewEventVec(factory, ns, "", "l1_url_switch", "l1 url switch", []string{"url_idx"}),
+	}
 }
 
 // FallbackClient is an EthClient, it can automatically switch to the next l1 endpoint
@@ -38,10 +58,11 @@ type FallbackClient struct {
 	// fallbackThreshold specifies how many errors have occurred in the past 1 minute to trigger the switching logic
 	fallbackThreshold int64
 	isClose           chan struct{}
+	metrics           FallbackClientMetricer
 }
 
 // NewFallbackClient returns a new FallbackClient.
-func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallbackThreshold int64, clientInitFunc func(url string) (EthClient, error)) EthClient {
+func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallbackThreshold int64, m FallbackClientMetricer, clientInitFunc func(url string) (EthClient, error)) EthClient {
 	fallbackClient := &FallbackClient{
 		firstClient:       rpc,
 		urlList:           urlList,
@@ -49,6 +70,7 @@ func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallback
 		clientInitFunc:    clientInitFunc,
 		currentIndex:      0,
 		fallbackThreshold: fallbackThreshold,
+		metrics:           m,
 	}
 	fallbackClient.currentClient.Store(&rpc)
 	go func() {
@@ -190,6 +212,9 @@ func (l *FallbackClient) handleErr(err error) {
 	if err == rpc.ErrNoResult {
 		return
 	}
+	if _, ok := err.(rpc.Error); ok {
+		return
+	}
 	l.lastMinuteFail.Add(1)
 }
 
@@ -204,6 +229,7 @@ func (l *FallbackClient) switchCurrentClient() {
 		l.log.Error("the fallback client has tried all urls")
 		return
 	}
+	l.metrics.RecordL1UrlSwitchEvt(strconv.Itoa(l.currentIndex))
 	url := l.urlList[l.currentIndex]
 	newClient, err := l.clientInitFunc(url)
 	if err != nil {
