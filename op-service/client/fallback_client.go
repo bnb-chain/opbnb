@@ -30,13 +30,14 @@ type FallbackClient struct {
 	urlList           []string
 	clientInitFunc    func(url string) (EthClient, error)
 	lastMinuteFail    atomic.Int64
-	currentClient     EthClient
+	currentClient     atomic.Pointer[EthClient]
 	currentIndex      int
 	mx                sync.Mutex
 	log               log.Logger
 	isInFallbackState bool
 	// fallbackThreshold specifies how many errors have occurred in the past 1 minute to trigger the switching logic
 	fallbackThreshold int64
+	isClose           chan struct{}
 }
 
 // NewFallbackClient returns a new FallbackClient.
@@ -46,10 +47,10 @@ func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallback
 		urlList:           urlList,
 		log:               log,
 		clientInitFunc:    clientInitFunc,
-		currentClient:     rpc,
 		currentIndex:      0,
 		fallbackThreshold: fallbackThreshold,
 	}
+	fallbackClient.currentClient.Store(&rpc)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		for {
@@ -57,14 +58,21 @@ func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallback
 			case <-ticker.C:
 				log.Debug("FallbackClient clear lastMinuteFail 0")
 				fallbackClient.lastMinuteFail.Store(0)
+			case <-fallbackClient.isClose:
+				return
+			default:
+				if fallbackClient.lastMinuteFail.Load() >= fallbackClient.fallbackThreshold {
+					fallbackClient.switchCurrentClient()
+				}
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}()
 	return fallbackClient
 }
 
 func (l *FallbackClient) BlockNumber(ctx context.Context) (uint64, error) {
-	number, err := l.currentClient.BlockNumber(ctx)
+	number, err := (*l.currentClient.Load()).BlockNumber(ctx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -72,7 +80,7 @@ func (l *FallbackClient) BlockNumber(ctx context.Context) (uint64, error) {
 }
 
 func (l *FallbackClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
-	receipt, err := l.currentClient.TransactionReceipt(ctx, txHash)
+	receipt, err := (*l.currentClient.Load()).TransactionReceipt(ctx, txHash)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -80,7 +88,7 @@ func (l *FallbackClient) TransactionReceipt(ctx context.Context, txHash common.H
 }
 
 func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	err := l.currentClient.SendTransaction(ctx, tx)
+	err := (*l.currentClient.Load()).SendTransaction(ctx, tx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -88,7 +96,7 @@ func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transact
 }
 
 func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	tipCap, err := l.currentClient.SuggestGasTipCap(ctx)
+	tipCap, err := (*l.currentClient.Load()).SuggestGasTipCap(ctx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -96,7 +104,7 @@ func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
 func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
-	at, err := l.currentClient.PendingNonceAt(ctx, account)
+	at, err := (*l.currentClient.Load()).PendingNonceAt(ctx, account)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -104,7 +112,7 @@ func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Addr
 }
 
 func (l *FallbackClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
-	estimateGas, err := l.currentClient.EstimateGas(ctx, msg)
+	estimateGas, err := (*l.currentClient.Load()).EstimateGas(ctx, msg)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -112,7 +120,7 @@ func (l *FallbackClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) 
 }
 
 func (l *FallbackClient) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	contract, err := l.currentClient.CallContract(ctx, call, blockNumber)
+	contract, err := (*l.currentClient.Load()).CallContract(ctx, call, blockNumber)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -120,14 +128,18 @@ func (l *FallbackClient) CallContract(ctx context.Context, call ethereum.CallMsg
 }
 
 func (l *FallbackClient) Close() {
-	l.currentClient.Close()
-	if l.currentClient != l.firstClient {
+	l.mx.Lock()
+	defer l.mx.Unlock()
+	l.isClose <- struct{}{}
+	currentClient := *l.currentClient.Load()
+	currentClient.Close()
+	if currentClient != l.firstClient {
 		l.firstClient.Close()
 	}
 }
 
 func (l *FallbackClient) ChainID(ctx context.Context) (*big.Int, error) {
-	id, err := l.currentClient.ChainID(ctx)
+	id, err := (*l.currentClient.Load()).ChainID(ctx)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -135,7 +147,7 @@ func (l *FallbackClient) ChainID(ctx context.Context) (*big.Int, error) {
 }
 
 func (l *FallbackClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
-	balanceAt, err := l.currentClient.BalanceAt(ctx, account, blockNumber)
+	balanceAt, err := (*l.currentClient.Load()).BalanceAt(ctx, account, blockNumber)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -143,7 +155,7 @@ func (l *FallbackClient) BalanceAt(ctx context.Context, account common.Address, 
 }
 
 func (l *FallbackClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
-	headerByNumber, err := l.currentClient.HeaderByNumber(ctx, number)
+	headerByNumber, err := (*l.currentClient.Load()).HeaderByNumber(ctx, number)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -151,7 +163,7 @@ func (l *FallbackClient) HeaderByNumber(ctx context.Context, number *big.Int) (*
 }
 
 func (l *FallbackClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
-	storageAt, err := l.currentClient.StorageAt(ctx, account, key, blockNumber)
+	storageAt, err := (*l.currentClient.Load()).StorageAt(ctx, account, key, blockNumber)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -159,7 +171,7 @@ func (l *FallbackClient) StorageAt(ctx context.Context, account common.Address, 
 }
 
 func (l *FallbackClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
-	codeAt, err := l.currentClient.CodeAt(ctx, account, blockNumber)
+	codeAt, err := (*l.currentClient.Load()).CodeAt(ctx, account, blockNumber)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -167,7 +179,7 @@ func (l *FallbackClient) CodeAt(ctx context.Context, account common.Address, blo
 }
 
 func (l *FallbackClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
-	nonceAt, err := l.currentClient.NonceAt(ctx, account, blockNumber)
+	nonceAt, err := (*l.currentClient.Load()).NonceAt(ctx, account, blockNumber)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -178,10 +190,7 @@ func (l *FallbackClient) handleErr(err error) {
 	if err == rpc.ErrNoResult {
 		return
 	}
-	errCount := l.lastMinuteFail.Add(1)
-	if errCount > l.fallbackThreshold {
-		l.switchCurrentClient()
-	}
+	l.lastMinuteFail.Add(1)
 }
 
 func (l *FallbackClient) switchCurrentClient() {
@@ -201,8 +210,8 @@ func (l *FallbackClient) switchCurrentClient() {
 		l.log.Error("the fallback client failed to switch the current client", "url", url, "err", err)
 		return
 	}
-	lastClient := l.currentClient
-	l.currentClient = newClient
+	lastClient := *l.currentClient.Load()
+	l.currentClient.Store(&newClient)
 	if lastClient != l.firstClient {
 		lastClient.Close()
 	}
@@ -234,8 +243,8 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		if !l.isInFallbackState {
 			return
 		}
-		lastClient := l.currentClient
-		l.currentClient = l.firstClient
+		lastClient := *l.currentClient.Load()
+		l.currentClient.Store(&l.firstClient)
 		lastClient.Close()
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0

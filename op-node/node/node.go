@@ -141,7 +141,7 @@ func (n *OpNode) initL1(ctx context.Context, cfg *Config) error {
 
 	if fallbackClient, ok := l1Node.(*sources.FallbackClient); ok {
 		fallbackClient.RegisterSubscribeFunc(func() (event.Subscription, error) {
-			return eth.WatchHeadChanges(n.resourcesCtx, fallbackClient, n.OnNewL1Head)
+			return eth.WatchHeadChanges(n.resourcesCtx, n.l1Source, n.OnNewL1Head)
 		}, &n.l1HeadsSub)
 	}
 	go func() {

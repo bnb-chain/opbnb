@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -26,7 +25,7 @@ type FallbackClient struct {
 	urlList           []string
 	rpcInitFunc       func(url string) (client.RPC, error)
 	lastMinuteFail    atomic.Int64
-	currentRpc        client.RPC
+	currentRpc        atomic.Pointer[client.RPC]
 	currentIndex      int
 	mx                sync.Mutex
 	log               log.Logger
@@ -36,7 +35,10 @@ type FallbackClient struct {
 	l1ChainId         *big.Int
 	l1Block           eth.BlockID
 	ctx               context.Context
+	isClose           chan struct{}
 }
+
+const threshold int64 = 10
 
 // NewFallbackClient returns a new FallbackClient. l1ChainId and l1Block are used to check
 // whether the newly switched rpc is legal.
@@ -47,11 +49,11 @@ func NewFallbackClient(ctx context.Context, rpc client.RPC, urlList []string, lo
 		urlList:      urlList,
 		log:          log,
 		rpcInitFunc:  rpcInitFunc,
-		currentRpc:   rpc,
 		currentIndex: 0,
 		l1ChainId:    l1ChainId,
 		l1Block:      l1Block,
 	}
+	fallbackClient.currentRpc.Store(&rpc)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		for {
@@ -59,25 +61,32 @@ func NewFallbackClient(ctx context.Context, rpc client.RPC, urlList []string, lo
 			case <-ticker.C:
 				log.Debug("FallbackClient clear lastMinuteFail 0")
 				fallbackClient.lastMinuteFail.Store(0)
+			case <-fallbackClient.isClose:
+				return
+			default:
+				if fallbackClient.lastMinuteFail.Load() > threshold {
+					fallbackClient.switchCurrentRpc()
+				}
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}()
 	return fallbackClient
 }
 
-func (l *FallbackClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
-	return l.EthSubscribe(ctx, ch, "newHeads")
-}
-
 func (l *FallbackClient) Close() {
-	l.currentRpc.Close()
-	if l.currentRpc != l.firstRpc {
+	l.mx.Lock()
+	defer l.mx.Unlock()
+	l.isClose <- struct{}{}
+	currentRpc := *l.currentRpc.Load()
+	currentRpc.Close()
+	if currentRpc != l.firstRpc {
 		l.firstRpc.Close()
 	}
 }
 
 func (l *FallbackClient) CallContext(ctx context.Context, result any, method string, args ...any) error {
-	err := l.currentRpc.CallContext(ctx, result, method, args...)
+	err := (*l.currentRpc.Load()).CallContext(ctx, result, method, args...)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -88,14 +97,11 @@ func (l *FallbackClient) handleErr(err error) {
 	if err == rpc.ErrNoResult {
 		return
 	}
-	errCount := l.lastMinuteFail.Add(1)
-	if errCount > 10 {
-		l.switchCurrentRpc()
-	}
+	l.lastMinuteFail.Add(1)
 }
 
 func (l *FallbackClient) BatchCallContext(ctx context.Context, b []rpc.BatchElem) error {
-	err := l.currentRpc.BatchCallContext(ctx, b)
+	err := (*l.currentRpc.Load()).BatchCallContext(ctx, b)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -103,7 +109,7 @@ func (l *FallbackClient) BatchCallContext(ctx context.Context, b []rpc.BatchElem
 }
 
 func (l *FallbackClient) EthSubscribe(ctx context.Context, channel any, args ...any) (ethereum.Subscription, error) {
-	subscribe, err := l.currentRpc.EthSubscribe(ctx, channel, args...)
+	subscribe, err := (*l.currentRpc.Load()).EthSubscribe(ctx, channel, args...)
 	if err != nil {
 		l.handleErr(err)
 	}
@@ -111,13 +117,21 @@ func (l *FallbackClient) EthSubscribe(ctx context.Context, channel any, args ...
 }
 
 func (l *FallbackClient) switchCurrentRpc() {
+	if l.currentIndex >= len(l.urlList) {
+		l.log.Error("the fallback client has tried all urls, but all failed")
+		return
+	}
 	l.mx.Lock()
 	defer l.mx.Unlock()
-	if l.lastMinuteFail.Load() <= 10 {
+	if l.lastMinuteFail.Load() <= threshold {
 		return
 	}
 	for {
 		l.currentIndex++
+		if l.currentIndex >= len(l.urlList) {
+			l.log.Error("the fallback client has tried all urls, but all failed")
+			break
+		}
 		err := l.switchCurrentRpcLogic()
 		if err != nil {
 			l.log.Warn("the fallback client failed to switch the current client", "err", err)
@@ -128,9 +142,6 @@ func (l *FallbackClient) switchCurrentRpc() {
 }
 
 func (l *FallbackClient) switchCurrentRpcLogic() error {
-	if l.currentIndex >= len(l.urlList) {
-		return fmt.Errorf("the fallback client has tried all urls")
-	}
 	url := l.urlList[l.currentIndex]
 	newRpc, err := l.rpcInitFunc(url)
 	if err != nil {
@@ -140,14 +151,17 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 	if vErr != nil {
 		return vErr
 	}
-	lastRpc := l.currentRpc
-	l.currentRpc = newRpc
+	lastRpc := *l.currentRpc.Load()
+	l.currentRpc.Store(&newRpc)
 	if lastRpc != l.firstRpc {
 		lastRpc.Close()
 	}
 	l.lastMinuteFail.Store(0)
 	if l.subscribeFunc != nil {
-		l.reSubscribeNewRpc(url)
+		err := l.reSubscribeNewRpc(url)
+		if err != nil {
+			return err
+		}
 	}
 	l.log.Info("switched current rpc to new url", "url", url)
 	if !l.isInFallbackState {
@@ -157,14 +171,16 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 	return nil
 }
 
-func (l *FallbackClient) reSubscribeNewRpc(url string) {
+func (l *FallbackClient) reSubscribeNewRpc(url string) error {
 	(*l.l1HeadsSub).Unsubscribe()
 	subscriptionNew, err := l.subscribeFunc()
 	if err != nil {
 		l.log.Error("can not subscribe new url", "url", url, "err", err)
+		return err
 	} else {
 		*l.l1HeadsSub = subscriptionNew
 	}
+	return nil
 }
 
 func (l *FallbackClient) recoverIfFirstRpcHealth() {
@@ -188,14 +204,17 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		if !l.isInFallbackState {
 			return
 		}
-		lastRpc := l.currentRpc
-		l.currentRpc = l.firstRpc
+		lastRpc := *l.currentRpc.Load()
+		l.currentRpc.Store(&l.firstRpc)
 		lastRpc.Close()
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
 		if l.subscribeFunc != nil {
-			l.reSubscribeNewRpc(l.urlList[0])
+			err := l.reSubscribeNewRpc(l.urlList[0])
+			if err != nil {
+				l.log.Error("can not subscribe new url", "url", l.urlList[0], "err", err)
+			}
 		}
 		l.log.Info("recover the current rpc to the first rpc", "url", l.urlList[0])
 	}()
