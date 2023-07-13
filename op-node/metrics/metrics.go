@@ -238,7 +238,7 @@ func NewMetrics(procName string) *Metrics {
 		DerivationErrors: NewEventMetrics(factory, ns, "derivation_errors", "derivation errors"),
 		SequencingErrors: NewEventMetrics(factory, ns, "sequencing_errors", "sequencing errors"),
 		PublishingErrors: NewEventMetrics(factory, ns, "publishing_errors", "p2p publishing errors"),
-		L1UrlSwitchEvent: NewEventMetrics(factory, ns, "l1_url_switch_event", "L1 URL switch events"),
+		L1UrlSwitchEvent: NewEventMetrics(factory, ns, "l1_url_switch", "L1 URL switch events"),
 
 		SequencerInconsistentL1Origin: NewEventMetrics(factory, ns, "sequencer_inconsistent_l1_origin", "events when the sequencer selects an inconsistent L1 origin"),
 		SequencerResets:               NewEventMetrics(factory, ns, "sequencer_resets", "sequencer resets"),
