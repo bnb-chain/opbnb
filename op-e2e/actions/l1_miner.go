@@ -39,6 +39,13 @@ func NewL1Miner(t Testing, log log.Logger, genesis *core.Genesis) *L1Miner {
 	}
 }
 
+func NewL1MinerWithPort(t Testing, log log.Logger, genesis *core.Genesis, port int) *L1Miner {
+	rep := NewL1ReplicaWithPort(t, log, genesis, port)
+	return &L1Miner{
+		L1Replica: *rep,
+	}
+}
+
 // ActL1StartBlock returns an action to build a new L1 block on top of the head block,
 // with timeDelta added to the head block time.
 func (s *L1Miner) ActL1StartBlock(timeDelta uint64) Action {

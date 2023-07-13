@@ -199,7 +199,7 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 			err := l.firstRpc.CallContext(l.ctx, &id, "eth_chainId")
 			if err != nil {
 				count = 0
-				time.Sleep(5 * time.Second)
+				time.Sleep(3 * time.Second)
 				continue
 			}
 			count++
@@ -271,4 +271,8 @@ func (l *FallbackClient) l1BlockRefByNumber(ctx context.Context, number uint64, 
 
 func (l *FallbackClient) RegisterMetrics(metrics metrics.Metricer) {
 	l.metrics = metrics
+}
+
+func (l *FallbackClient) GetCurrentIndex() int {
+	return l.currentIndex
 }
