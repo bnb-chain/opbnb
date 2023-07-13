@@ -22,6 +22,10 @@ func DialEthClientWithTimeout(ctx context.Context, url string, timeout time.Dura
 	return ethclient.DialContext(ctxt, url)
 }
 
+const BatcherFallbackThreshold int64 = 10
+const ProposerFallbackThreshold int64 = 3
+const TxmgrFallbackThreshold int64 = 3
+
 // DialEthClientWithTimeoutAndFallback will try to dial within the timeout period and create an EthClient.
 // If the URL is a multi URL, then a fallbackClient will be created to add the fallback capability to the client
 func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64, m FallbackClientMetricer) (EthClient, error) {
