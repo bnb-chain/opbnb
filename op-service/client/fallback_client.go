@@ -256,7 +256,7 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 			_, err := l.firstClient.ChainID(context.Background())
 			if err != nil {
 				count = 0
-				time.Sleep(5 * time.Second)
+				time.Sleep(3 * time.Second)
 				continue
 			}
 			count++
