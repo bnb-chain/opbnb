@@ -131,7 +131,8 @@ type EthClient struct {
 	lastMethodsReset time.Time
 
 	// methodResetDuration defines how long we take till we reset lastMethodsReset
-	methodResetDuration time.Duration
+	methodResetDuration   time.Duration
+	maxConcurrentRequests int
 }
 
 func (s *EthClient) PickReceiptsMethod(txCount uint64) ReceiptsFetchingMethod {
@@ -168,6 +169,7 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 	return &EthClient{
 		client:                  client,
 		maxBatchSize:            config.MaxRequestsPerBatch,
+		maxConcurrentRequests:   config.MaxConcurrentRequests,
 		trustRPC:                config.TrustRPC,
 		mustBePostMerge:         config.MustBePostMerge,
 		provKind:                config.RPCProviderKind,
@@ -357,7 +359,7 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 		job = v.(*receiptsFetchingJob)
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
-		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
+		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes, s.maxConcurrentRequests)
 		s.receiptsCache.Add(blockHash, job)
 	}
 	receipts, err := job.Fetch(ctx)
