@@ -54,8 +54,8 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 	}
 	dp := e2eutils.MakeDeployParams(t, p)
 	sd := e2eutils.Setup(t, dp, defaultAlloc)
-	log := testlog.Logger(t, log.LvlDebug)
-	miner, l1_2, _, engine, sequencer, fallbackClient := setupFallbackClientTest(t, sd, log, "http://127.0.0.1:8545,http://127.0.0.1:8546,http://127.0.0.1:8547")
+	logT := testlog.Logger(t, log.LvlDebug)
+	miner, l1_2, _, engine, sequencer, fallbackClient := setupFallbackClientTest(t, sd, logT, "http://127.0.0.1:8545,http://127.0.0.1:8546,http://127.0.0.1:8547")
 	miner.ActL1SetFeeRecipient(common.Address{'A'})
 
 	sequencer.ActL2PipelineFull(t)
