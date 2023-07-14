@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -377,9 +378,43 @@ func (job *receiptsFetchingJob) runFetcher(ctx context.Context) error {
 			job.maxBatchSize,
 		)
 	}
-	// Fetch all receipts
+
+	if len(job.txHashes) > job.maxBatchSize {
+		// if we have more than the max batch size, we can do concurrent fetching
+		err2 := job.concurrentFetch(ctx)
+		if err2 != nil {
+			return err2
+		}
+	} else {
+		// otherwise, we can do sequential fetching
+		for {
+			if err := job.fetcher.Fetch(ctx); err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+		}
+	}
+
+	result, err := job.fetcher.Result()
+	if err != nil { // errors if results are not available yet, should never happen.
+		return err
+	}
+	if err := validateReceipts(job.block, job.receiptHash, job.txHashes, result); err != nil {
+		job.fetcher.Reset() // if results are fetched but invalid, try restart all the fetching to try and get valid data.
+		return err
+	}
+	// Remember the result, and don't keep the fetcher and tx hashes around for longer than needed
+	job.result = result
+	job.fetcher = nil
+	job.txHashes = nil
+	return nil
+}
+
+func (job *receiptsFetchingJob) concurrentFetch(ctx context.Context) error {
 	var wg sync.WaitGroup
-	concurrentRequests := job.maxConcurrentRequests
+	suggestConcurrent := math.Ceil(float64(len(job.txHashes)) / float64(job.maxBatchSize))
+	concurrentRequests := int(math.Min(suggestConcurrent, float64(job.maxConcurrentRequests)))
 	wg.Add(concurrentRequests)
 	errs := make(chan error, concurrentRequests)
 	for i := 0; i < concurrentRequests; i++ {
@@ -401,19 +436,6 @@ func (job *receiptsFetchingJob) runFetcher(ctx context.Context) error {
 			return callErr
 		}
 	}
-
-	result, err := job.fetcher.Result()
-	if err != nil { // errors if results are not available yet, should never happen.
-		return err
-	}
-	if err := validateReceipts(job.block, job.receiptHash, job.txHashes, result); err != nil {
-		job.fetcher.Reset() // if results are fetched but invalid, try restart all the fetching to try and get valid data.
-		return err
-	}
-	// Remember the result, and don't keep the fetcher and tx hashes around for longer than needed
-	job.result = result
-	job.fetcher = nil
-	job.txHashes = nil
 	return nil
 }
 
