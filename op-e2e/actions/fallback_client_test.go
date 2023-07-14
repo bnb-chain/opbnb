@@ -87,7 +87,7 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 	require.NoError(t, errRpc)
 
 	l2BlockCount := 0
-	for i := 0; i < 4 && l2BlockCount <= 20; i++ {
+	for i := 0; i < 6; i++ {
 		miner.ActL1StartBlock(12)(t)
 		miner.ActL1EndBlock(t)
 		newBlock := miner.l1Chain.GetBlockByHash(miner.l1Chain.CurrentBlock().Hash())
@@ -106,15 +106,15 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 			makeL2BlockWithAliceTx()
 			//require.Equal(t, uint64(i), sequencer.SyncStatus().UnsafeL2.L1Origin.Number, "no L1 origin change before time matches")
 			l2BlockCount++
-			if l2BlockCount == 12 {
+			if l2BlockCount == 23 {
 				require.Equal(t, 1, fallbackClient.GetCurrentIndex(), "fallback client should switch url to second url")
 				errRpc2 := miner.RPCClient().CallContext(t.Ctx(), nil, "admin_startHTTP", "127.0.0.1", 8545, "*", "eth,net,web3,debug,admin,txpool", "*")
 				require.NoError(t, errRpc2)
 			}
-			if l2BlockCount == 20 {
+			if l2BlockCount == 34 {
 				require.Equal(t, 0, fallbackClient.GetCurrentIndex(), "fallback client should recover url to first url")
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
