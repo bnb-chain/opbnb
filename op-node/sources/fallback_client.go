@@ -66,7 +66,7 @@ func NewFallbackClient(ctx context.Context, rpc client.RPC, urlList []string, lo
 			case <-fallbackClient.isClose:
 				return
 			default:
-				if fallbackClient.lastMinuteFail.Load() > threshold {
+				if fallbackClient.lastMinuteFail.Load() >= threshold {
 					fallbackClient.switchCurrentRpc()
 				}
 			}
