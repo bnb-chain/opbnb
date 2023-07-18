@@ -1,0 +1,28 @@
+name: CI Workflow
+
+on:
+  pull_request:
+    branches:
+      - 'release/**'
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version-file: go.mod
+
+      - name: Install gotestsum
+        run: go get gotest.tools/gotestsum@latest
+
+      - name: Run tests
+        run: |
+          PACKAGE_NAME=$(basename `git rev-parse --show-toplevel`)
+          gotestsum --format=standard-verbose --junitfile=/tmp/test-results/$PACKAGE_NAME.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
