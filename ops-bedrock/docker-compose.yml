@@ -35,6 +35,7 @@ services:
     ports:
       - "9545:8545"
       - "8060:6060"
+      - "8551:8551"
     volumes:
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
