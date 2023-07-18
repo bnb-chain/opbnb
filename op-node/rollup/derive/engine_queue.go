@@ -473,6 +473,11 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 		eq.unsafePayloads.Pop()
 		return nil
 	}
+	if uint64(first.BlockNumber) <= eq.unsafeHead.Number {
+		eq.log.Info("skipping unsafe payload, since it is older than unsafe head", "unsafe", eq.unsafeHead.ID(), "unsafe_payload", first.ID())
+		eq.unsafePayloads.Pop()
+		return nil
+	}
 
 	// Ensure that the unsafe payload builds upon the current unsafe head
 	if !eq.syncCfg.EngineSync && first.ParentHash != eq.unsafeHead.Hash {
