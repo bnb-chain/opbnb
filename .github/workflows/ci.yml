@@ -20,7 +20,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Install gotestsum
-        run: go get gotest.tools/gotestsum@latest
+        uses: autero1/action-gotestsum@v2
+        with:
+          gotestsum_version: 1.10.1
 
       - name: Run tests
         run: |
