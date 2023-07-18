@@ -7,7 +7,7 @@ on:
       - develop
 
 jobs:
-  test:
+  op-node-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,11 +20,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Install gotestsum
-        uses: autero1/action-gotestsum@v2.0.0
-        with:
-          gotestsum_version: 1.10.1
+        run: go install gotest.tools/gotestsum@latest
 
       - name: Run tests
+        working-directory: op-node
         run: |
-          PACKAGE_NAME=$(basename `git rev-parse --show-toplevel`)
-          gotestsum --format=standard-verbose --junitfile=/tmp/test-results/$PACKAGE_NAME.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
+          gotestsum --format=standard-verbose --junitfile=/tmp/test-results/op-node.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
