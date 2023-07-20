@@ -86,6 +86,12 @@ jobs:
         run: |
           gotestsum --format=standard-verbose --junitfile=/tmp/test-results/op-node.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
 
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v3
+        if: success() || failure() # always run even if the previous step fails
+        with:
+          report_paths: '/tmp/test-results/op-node.xml'
+
   op-batcher-test:
     runs-on: ubuntu-latest
 
