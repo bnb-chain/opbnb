@@ -20,6 +20,8 @@ import (
 )
 
 func TestPreparePayloadAttributes(t *testing.T) {
+	// temporarily skip this test
+	t.SkipNow()
 	// test sysCfg, only init the necessary fields
 	cfg := &rollup.Config{
 		BlockTime:              2,
@@ -35,8 +37,6 @@ func TestPreparePayloadAttributes(t *testing.T) {
 		Scalar:      [32]byte{},
 	}
 
-	// temporarily skip this test
-	t.SkipNow()
 	t.Run("inconsistent next height origin", func(t *testing.T) {
 		rng := rand.New(rand.NewSource(1234))
 		l1Fetcher := &testutils.MockL1Source{}
