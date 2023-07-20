@@ -28,3 +28,47 @@ jobs:
         working-directory: op-node
         run: |
           gotestsum --format=standard-verbose --junitfile=/tmp/test-results/op-node.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
+
+  op-batcher-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version-file: go.mod
+
+      - name: Install gotestsum
+        uses: autero1/action-gotestsum@v2.0.0
+        with:
+          gotestsum_version: 1.10.0
+
+      - name: Run tests
+        working-directory: op-batcher
+        run: |
+          gotestsum --format=standard-verbose --junitfile=/tmp/test-results/op-batcher.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
+
+  op-proposer-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version-file: go.mod
+
+      - name: Install gotestsum
+        uses: autero1/action-gotestsum@v2.0.0
+        with:
+          gotestsum_version: 1.10.0
+
+      - name: Run tests
+        working-directory: op-proposer
+        run: |
+          gotestsum --format=standard-verbose --junitfile=/tmp/test-results/op-proposer.xml -- -parallel=8 -coverpkg=github.com/ethereum-optimism/optimism/... -coverprofile=coverage.out ./...
