@@ -8,11 +8,12 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
 const agreedBlockTrailingDistance = 100
@@ -114,6 +115,7 @@ func Run(l1RpcUrl string, l2RpcUrl string, l2OracleAddr common.Address) error {
 	}()
 	fmt.Printf("Using temp dir: %s\n", temp)
 	args := []string{
+		"--log.level", "DEBUG",
 		"--network", "goerli",
 		"--exec", "./bin/op-program-client",
 		"--datadir", temp,
