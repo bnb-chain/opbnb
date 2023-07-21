@@ -380,6 +380,7 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 
 func (s *EthClient) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
 	s.preFetchReceiptsOnce.Do(func() {
+		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		var preFetchReceiptsCtx context.Context
 		preFetchReceiptsCtx, s.preFetchReceiptsDoneFunc = context.WithCancel(ctx)
 		go func() {
@@ -389,8 +390,8 @@ func (s *EthClient) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint
 				case <-preFetchReceiptsCtx.Done():
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
+					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
 				default:
-					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
 					blockInfo, err := s.InfoByNumber(preFetchReceiptsCtx, currentL1Block)
 					if err != nil {
 						s.log.Debug("failed to fetch next block info", "err", err)
@@ -403,6 +404,7 @@ func (s *EthClient) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint
 						time.Sleep(200 * time.Millisecond)
 						continue
 					}
+					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
 					currentL1Block = currentL1Block + 1
 				}
 			}
