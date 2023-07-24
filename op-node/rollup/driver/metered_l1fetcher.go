@@ -57,11 +57,6 @@ func (m *MeteredL1Fetcher) FetchReceipts(ctx context.Context, blockHash common.H
 	return m.inner.FetchReceipts(ctx, blockHash)
 }
 
-func (m *MeteredL1Fetcher) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
-	defer m.recordTime("GoOrUpdatePreFetchReceipts")()
-	return m.inner.GoOrUpdatePreFetchReceipts(ctx, l1Start)
-}
-
 var _ derive.L1Fetcher = (*MeteredL1Fetcher)(nil)
 
 func (m *MeteredL1Fetcher) recordTime(method string) func() {

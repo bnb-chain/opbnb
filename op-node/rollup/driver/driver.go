@@ -58,6 +58,8 @@ type DerivationPipeline interface {
 	UnsafeL2Head() eth.L2BlockRef
 	Origin() eth.L1BlockRef
 	EngineReady() bool
+	EnablePreFetchReceipts()
+	DisablePreFetchReceipts()
 }
 
 type L1StateIface interface {
@@ -114,6 +116,10 @@ func NewDriver(driverCfg *Config, cfg *rollup.Config, l2 L2Chain, l1 L1Chain, al
 	engine := derivationPipeline
 	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log)
 	sequencer := NewSequencer(log, cfg, meteredEngine, attrBuilder, findL1Origin, metrics)
+
+	if driverCfg.SequencerEnabled && !driverCfg.SequencerStopped {
+		derivationPipeline.EnablePreFetchReceipts()
+	}
 
 	return &Driver{
 		l1State:          l1State,

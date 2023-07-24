@@ -13,7 +13,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -133,13 +132,6 @@ type EthClient struct {
 
 	// methodResetDuration defines how long we take till we reset lastMethodsReset
 	methodResetDuration time.Duration
-
-	//ensure pre-fetch receipts only once
-	preFetchReceiptsOnce sync.Once
-	//start block for pre-fetch receipts
-	preFetchReceiptsStartBlockChan chan uint64
-	//cancel function for pre-fetch receipts
-	preFetchReceiptsDoneFunc context.CancelFunc
 }
 
 func (s *EthClient) PickReceiptsMethod(txCount uint64) ReceiptsFetchingMethod {
@@ -174,21 +166,19 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 	}
 	client = LimitRPC(client, config.MaxConcurrentRequests)
 	return &EthClient{
-		client:                         client,
-		maxBatchSize:                   config.MaxRequestsPerBatch,
-		trustRPC:                       config.TrustRPC,
-		mustBePostMerge:                config.MustBePostMerge,
-		provKind:                       config.RPCProviderKind,
-		log:                            log,
-		receiptsCache:                  caching.NewLRUCache(metrics, "receipts", config.ReceiptsCacheSize),
-		transactionsCache:              caching.NewLRUCache(metrics, "txs", config.TransactionsCacheSize),
-		headersCache:                   caching.NewLRUCache(metrics, "headers", config.HeadersCacheSize),
-		payloadsCache:                  caching.NewLRUCache(metrics, "payloads", config.PayloadsCacheSize),
-		availableReceiptMethods:        AvailableReceiptsFetchingMethods(config.RPCProviderKind),
-		lastMethodsReset:               time.Now(),
-		methodResetDuration:            config.MethodResetDuration,
-		preFetchReceiptsOnce:           sync.Once{},
-		preFetchReceiptsStartBlockChan: make(chan uint64),
+		client:                  client,
+		maxBatchSize:            config.MaxRequestsPerBatch,
+		trustRPC:                config.TrustRPC,
+		mustBePostMerge:         config.MustBePostMerge,
+		provKind:                config.RPCProviderKind,
+		log:                     log,
+		receiptsCache:           caching.NewLRUCache(metrics, "receipts", config.ReceiptsCacheSize),
+		transactionsCache:       caching.NewLRUCache(metrics, "txs", config.TransactionsCacheSize),
+		headersCache:            caching.NewLRUCache(metrics, "headers", config.HeadersCacheSize),
+		payloadsCache:           caching.NewLRUCache(metrics, "payloads", config.PayloadsCacheSize),
+		availableReceiptMethods: AvailableReceiptsFetchingMethods(config.RPCProviderKind),
+		lastMethodsReset:        time.Now(),
+		methodResetDuration:     config.MethodResetDuration,
 	}, nil
 }
 
@@ -378,42 +368,6 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 	return info, receipts, nil
 }
 
-func (s *EthClient) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
-	s.preFetchReceiptsOnce.Do(func() {
-		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
-		var preFetchReceiptsCtx context.Context
-		preFetchReceiptsCtx, s.preFetchReceiptsDoneFunc = context.WithCancel(ctx)
-		go func() {
-			var currentL1Block uint64
-			for {
-				select {
-				case <-preFetchReceiptsCtx.Done():
-					return
-				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
-					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
-				default:
-					blockInfo, err := s.InfoByNumber(preFetchReceiptsCtx, currentL1Block)
-					if err != nil {
-						s.log.Debug("failed to fetch next block info", "err", err)
-						time.Sleep(3 * time.Second)
-						continue
-					}
-					_, _, err = s.FetchReceipts(preFetchReceiptsCtx, blockInfo.Hash())
-					if err != nil {
-						s.log.Warn("failed to pre-fetch receipts", "err", err)
-						time.Sleep(200 * time.Millisecond)
-						continue
-					}
-					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
-					currentL1Block = currentL1Block + 1
-				}
-			}
-		}()
-	})
-	s.preFetchReceiptsStartBlockChan <- l1Start
-	return nil
-}
-
 // GetProof returns an account proof result, with any optional requested storage proofs.
 // The retrieval does sanity-check that storage proofs for the expected keys are present in the response,
 // but does not verify the result. Call accountResult.Verify(stateRoot) to verify the result.
@@ -470,8 +424,5 @@ func (s *EthClient) ReadStorageAt(ctx context.Context, address common.Address, s
 }
 
 func (s *EthClient) Close() {
-	if s.preFetchReceiptsDoneFunc != nil {
-		s.preFetchReceiptsDoneFunc()
-	}
 	s.client.Close()
 }
