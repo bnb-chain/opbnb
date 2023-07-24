@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	go_sync "sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -134,13 +133,6 @@ type EngineQueue struct {
 
 	metrics   Metrics
 	l1Fetcher L1Fetcher
-
-	//ensure pre-fetch receipts only once
-	preFetchReceiptsOnce go_sync.Once
-	//start block for pre-fetch receipts
-	preFetchReceiptsStartBlockChan chan uint64
-	//pre-fetch receipts enable(We don't need atomic, because the bool here does not need strict visibility guarantees)
-	preFetchReceiptsEnable bool
 }
 
 var _ EngineControl = (*EngineQueue)(nil)
@@ -148,16 +140,14 @@ var _ EngineControl = (*EngineQueue)(nil)
 // NewEngineQueue creates a new EngineQueue, which should be Reset(origin) before use.
 func NewEngineQueue(log log.Logger, cfg *rollup.Config, engine Engine, metrics Metrics, prev NextAttributesProvider, l1Fetcher L1Fetcher) *EngineQueue {
 	return &EngineQueue{
-		log:                            log,
-		cfg:                            cfg,
-		engine:                         engine,
-		metrics:                        metrics,
-		finalityData:                   make([]FinalityData, 0, finalityLookback),
-		unsafePayloads:                 NewPayloadsQueue(maxUnsafePayloadsMemory, payloadMemSize),
-		prev:                           prev,
-		l1Fetcher:                      l1Fetcher,
-		preFetchReceiptsOnce:           go_sync.Once{},
-		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		log:            log,
+		cfg:            cfg,
+		engine:         engine,
+		metrics:        metrics,
+		finalityData:   make([]FinalityData, 0, finalityLookback),
+		unsafePayloads: NewPayloadsQueue(maxUnsafePayloadsMemory, payloadMemSize),
+		prev:           prev,
+		l1Fetcher:      l1Fetcher,
 	}
 }
 
@@ -741,7 +731,7 @@ func (eq *EngineQueue) Reset(ctx context.Context, _ eth.L1BlockRef, _ eth.System
 	if err != nil {
 		return NewTemporaryError(fmt.Errorf("failed to fetch L1 config of L2 block %s: %w", pipelineL2.ID(), err))
 	}
-	err2 := eq.GoOrUpdatePreFetchReceipts(ctx, unsafe.L1Origin.Number+3)
+	err2 := eq.l1Fetcher.GoOrUpdatePreFetchReceipts(ctx, pipelineOrigin.Number)
 	if err2 != nil {
 		return NewTemporaryError(fmt.Errorf("failed to run pre fetch L1 receipts for L1 start block %s: %w", pipelineOrigin.ID(), err2))
 	}
@@ -777,49 +767,10 @@ func (eq *EngineQueue) UnsafeL2SyncTarget() eth.L2BlockRef {
 	}
 }
 
-func (eq *EngineQueue) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
-	eq.preFetchReceiptsOnce.Do(func() {
-		eq.log.Info("pre-fetching receipts start", "startBlock", l1Start)
-		go func() {
-			var currentL1Block uint64
-			for {
-				if !eq.preFetchReceiptsEnable {
-					eq.log.Debug("pre fetch receipts is disabled")
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				select {
-				case currentL1Block = <-eq.preFetchReceiptsStartBlockChan:
-					eq.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
-				default:
-					blockInfo, err := eq.l1Fetcher.L1BlockRefByNumber(ctx, currentL1Block)
-					if err != nil {
-						eq.log.Debug("failed to fetch next block info", "err", err)
-						time.Sleep(3 * time.Second)
-						continue
-					}
-					_, _, err = eq.l1Fetcher.FetchReceipts(ctx, blockInfo.Hash)
-					if err != nil {
-						eq.log.Warn("failed to pre-fetch receipts", "err", err)
-						time.Sleep(200 * time.Millisecond)
-						continue
-					}
-					eq.log.Debug("pre-fetching receipts", "block", currentL1Block)
-					currentL1Block = currentL1Block + 1
-				}
-			}
-		}()
-	})
-	if eq.preFetchReceiptsEnable {
-		eq.preFetchReceiptsStartBlockChan <- l1Start
-	}
-	return nil
-}
-
 func (eq *EngineQueue) EnablePreFetchReceipts() {
-	eq.preFetchReceiptsEnable = true
+	eq.l1Fetcher.EnablePreFetchReceipts()
 }
 
 func (eq *EngineQueue) DisablePreFetchReceipts() {
-	eq.preFetchReceiptsEnable = false
+	eq.l1Fetcher.DisablePreFetchReceipts()
 }
