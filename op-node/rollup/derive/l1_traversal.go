@@ -58,6 +58,8 @@ func (l1t *L1Traversal) NextL1Block(_ context.Context) (eth.L1BlockRef, error) {
 
 // AdvanceL1Block advances the internal state of L1 Traversal
 func (l1t *L1Traversal) AdvanceL1Block(ctx context.Context) error {
+	l1t.log.Debug("l1t advanceL1Block")
+	defer l1t.log.Debug("l1t advanceL1Block done")
 	origin := l1t.block
 	nextL1Origin, err := l1t.l1Blocks.L1BlockRefByNumber(ctx, origin.Number+1)
 	if errors.Is(err, ethereum.NotFound) {

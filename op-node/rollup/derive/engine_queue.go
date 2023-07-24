@@ -307,6 +307,8 @@ func (eq *EngineQueue) verifyNewL1Origin(ctx context.Context, newOrigin eth.L1Bl
 }
 
 func (eq *EngineQueue) tryFinalizePastL2Blocks(ctx context.Context) error {
+	eq.log.Debug("eq tryFinalizePastL2Blocks")
+	defer eq.log.Debug("eq tryFinalizePastL2Blocks done")
 	if eq.finalizedL1 == (eth.L1BlockRef{}) {
 		return nil
 	}
@@ -399,6 +401,7 @@ func (eq *EngineQueue) logSyncProgress(reason string) {
 // tryUpdateEngine attempts to update the engine with the current forkchoice state of the rollup node,
 // this is a no-op if the nodes already agree on the forkchoice state.
 func (eq *EngineQueue) tryUpdateEngine(ctx context.Context) error {
+	eq.log.Debug("eq tryUpdateEngine")
 	fc := eth.ForkchoiceState{
 		HeadBlockHash:      eq.unsafeHead.Hash,
 		SafeBlockHash:      eq.safeHead.Hash,
@@ -419,10 +422,13 @@ func (eq *EngineQueue) tryUpdateEngine(ctx context.Context) error {
 		}
 	}
 	eq.needForkchoiceUpdate = false
+	eq.log.Debug("eq tryUpdateEngine done")
 	return nil
 }
 
 func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
+	eq.log.Debug("eq tryNextUnsafePayload")
+	defer eq.log.Debug("eq tryNextUnsafePayload done")
 	first := eq.unsafePayloads.Peek()
 
 	if uint64(first.BlockNumber) <= eq.safeHead.Number {
@@ -494,6 +500,8 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 }
 
 func (eq *EngineQueue) tryNextSafeAttributes(ctx context.Context) error {
+	eq.log.Debug("eq tryNextSafeAttributes")
+	defer eq.log.Debug("eq tryNextSafeAttributes done")
 	if eq.safeAttributes == nil { // sanity check the attributes are there
 		return nil
 	}
