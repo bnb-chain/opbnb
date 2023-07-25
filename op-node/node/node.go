@@ -196,7 +196,8 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	}
 
 	if err := cfg.Rollup.ValidateL2Config(ctx, n.l2Source); err != nil {
-		return err
+		// ignore validate L2 error
+		log.Error("Error validate L2 config", "err", err)
 	}
 
 	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics)
