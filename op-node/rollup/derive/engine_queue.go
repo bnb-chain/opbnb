@@ -766,11 +766,3 @@ func (eq *EngineQueue) UnsafeL2SyncTarget() eth.L2BlockRef {
 		return eth.L2BlockRef{}
 	}
 }
-
-func (eq *EngineQueue) EnablePreFetchReceipts() {
-	eq.l1Fetcher.EnablePreFetchReceipts()
-}
-
-func (eq *EngineQueue) DisablePreFetchReceipts() {
-	eq.l1Fetcher.DisablePreFetchReceipts()
-}

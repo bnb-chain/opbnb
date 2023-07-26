@@ -336,7 +336,6 @@ func (s *Driver) eventLoop() {
 			} else {
 				s.log.Info("Sequencer has been started")
 				s.driverConfig.SequencerStopped = false
-				s.derivation.EnablePreFetchReceipts()
 				close(resp.err)
 				planSequencerAction() // resume sequencing
 			}
@@ -346,7 +345,6 @@ func (s *Driver) eventLoop() {
 			} else {
 				s.log.Warn("Sequencer has been stopped")
 				s.driverConfig.SequencerStopped = true
-				s.derivation.DisablePreFetchReceipts()
 				respCh <- hashAndError{hash: s.derivation.UnsafeL2Head().Hash}
 			}
 		case <-s.done:

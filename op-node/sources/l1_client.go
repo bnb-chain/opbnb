@@ -63,8 +63,6 @@ type L1Client struct {
 	preFetchReceiptsOnce sync.Once
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
-	//pre-fetch receipts enable(We don't need atomic, because the bool here does not need strict visibility guarantees)
-	preFetchReceiptsEnable bool
 }
 
 // NewL1Client wraps a RPC with bindings to fetch L1 data, while logging errors, tracking metrics (optional), and caching.
@@ -132,11 +130,6 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 		go func() {
 			var currentL1Block uint64
 			for {
-				if !s.preFetchReceiptsEnable {
-					s.log.Debug("pre fetch receipts is disabled")
-					time.Sleep(1 * time.Second)
-					continue
-				}
 				select {
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
@@ -159,16 +152,6 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 			}
 		}()
 	})
-	if s.preFetchReceiptsEnable {
-		s.preFetchReceiptsStartBlockChan <- l1Start
-	}
+	s.preFetchReceiptsStartBlockChan <- l1Start
 	return nil
-}
-
-func (s *L1Client) EnablePreFetchReceipts() {
-	s.preFetchReceiptsEnable = true
-}
-
-func (s *L1Client) DisablePreFetchReceipts() {
-	s.preFetchReceiptsEnable = false
 }
