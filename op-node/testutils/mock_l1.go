@@ -38,14 +38,6 @@ func (m *MockL1Source) ExpectL1BlockRefByHash(hash common.Hash, ref eth.L1BlockR
 	m.Mock.On("L1BlockRefByHash", hash).Once().Return(ref, &err)
 }
 
-func (m *MockL1Source) EnablePreFetchReceipts() {
-	m.Mock.On("EnablePreFetchReceipts")
-}
-
-func (m *MockL1Source) DisablePreFetchReceipts() {
-	m.Mock.On("DisablePreFetchReceipts")
-}
-
 func (m *MockL1Source) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error {
 	out := m.Mock.MethodCalled("GoOrUpdatePreFetchReceipts", ctx, l1StartBlock)
 	return *out[0].(*error)

@@ -54,8 +54,6 @@ type EngineQueueStage interface {
 	AddUnsafePayload(payload *eth.ExecutionPayload)
 	UnsafeL2SyncTarget() eth.L2BlockRef
 	Step(context.Context) error
-	EnablePreFetchReceipts()
-	DisablePreFetchReceipts()
 }
 
 // DerivationPipeline is updated with new L1 data, and the Step() function can be iterated on to keep the L2 Engine in sync.
@@ -206,12 +204,4 @@ func (dp *DerivationPipeline) Step(ctx context.Context) error {
 	} else {
 		return nil
 	}
-}
-
-func (dp *DerivationPipeline) EnablePreFetchReceipts() {
-	dp.eng.EnablePreFetchReceipts()
-}
-
-func (dp *DerivationPipeline) DisablePreFetchReceipts() {
-	dp.eng.DisablePreFetchReceipts()
 }

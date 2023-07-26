@@ -67,16 +67,6 @@ func (m *MeteredL1Fetcher) recordTime(method string) func() {
 	}
 }
 
-func (m *MeteredL1Fetcher) EnablePreFetchReceipts() {
-	defer m.recordTime("EnablePreFetchReceipts")()
-	m.inner.EnablePreFetchReceipts()
-}
-
-func (m *MeteredL1Fetcher) DisablePreFetchReceipts() {
-	defer m.recordTime("DisablePreFetchReceipts")()
-	m.inner.DisablePreFetchReceipts()
-}
-
 func (m *MeteredL1Fetcher) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error {
 	defer m.recordTime("GoOrUpdatePreFetchReceipts")()
 	return m.inner.GoOrUpdatePreFetchReceipts(ctx, l1StartBlock)

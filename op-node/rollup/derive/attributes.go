@@ -19,8 +19,6 @@ type L1ReceiptsFetcher interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
 	InfoAndTxsByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, types.Transactions, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
-	EnablePreFetchReceipts()
-	DisablePreFetchReceipts()
 	GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error
 }
 
