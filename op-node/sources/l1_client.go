@@ -63,6 +63,8 @@ type L1Client struct {
 	preFetchReceiptsOnce sync.Once
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
+	//done chan
+	done chan struct{}
 }
 
 // NewL1Client wraps a RPC with bindings to fetch L1 data, while logging errors, tracking metrics (optional), and caching.
@@ -77,6 +79,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache(metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		done:                           make(chan struct{}),
 	}, nil
 }
 
@@ -131,6 +134,9 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 			var currentL1Block uint64
 			for {
 				select {
+				case <-s.done:
+					s.log.Info("pre-fetching receipts done")
+					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
 				default:
@@ -154,4 +160,9 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 	})
 	s.preFetchReceiptsStartBlockChan <- l1Start
 	return nil
+}
+
+func (s *L1Client) Close() {
+	s.done <- struct{}{}
+	s.EthClient.Close()
 }
