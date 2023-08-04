@@ -23,7 +23,7 @@ import (
 type SyncStatus = eth.SyncStatus
 
 // sealingDuration defines the expected time it takes to seal the block
-const sealingDuration = time.Millisecond * 50
+const sealingDuration = time.Millisecond * 1
 
 type Driver struct {
 	l1State L1StateIface
