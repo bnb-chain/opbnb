@@ -36,6 +36,8 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		return nil, err
 	}
 
+	configPersistence := NewConfigPersistence(ctx)
+
 	driverConfig := NewDriverConfig(ctx)
 
 	p2pSignerSetup, err := p2pcli.LoadSignerSetup(ctx)
@@ -86,7 +88,13 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 			Moniker: ctx.GlobalString(flags.HeartbeatMonikerFlag.Name),
 			URL:     ctx.GlobalString(flags.HeartbeatURLFlag.Name),
 		},
+		ConfigPersistence: configPersistence,
 	}
+
+	if err := cfg.LoadPersisted(log); err != nil {
+		return nil, fmt.Errorf("failed to load driver config: %w", err)
+	}
+
 	if err := cfg.Check(); err != nil {
 		return nil, err
 	}
@@ -143,13 +151,21 @@ func NewL2SyncEndpointConfig(ctx *cli.Context) *node.L2SyncEndpointConfig {
 	}
 }
 
+func NewConfigPersistence(ctx *cli.Context) node.ConfigPersistence {
+	stateFile := ctx.String(flags.RPCAdminPersistence.Name)
+	if stateFile == "" {
+		return node.DisabledConfigPersistence{}
+	}
+	return node.NewConfigPersistence(stateFile)
+}
+
 func NewDriverConfig(ctx *cli.Context) *driver.Config {
 	return &driver.Config{
-		VerifierConfDepth:   ctx.GlobalUint64(flags.VerifierL1Confs.Name),
-		SequencerConfDepth:  ctx.GlobalUint64(flags.SequencerL1Confs.Name),
-		SequencerEnabled:    ctx.GlobalBool(flags.SequencerEnabledFlag.Name),
-		SequencerStopped:    ctx.GlobalBool(flags.SequencerStoppedFlag.Name),
-		SequencerMaxSafeLag: ctx.GlobalUint64(flags.SequencerMaxSafeLagFlag.Name),
+		VerifierConfDepth:   ctx.Uint64(flags.VerifierL1Confs.Name),
+		SequencerConfDepth:  ctx.Uint64(flags.SequencerL1Confs.Name),
+		SequencerEnabled:    ctx.Bool(flags.SequencerEnabledFlag.Name),
+		SequencerStopped:    ctx.Bool(flags.SequencerStoppedFlag.Name),
+		SequencerMaxSafeLag: ctx.Uint64(flags.SequencerMaxSafeLagFlag.Name),
 	}
 }
 
