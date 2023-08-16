@@ -154,6 +154,16 @@ func (s *channelManager) pendingChannelIsTimedOut() bool {
 	return max-min >= s.cfg.ChannelTimeout
 }
 
+func (s *channelManager) pendingChannelMinConfirmedInclusionBlock() uint64 {
+	min := uint64(math.MaxUint64)
+	for _, inclusionBlock := range s.confirmedTransactions {
+		if inclusionBlock.Number < min {
+			min = inclusionBlock.Number
+		}
+	}
+	return min
+}
+
 // pendingChannelIsFullySubmitted returns true if the channel has been fully submitted.
 func (s *channelManager) pendingChannelIsFullySubmitted() bool {
 	if s.pendingChannel == nil {
@@ -163,10 +173,25 @@ func (s *channelManager) pendingChannelIsFullySubmitted() bool {
 }
 
 // nextTxData pops off s.datas & handles updating the internal state
-func (s *channelManager) nextTxData() (txData, error) {
+func (s *channelManager) nextTxData(l1Head eth.BlockID) (txData, error) {
 	if s.pendingChannel == nil || !s.pendingChannel.HasFrame() {
 		s.log.Trace("no next tx data")
 		return txData{}, io.EOF // TODO: not enough data error instead
+	}
+
+	// If the channel has timed out relative to the current L1 head and there are still frames not submitted,
+	// cancel the channel, because even if these frames are submitted, the channel has still timed out and
+	// will discard by OP Node's derivation pipeline.
+	if s.pendingChannel.HasFrame() && s.confirmedTransactions != nil && len(s.confirmedTransactions) > 0 {
+		minConfirmed := s.pendingChannelMinConfirmedInclusionBlock()
+
+		if l1Head.Number > minConfirmed && l1Head.Number >= minConfirmed+s.cfg.ChannelTimeout-s.cfg.SubSafetyMargin {
+			s.metr.RecordChannelTimedOut(s.pendingChannel.ID())
+			s.log.Warn("Channel timed out", "id", s.pendingChannel.ID(), "rest frames", s.pendingChannel.NumFrames())
+			s.blocks = append(s.pendingChannel.Blocks(), s.blocks...)
+			s.clearPendingChannel()
+			return txData{}, io.EOF
+		}
 	}
 
 	frame := s.pendingChannel.NextFrame()
@@ -189,7 +214,7 @@ func (s *channelManager) TxData(l1Head eth.BlockID) (txData, error) {
 
 	// Short circuit if there is a pending frame or the channel manager is closed.
 	if dataPending || s.closed {
-		return s.nextTxData()
+		return s.nextTxData(l1Head)
 	}
 
 	// No pending frame, so we have to add new blocks to the channel
@@ -221,7 +246,7 @@ func (s *channelManager) TxData(l1Head eth.BlockID) (txData, error) {
 		return txData{}, err
 	}
 
-	return s.nextTxData()
+	return s.nextTxData(l1Head)
 }
 
 func (s *channelManager) ensurePendingChannel(l1Head eth.BlockID) error {
@@ -269,6 +294,9 @@ func (s *channelManager) processBlocks() error {
 		} else if err != nil {
 			return fmt.Errorf("adding block[%d] to channel builder: %w", i, err)
 		}
+		blockID := eth.BlockID{Number: block.NumberU64(), Hash: block.Hash()}
+		s.log.Info("Added block to channel", "channel", s.pendingChannel.ID(), "block", blockID)
+
 		blocksAdded += 1
 		latestL2ref = l2BlockRefFromBlockAndL1Info(block, l1info)
 		s.metr.RecordL2BlockInChannel(block)

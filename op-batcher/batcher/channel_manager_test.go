@@ -125,7 +125,7 @@ func TestChannelManagerNextTxData(t *testing.T) {
 	m := NewChannelManager(log, metrics.NoopMetrics, ChannelConfig{})
 
 	// Nil pending channel should return EOF
-	returnedTxData, err := m.nextTxData()
+	returnedTxData, err := m.nextTxData(eth.BlockID{})
 	require.ErrorIs(t, err, io.EOF)
 	require.Equal(t, txData{}, returnedTxData)
 
@@ -133,7 +133,7 @@ func TestChannelManagerNextTxData(t *testing.T) {
 	// The nextTxData function should still return EOF
 	// since the pending channel has no frames
 	require.NoError(t, m.ensurePendingChannel(eth.BlockID{}))
-	returnedTxData, err = m.nextTxData()
+	returnedTxData, err = m.nextTxData(eth.BlockID{})
 	require.ErrorIs(t, err, io.EOF)
 	require.Equal(t, txData{}, returnedTxData)
 
@@ -150,7 +150,7 @@ func TestChannelManagerNextTxData(t *testing.T) {
 	require.Equal(t, 1, m.pendingChannel.NumFrames())
 
 	// Now the nextTxData function should return the frame
-	returnedTxData, err = m.nextTxData()
+	returnedTxData, err = m.nextTxData(eth.BlockID{})
 	expectedTxData := txData{frame}
 	expectedChannelID := expectedTxData.ID()
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestChannelManager_Clear(t *testing.T) {
 	require.NoError(m.processBlocks())
 	require.NoError(m.pendingChannel.co.Flush())
 	require.NoError(m.pendingChannel.OutputFrames())
-	_, err := m.nextTxData()
+	_, err := m.nextTxData(l1BlockID)
 	require.NoError(err)
 	require.Len(m.blocks, 0)
 	require.Equal(newL1Tip, m.tip)
@@ -260,7 +260,7 @@ func TestChannelManagerTxConfirmed(t *testing.T) {
 	}
 	m.pendingChannel.PushFrame(frame)
 	require.Equal(t, 1, m.pendingChannel.NumFrames())
-	returnedTxData, err := m.nextTxData()
+	returnedTxData, err := m.nextTxData(eth.BlockID{})
 	expectedTxData := txData{frame}
 	expectedChannelID := expectedTxData.ID()
 	require.NoError(t, err)
@@ -308,7 +308,7 @@ func TestChannelManagerTxFailed(t *testing.T) {
 	}
 	m.pendingChannel.PushFrame(frame)
 	require.Equal(t, 1, m.pendingChannel.NumFrames())
-	returnedTxData, err := m.nextTxData()
+	returnedTxData, err := m.nextTxData(eth.BlockID{})
 	expectedTxData := txData{frame}
 	expectedChannelID := expectedTxData.ID()
 	require.NoError(t, err)
