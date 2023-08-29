@@ -11,6 +11,7 @@ const { execSync } = require('child_process');
 
 task('opbnb-verify',
   `Verify contracts for opbnb.
+  Before use, please add SCAN_API and API_KEY two environment variables in the .env file
   1. If you have developments and want to verify all contracts, please execute: npx hardhat opbnb-verify --network your-network-name
   2. If you have developments, but only want to verify one of the contracts, please execute: npx hardhat opbnb-verify --network your-network-name yourContractName
   3. If you do not have developments, then you can only pass in the necessary parameters (contract name, contract address, contract constructor input parameters): npx hardhat opbnb-verify --contract-address 0xc0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d30007 L2CrossDomainMessenger 0xd506952e78eecd5d4424b1990a0c99b1568e7c2c
