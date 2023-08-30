@@ -13,6 +13,12 @@ async function main() {
 
 }
 
+function sleep(timeout: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, timeout);
+  });
+}
+
 async function oneToken(anotherToken,name,symbol) {
   const factoryContract = await hre.ethers.getContractAt("OptimismMintableERC20Factory", '0x4200000000000000000000000000000000000012');
   const tx = await factoryContract.createOptimismMintableERC20(anotherToken,name,symbol)
@@ -23,6 +29,8 @@ async function oneToken(anotherToken,name,symbol) {
   const tokenAddress = await getTokenAddress(factoryContract); // Await the Promise to get the value
   console.log("Token address:", tokenAddress);
 
+  // sleep for waiting trace data indexing finished
+  await sleep(180000);
   try {
     await hre.run("opbnb-verify", {
       contractName: "OptimismMintableERC20",
