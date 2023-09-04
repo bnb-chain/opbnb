@@ -208,20 +208,18 @@ var (
 		EnvVar:   prefixEnvVar("L2_BACKUP_UNSAFE_SYNC_RPC_TRUST_RPC"),
 		Required: false,
 	}
-	L2EngineSyncEnabled = &cli.BoolFlag{
+	L2EngineSyncEnabled = cli.BoolFlag{
 		Name:     "l2.engine-sync",
 		Usage:    "Enables or disables execution engine P2P sync",
-		EnvVars:  prefixEnvVars("L2_ENGINE_SYNC_ENABLED"),
+		EnvVar:   prefixEnvVar("L2_ENGINE_SYNC_ENABLED"),
 		Required: false,
-		Value:    false,
 	}
-	SkipSyncStartCheck = &cli.BoolFlag{
+	SkipSyncStartCheck = cli.BoolFlag{
 		Name: "l2.skip-sync-start-check",
 		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
 			"This defers the L1-origin verification, and is recommended to use in when utilizing l2.engine-sync",
-		EnvVars:  prefixEnvVars("L2_SKIP_SYNC_START_CHECK"),
+		EnvVar:   prefixEnvVar("L2_SKIP_SYNC_START_CHECK"),
 		Required: false,
-		Value:    false,
 	}
 )
 
