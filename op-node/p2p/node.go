@@ -107,17 +107,6 @@ func (n *NodeP2P) init(resourcesCtx context.Context, rollupCfg *rollup.Config, l
 					}
 				}
 			}()
-			n.host.Network().Notify(&network.NotifyBundle{
-				ConnectedF: func(nw network.Network, conn network.Conn) {
-					n.syncCl.AddPeer(conn.RemotePeer())
-				},
-				DisconnectedF: func(nw network.Network, conn network.Conn) {
-					// only when no connection is available, we can remove the peer
-					if nw.Connectedness(conn.RemotePeer()) == network.NotConnected {
-						n.syncCl.RemovePeer(conn.RemotePeer())
-					}
-				},
-			})
 			n.syncCl.Start()
 			// the host may already be connected to peers, add them all to the sync client
 			for _, peerID := range n.host.Network().Peers() {
