@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p/core/event"
 	"math/big"
 	"sync"
 	"testing"
@@ -344,20 +345,21 @@ func TestEdgeCaseWhenOnePeerHasMultiConn(t *testing.T) {
 	require.True(t, !ok, "peerB should be remove from syncClient")
 
 	hostA.Network().StopNotify(oldNotify)
-	//use new logic for fixing bug
-	hostA.Network().Notify(&network.NotifyBundle{
-		ConnectedF: func(nw network.Network, conn network.Conn) {
-			log.Info("connect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
-			syncCl.AddPeer(conn.RemotePeer())
-		},
-		DisconnectedF: func(nw network.Network, conn network.Conn) {
-			log.Info("disconnect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
-			// only when no connection is available, we can remove the peer
-			if nw.Connectedness(conn.RemotePeer()) == network.NotConnected {
-				syncCl.RemovePeer(conn.RemotePeer())
+	subscribe, err := hostA.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
+	require.NoError(t, err, "subscribe peerConnectednessChanged fail")
+	go func() {
+		for evt := range subscribe.Out() {
+			evto := evt.(event.EvtPeerConnectednessChanged)
+			if evto.Connectedness == network.Connected {
+				log.Info("event: connect peer", "peer", evto.Peer)
+				syncCl.AddPeer(evto.Peer)
+			} else if evto.Connectedness == network.NotConnected {
+				log.Info("event: disconnect peer", "peer", evto.Peer)
+				syncCl.RemovePeer(evto.Peer)
 			}
-		},
-	})
+		}
+	}()
+
 	syncCl.AddPeer(hostB.ID())
 	_, peerBExist := syncCl.peers[hostB.ID()]
 	require.True(t, peerBExist, "peerB should exist in syncClient")
@@ -370,5 +372,13 @@ func TestEdgeCaseWhenOnePeerHasMultiConn(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	_, peerBExist2 := syncCl.peers[hostB.ID()]
 	require.True(t, peerBExist2, "peerB should still exist in syncClient")
+
+	err = hostA.Network().ClosePeer(hostB.ID())
+	require.NoError(t, err, "close peer fail")
+
+	//wait for async removing process done
+	time.Sleep(100 * time.Millisecond)
+	_, peerBExist3 := syncCl.peers[hostB.ID()]
+	require.True(t, !peerBExist3, "peerB should not exist in syncClient")
 
 }
