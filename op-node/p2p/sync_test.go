@@ -288,3 +288,87 @@ func TestMultiPeerSync(t *testing.T) {
 		require.Equal(t, exp.BlockHash, p.BlockHash, "expecting the correct payload")
 	}
 }
+
+func TestEdgeCaseWhenOnePeerHasMultiConn(t *testing.T) {
+	t.Parallel()
+	log := testlog.Logger(t, log.LvlDebug)
+
+	cfg, _ := setupSyncTestData(25)
+
+	confA := TestingConfig(t)
+	confB := TestingConfig(t)
+	hostA, err := confA.Host(log.New("host", "A"), nil, metrics.NoopMetrics)
+	require.NoError(t, err, "failed to launch host A")
+	defer hostA.Close()
+	hostB, err := confB.Host(log.New("host", "B"), nil, metrics.NoopMetrics)
+	require.NoError(t, err, "failed to launch host B")
+	defer hostB.Close()
+
+	syncCl := NewSyncClient(log, cfg, hostA.NewStream, func(ctx context.Context, from peer.ID, payload *eth.ExecutionPayload) error {
+		return nil
+	}, metrics.NoopMetrics)
+	oldNotify := &network.NotifyBundle{
+		ConnectedF: func(nw network.Network, conn network.Conn) {
+			log.Info("connect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
+			syncCl.AddPeer(conn.RemotePeer())
+		},
+		DisconnectedF: func(nw network.Network, conn network.Conn) {
+			log.Info("disconnect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
+			syncCl.RemovePeer(conn.RemotePeer())
+		},
+	}
+	hostA.Network().Notify(oldNotify)
+	syncCl.Start()
+
+	//mock the extreme case, when the same peer is connected concurrently, one peer can correspond to multiple connections
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = hostA.Connect(context.Background(), peer.AddrInfo{ID: hostB.ID(), Addrs: hostB.Addrs()})
+			require.NoError(t, err, "failed to connect to peer B from peer A")
+		}()
+	}
+	wg.Wait()
+	require.Equal(t, hostA.Network().Connectedness(hostB.ID()), network.Connected)
+	require.True(t, len(hostA.Network().ConnsToPeer(hostB.ID())) > 1, "peerB conn should over than 1")
+
+	//mock one connection of peer is disconnected
+	err = hostA.Network().ConnsToPeer(hostB.ID())[0].Close()
+	require.NoError(t, err, "close connection fail")
+
+	//wait for async removing process done
+	time.Sleep(100 * time.Millisecond)
+	_, ok := syncCl.peers[hostB.ID()]
+	require.True(t, !ok, "peerB should be remove from syncClient")
+
+	hostA.Network().StopNotify(oldNotify)
+	//use new logic for fixing bug
+	hostA.Network().Notify(&network.NotifyBundle{
+		ConnectedF: func(nw network.Network, conn network.Conn) {
+			log.Info("connect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
+			syncCl.AddPeer(conn.RemotePeer())
+		},
+		DisconnectedF: func(nw network.Network, conn network.Conn) {
+			log.Info("disconnect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
+			// only when no connection is available, we can remove the peer
+			if nw.Connectedness(conn.RemotePeer()) == network.NotConnected {
+				syncCl.RemovePeer(conn.RemotePeer())
+			}
+		},
+	})
+	syncCl.AddPeer(hostB.ID())
+	_, peerBExist := syncCl.peers[hostB.ID()]
+	require.True(t, peerBExist, "peerB should exist in syncClient")
+
+	//mock one connection of peer is disconnected
+	err = hostA.Network().ConnsToPeer(hostB.ID())[0].Close()
+	require.NoError(t, err, "close connection fail")
+
+	//wait for async removing process done
+	time.Sleep(100 * time.Millisecond)
+	_, peerBExist2 := syncCl.peers[hostB.ID()]
+	require.True(t, peerBExist2, "peerB should still exist in syncClient")
+
+}
