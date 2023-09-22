@@ -397,21 +397,9 @@ func (job *receiptsFetchingJob) runFetcher(ctx context.Context) error {
 		)
 	}
 
-	if len(job.txHashes) > job.maxBatchSize {
-		// if we have more than the max batch size, we can do concurrent fetching
-		err2 := job.concurrentFetch(ctx)
-		if err2 != nil {
-			return err2
-		}
-	} else {
-		// otherwise, we can do sequential fetching
-		for {
-			if err := job.fetcher.Fetch(ctx); err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-		}
+	err2 := job.concurrentFetch(ctx)
+	if err2 != nil {
+		return err2
 	}
 
 	result, err := job.fetcher.Result()
