@@ -12,6 +12,7 @@ import (
 type NotificationsMetricer interface {
 	IncPeerCount()
 	DecPeerCount()
+	SetPeerCount(peerCount int)
 	IncStreamCount()
 	DecStreamCount()
 }
@@ -28,12 +29,14 @@ func (notif *notifications) ListenClose(n network.Network, a ma.Multiaddr) {
 	notif.log.Info("stopped listening network address", "addr", a)
 }
 func (notif *notifications) Connected(n network.Network, v network.Conn) {
-	notif.m.IncPeerCount()
-	notif.log.Info("connected to peer", "peer", v.RemotePeer(), "addr", v.RemoteMultiaddr())
+	currentPeerCount := len(n.Peers())
+	notif.m.SetPeerCount(currentPeerCount)
+	notif.log.Info("connected to peer", "peer", v.RemotePeer(), "addr", v.RemoteMultiaddr(), "peerCount", currentPeerCount)
 }
 func (notif *notifications) Disconnected(n network.Network, v network.Conn) {
-	notif.m.DecPeerCount()
-	notif.log.Info("disconnected from peer", "peer", v.RemotePeer(), "addr", v.RemoteMultiaddr())
+	currentPeerCount := len(n.Peers())
+	notif.m.SetPeerCount(currentPeerCount)
+	notif.log.Info("disconnected from peer", "peer", v.RemotePeer(), "addr", v.RemoteMultiaddr(), "peerCount", currentPeerCount)
 }
 func (notif *notifications) OpenedStream(n network.Network, v network.Stream) {
 	notif.m.IncStreamCount()

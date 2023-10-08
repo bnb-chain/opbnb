@@ -59,6 +59,7 @@ type Metricer interface {
 	RecordGossipEvent(evType int32)
 	IncPeerCount()
 	DecPeerCount()
+	SetPeerCount(peerCount int)
 	IncStreamCount()
 	DecStreamCount()
 	RecordBandwidth(ctx context.Context, bwc *libp2pmetrics.BandwidthCounter)
@@ -608,6 +609,10 @@ func (m *Metrics) DecPeerCount() {
 	m.PeerCount.Dec()
 }
 
+func (m *Metrics) SetPeerCount(peerCount int) {
+	m.PeerCount.Set(float64(peerCount))
+}
+
 func (m *Metrics) IncStreamCount() {
 	m.StreamCount.Inc()
 }
@@ -793,6 +798,9 @@ func (n *noopMetricer) IncPeerCount() {
 }
 
 func (n *noopMetricer) DecPeerCount() {
+}
+
+func (n *noopMetricer) SetPeerCount(peerCount int) {
 }
 
 func (n *noopMetricer) IncStreamCount() {
