@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	"net"
 	"os"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
+	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	opnode "github.com/ethereum-optimism/optimism/op-node"
 	"github.com/ethereum-optimism/optimism/op-node/cmd/genesis"
 	"github.com/ethereum-optimism/optimism/op-node/cmd/p2p"
@@ -91,7 +91,7 @@ func RollupNodeMain(ctx *cli.Context) error {
 	log := oplog.NewLogger(logCfg)
 	opservice.ValidateEnvVars(flags.EnvVarPrefix, flags.Flags, log)
 	m := metrics.NewMetrics("default")
-	if err := op_aws_sdk.Key_manager(context.Background(), ctx, op_aws_sdk.OP_NODE_P2P_SEQUENCER_KEY); err != nil {
+	if err := op_aws_sdk.KeyManager(context.Background(), ctx, op_aws_sdk.OP_NODE_P2P_SEQUENCER_KEY); err != nil {
 		return err
 	}
 	cfg, err := opnode.NewConfig(ctx, log)
