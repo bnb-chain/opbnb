@@ -248,9 +248,11 @@ func (s *Driver) eventLoop() {
 				// update sequencer time if the head changed
 				delay := s.sequencer.PlanNextSequencerAction()
 				if delay == 0 {
+					// immediately do sequencerStep if time is ready
 					if err := sequencerStep(); err != nil {
 						return
 					}
+					// sequencerStep was already done, so we continue to next round
 					continue
 				} else {
 					planSequencerAction()
