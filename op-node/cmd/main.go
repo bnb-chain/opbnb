@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	"net"
 	"os"
 	"strconv"
@@ -90,7 +91,9 @@ func RollupNodeMain(ctx *cli.Context) error {
 	log := oplog.NewLogger(logCfg)
 	opservice.ValidateEnvVars(flags.EnvVarPrefix, flags.Flags, log)
 	m := metrics.NewMetrics("default")
-
+	if err := op_aws_sdk.Key_manager(context.Background(), ctx, op_aws_sdk.OP_NODE_P2P_SEQUENCER_KEY); err != nil {
+		return err
+	}
 	cfg, err := opnode.NewConfig(ctx, log)
 	if err != nil {
 		log.Error("Unable to create the rollup node config", "error", err)
