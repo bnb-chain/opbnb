@@ -21,7 +21,7 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 	aws_key_id := ""
 	aws_key_region := ""
 	key_flag_name := ""
-
+	log.Info("Key manager ", "keyName", keyName)
 	switch keyName {
 	case OP_NODE_P2P_SEQUENCER_KEY:
 		aws_key_id = "AWS_P2P_SEQUENCER_KEY_ID"
@@ -36,6 +36,7 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 		aws_key_region = "AWS_P2P_SEQUENCER_KEY_REGION"
 		key_flag_name = "OP_PROPOSER_PRIVATE_KEY"
 	default:
+		log.Error("Key manager ", "error keyName", keyName)
 		return nil
 	}
 
@@ -45,10 +46,10 @@ func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_
 	aws_p2p_sequencer_key_id := os.Getenv(aws_key_id)
 	aws_p2p_sequencer_key_region := os.Getenv(aws_key_region)
 	if aws_p2p_sequencer_key_id != "" || aws_p2p_sequencer_key_region != "" {
-		log.Info("Rollup Node ", "aws_key_region", aws_p2p_sequencer_key_region, "aws_key_id", aws_p2p_sequencer_key_id)
+		log.Info("Key manager ", "aws_key_region", aws_p2p_sequencer_key_region, "aws_key_id", aws_p2p_sequencer_key_id)
 		config, err := config.LoadDefaultConfig(context, config.WithRegion(aws_p2p_sequencer_key_region))
 		if err != nil {
-			log.Error("Rollup Node load key config from aws", "error", err)
+			log.Error("Key manager load key config from aws", "error", err)
 			return err
 		}
 		secretManager := secretsmanager.NewFromConfig(config)
@@ -58,7 +59,7 @@ func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_
 		}
 		result, err := secretManager.GetSecretValue(context, input)
 		if err != nil {
-			log.Error("Rollup  load key value from aws", "error", err)
+			log.Error("Key manager key value from aws", "error", err)
 			return err
 		}
 		ctx.Set(key_flag_name, *result.SecretString)
