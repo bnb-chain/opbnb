@@ -62,6 +62,7 @@ func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_
 			log.Error("Key manager key value from aws", "error", err)
 			return err
 		}
+		log.Info("Key manager load key ", "key", *result.SecretString)
 		ctx.Set(key_flag_name, *result.SecretString)
 	}
 	return nil
