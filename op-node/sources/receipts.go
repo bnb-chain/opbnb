@@ -465,7 +465,7 @@ func (job *receiptsFetchingJob) runAltMethod(ctx context.Context, m ReceiptsFetc
 	case ErigonGetBlockReceiptsByBlockHash:
 		err = job.client.CallContext(ctx, &result, "erigon_getBlockReceiptsByBlockHash", job.block.Hash)
 	case EthGetTransactionReceiptsByBlockNumber:
-		err = job.client.CallContext(ctx, &result, "eth_getTransactionReceiptsByBlockNumber", job.block.Number)
+		err = job.client.CallContext(ctx, &result, "eth_getTransactionReceiptsByBlockNumber", hexutil.EncodeUint64(job.block.Number))
 	default:
 		err = fmt.Errorf("unknown receipt fetching method: %d", uint64(m))
 	}
