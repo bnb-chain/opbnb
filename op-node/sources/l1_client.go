@@ -163,6 +163,6 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 }
 
 func (s *L1Client) Close() {
-	s.done <- struct{}{}
+	close(s.done)
 	s.EthClient.Close()
 }
