@@ -61,7 +61,6 @@ func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEn
 
 // StartBuildingBlock initiates a block building job on top of the given L2 head, safe and finalized blocks, and using the provided l1Origin.
 func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
-	d.log.Debug("sequencer startBuildingBlock")
 	l2Head := d.engine.UnsafeL2Head()
 
 	// Figure out which L1 origin block we're going to be building on top of.
@@ -101,7 +100,6 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to start building on top of L2 chain %s, error (%d): %w", l2Head, errTyp, err)
 	}
-	d.log.Debug("sequencer startBuildingBlock done")
 	return nil
 }
 
@@ -109,12 +107,10 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 // Warning: the safe and finalized L2 blocks as viewed during the initiation of the block building are reused for completion of the block building.
 // The Execution engine should not change the safe and finalized blocks between start and completion of block building.
 func (d *Sequencer) CompleteBuildingBlock(ctx context.Context) (*eth.ExecutionPayload, error) {
-	d.log.Debug("sequencer CompleteBuildingBlock")
 	payload, errTyp, err := d.engine.ConfirmPayload(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to complete building block: error (%d): %w", errTyp, err)
 	}
-	d.log.Debug("sequencer CompleteBuildingBlock done")
 	return payload, nil
 }
 
