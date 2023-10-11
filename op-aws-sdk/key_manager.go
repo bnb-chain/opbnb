@@ -28,12 +28,12 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 		aws_key_region = "AWS_P2P_SEQUENCER_KEY_REGION"
 		key_flag_name = "p2p.sequencer.key"
 	case OP_BATCHER_SIGN_KEY:
-		aws_key_id = "AWS_P2P_SEQUENCER_KEY_ID"
-		aws_key_region = "AWS_P2P_SEQUENCER_KEY_REGION"
+		aws_key_id = "AWS_OP_BATCHER_SIGN_KEY_ID"
+		aws_key_region = "AWS_OP_BATCHER_SIGN_KEY_REGION"
 		key_flag_name = "OP_BATCHER_PRIVATE_KEY"
 	case OP_PROPOSER_SIGN_KEY:
-		aws_key_id = "AWS_P2P_SEQUENCER_KEY_ID"
-		aws_key_region = "AWS_P2P_SEQUENCER_KEY_REGION"
+		aws_key_id = "AWS_OP_PROPOSER_SIGN_KEY_ID"
+		aws_key_region = "AWS_OP_PROPOSER_SIGN_KEY_REGION"
 		key_flag_name = "OP_PROPOSER_PRIVATE_KEY"
 	default:
 		log.Error("Key manager ", "error keyName", keyName)
