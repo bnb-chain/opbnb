@@ -71,6 +71,7 @@ func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallback
 		currentIndex:      0,
 		fallbackThreshold: fallbackThreshold,
 		metrics:           m,
+		isClose:           make(chan struct{}),
 	}
 	fallbackClient.currentClient.Store(&rpc)
 	go func() {

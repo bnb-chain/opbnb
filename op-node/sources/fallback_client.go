@@ -54,6 +54,7 @@ func NewFallbackClient(ctx context.Context, rpc client.RPC, urlList []string, lo
 		currentIndex: 0,
 		l1ChainId:    l1ChainId,
 		l1Block:      l1Block,
+		isClose:      make(chan struct{}),
 	}
 	fallbackClient.currentRpc.Store(&rpc)
 	go func() {
