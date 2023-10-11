@@ -114,15 +114,16 @@ func makeReceiptRequest(txHash common.Hash) (*types.Receipt, rpc.BatchElem) {
 type RPCProviderKind string
 
 const (
-	RPCKindAlchemy    RPCProviderKind = "alchemy"
-	RPCKindQuickNode  RPCProviderKind = "quicknode"
-	RPCKindInfura     RPCProviderKind = "infura"
-	RPCKindParity     RPCProviderKind = "parity"
-	RPCKindNethermind RPCProviderKind = "nethermind"
-	RPCKindDebugGeth  RPCProviderKind = "debug_geth"
-	RPCKindErigon     RPCProviderKind = "erigon"
-	RPCKindBasic      RPCProviderKind = "basic" // try only the standard most basic receipt fetching
-	RPCKindAny        RPCProviderKind = "any"   // try any method available
+	RPCKindAlchemy     RPCProviderKind = "alchemy"
+	RPCKindQuickNode   RPCProviderKind = "quicknode"
+	RPCKindInfura      RPCProviderKind = "infura"
+	RPCKindParity      RPCProviderKind = "parity"
+	RPCKindNethermind  RPCProviderKind = "nethermind"
+	RPCKindDebugGeth   RPCProviderKind = "debug_geth"
+	RPCKindErigon      RPCProviderKind = "erigon"
+	RPCKindBasic       RPCProviderKind = "basic" // try only the standard most basic receipt fetching
+	RPCKindBscFullNode RPCProviderKind = "bsc_fullnode"
+	RPCKindAny         RPCProviderKind = "any" // try any method available
 )
 
 var RPCProviderKinds = []RPCProviderKind{
@@ -134,6 +135,7 @@ var RPCProviderKinds = []RPCProviderKind{
 	RPCKindDebugGeth,
 	RPCKindErigon,
 	RPCKindBasic,
+	RPCKindBscFullNode,
 	RPCKindAny,
 }
 
@@ -180,6 +182,7 @@ func (r ReceiptsFetchingMethod) String() string {
 	addMaybe(ParityGetBlockReceipts, "parity_getBlockReceipts")
 	addMaybe(EthGetBlockReceipts, "eth_getBlockReceipts")
 	addMaybe(ErigonGetBlockReceiptsByBlockHash, "erigon_getBlockReceiptsByBlockHash")
+	addMaybe(EthGetTransactionReceiptsByBlockNumber, "eth_getTransactionReceiptsByBlockNumber")
 	addMaybe(^ReceiptsFetchingMethod(0), "unknown") // if anything is left, describe it as unknown
 	return out
 }
@@ -258,6 +261,14 @@ const (
 	// See:
 	// https://github.com/ledgerwatch/erigon/blob/287a3d1d6c90fc6a7a088b5ae320f93600d5a167/cmd/rpcdaemon/commands/erigon_receipts.go#LL391C24-L391C51
 	ErigonGetBlockReceiptsByBlockHash
+	// EthGetTransactionReceiptsByBlockNumber is a method provided by the fullnode of the bsc network to obtain receipts.
+	// Method: eth_getTransactionReceiptsByBlockNumber
+	// Params:
+	//   - blockNumberTag
+	// Returns: array of receipts
+	// See:
+	// https://github.com/bnb-chain/bsc/blob/f8439514e33ad6430f50558ce1d85a83ec6ef658/internal/ethapi/api.go#L1960
+	EthGetTransactionReceiptsByBlockNumber
 
 	// Other:
 	//  - 250 credits, not supported, strictly worse than other options. In quicknode price-table.
@@ -286,6 +297,8 @@ func AvailableReceiptsFetchingMethods(kind RPCProviderKind) ReceiptsFetchingMeth
 		return ErigonGetBlockReceiptsByBlockHash | EthGetTransactionReceiptBatch
 	case RPCKindBasic:
 		return EthGetTransactionReceiptBatch
+	case RPCKindBscFullNode:
+		return EthGetTransactionReceiptsByBlockNumber | EthGetTransactionReceiptBatch
 	case RPCKindAny:
 		// if it's any kind of RPC provider, then try all methods
 		return AlchemyGetTransactionReceipts | EthGetBlockReceipts |
@@ -333,6 +346,9 @@ func PickBestReceiptsFetchingMethod(kind RPCProviderKind, available ReceiptsFetc
 	}
 	if available&ParityGetBlockReceipts != 0 {
 		return ParityGetBlockReceipts
+	}
+	if available&EthGetTransactionReceiptsByBlockNumber != 0 {
+		return EthGetTransactionReceiptsByBlockNumber
 	}
 	// otherwise fall back on per-tx fetching
 	return EthGetTransactionReceiptBatch
@@ -448,6 +464,8 @@ func (job *receiptsFetchingJob) runAltMethod(ctx context.Context, m ReceiptsFetc
 		err = job.client.CallContext(ctx, &result, "eth_getBlockReceipts", job.block.Hash)
 	case ErigonGetBlockReceiptsByBlockHash:
 		err = job.client.CallContext(ctx, &result, "erigon_getBlockReceiptsByBlockHash", job.block.Hash)
+	case EthGetTransactionReceiptsByBlockNumber:
+		err = job.client.CallContext(ctx, &result, "eth_getTransactionReceiptsByBlockNumber", hexutil.EncodeUint64(job.block.Number))
 	default:
 		err = fmt.Errorf("unknown receipt fetching method: %d", uint64(m))
 	}
