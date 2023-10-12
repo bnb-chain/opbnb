@@ -75,7 +75,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 // L1BlockRefByLabel returns the [eth.L1BlockRef] for the given block label.
 // Notice, we cannot cache a block reference by label because labels are not guaranteed to be unique.
 func (s *L1Client) L1BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L1BlockRef, error) {
-	info, err := s.InfoByLabel(ctx, label)
+	info, err := s.BSCInfoByLabel(ctx, label)
 	if err != nil {
 		// Both geth and erigon like to serve non-standard errors for the safe and finalized heads, correct that.
 		// This happens when the chain just started and nothing is marked as safe/finalized yet.
