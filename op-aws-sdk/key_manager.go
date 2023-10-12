@@ -30,17 +30,16 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 	case OP_BATCHER_SIGN_KEY:
 		aws_key_id = "AWS_OP_BATCHER_SIGN_KEY_ID"
 		aws_key_region = "AWS_OP_BATCHER_SIGN_KEY_REGION"
-		key_flag_name = "OP_BATCHER_PRIVATE_KEY"
+		key_flag_name = "private-key"
 	case OP_PROPOSER_SIGN_KEY:
 		aws_key_id = "AWS_OP_PROPOSER_SIGN_KEY_ID"
 		aws_key_region = "AWS_OP_PROPOSER_SIGN_KEY_REGION"
-		key_flag_name = "OP_PROPOSER_PRIVATE_KEY"
+		key_flag_name = "private-key"
 	default:
 		log.Error("Key manager ", "error keyName", keyName)
 		return nil
 	}
-
-	return load(context, ctx, aws_key_id, aws_key_region, key_flag_name)
+	return load(context, ctx, aws_key_region, aws_key_id, key_flag_name)
 }
 func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_key_id string, key_flag_name string) error {
 	aws_p2p_sequencer_key_id := os.Getenv(aws_key_id)
