@@ -84,6 +84,10 @@ type Config struct {
 	DepositContractAddress common.Address `json:"deposit_contract_address"`
 	// L1 System Config Address
 	L1SystemConfigAddress common.Address `json:"l1_system_config_address"`
+
+	// OPBNB hard fork
+	// Fermat switch block (nil = no fork, 0 = already on Fermat)
+	Fermat *big.Int `json:"fermat,omitempty"`
 }
 
 // ValidateL1Config checks L1 config variables for errors.
@@ -256,6 +260,21 @@ func (c *Config) IsRegolith(timestamp uint64) bool {
 	return c.RegolithTime != nil && timestamp >= *c.RegolithTime
 }
 
+// IsFermat returns true if the Fermat hardfork is active at or past the given block.
+func (c *Config) IsFermat(num *big.Int) bool {
+	return isBlockForked(c.Fermat, num)
+}
+
+// isBlockForked returns whether a fork scheduled at block s is active at the
+// given head block. Whilst this method is the same as isTimestampForked, they
+// are explicitly separate for clearer reading.
+func isBlockForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
+}
+
 // Description outputs a banner describing the important parts of rollup configuration in a human-readable form.
 // Optionally provide a mapping of L2 chain IDs to network names to label the L2 chain with if not unknown.
 // The config should be config.Check()-ed before creating a description.
@@ -283,6 +302,8 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	// Report the upgrade configuration
 	banner += "Post-Bedrock Network Upgrades (timestamp based):\n"
 	banner += fmt.Sprintf("  - Regolith: %s\n", fmtForkTimeOrUnset(c.RegolithTime))
+	banner += "OPBNB hard forks (block based):\n"
+	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
 	return banner
 }
 
@@ -305,7 +326,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 	log.Info("Rollup Config", "l2_chain_id", c.L2ChainID, "l2_network", networkL2, "l1_chain_id", c.L1ChainID,
 		"l1_network", networkL1, "l2_start_time", c.Genesis.L2Time, "l2_block_hash", c.Genesis.L2.Hash.String(),
 		"l2_block_number", c.Genesis.L2.Number, "l1_block_hash", c.Genesis.L1.Hash.String(),
-		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime))
+		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime), "Fermat", c.Fermat)
 }
 
 func fmtForkTimeOrUnset(v *uint64) string {
