@@ -30,11 +30,11 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 	case OP_BATCHER_SIGN_KEY:
 		aws_key_id = "AWS_OP_BATCHER_SIGN_KEY_ID"
 		aws_key_region = "AWS_OP_BATCHER_SIGN_KEY_REGION"
-		key_flag_name = "OP_BATCHER_PRIVATE_KEY"
+		key_flag_name = "private-key"
 	case OP_PROPOSER_SIGN_KEY:
 		aws_key_id = "AWS_OP_PROPOSER_SIGN_KEY_ID"
 		aws_key_region = "AWS_OP_PROPOSER_SIGN_KEY_REGION"
-		key_flag_name = "OP_PROPOSER_PRIVATE_KEY"
+		key_flag_name = "private-key"
 	default:
 		log.Error("Key manager ", "error keyName", keyName)
 		return nil
