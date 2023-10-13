@@ -1,8 +1,9 @@
 package proposer
 
 import (
-	"github.com/ethereum-optimism/optimism/op-service/client"
 	"time"
+
+	"github.com/ethereum-optimism/optimism/op-service/client"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli"

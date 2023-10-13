@@ -2,7 +2,13 @@ package sources
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/big"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
@@ -11,10 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/big"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // FallbackClient is an RPC client, it can automatically switch to the next l1 endpoint
@@ -97,10 +99,11 @@ func (l *FallbackClient) CallContext(ctx context.Context, result any, method str
 }
 
 func (l *FallbackClient) handleErr(err error) {
-	if err == rpc.ErrNoResult {
+	if errors.Is(err, rpc.ErrNoResult) {
 		return
 	}
-	if _, ok := err.(rpc.Error); ok {
+	var targetErr rpc.Error
+	if errors.As(err, &targetErr) {
 		return
 	}
 	l.lastMinuteFail.Add(1)
@@ -154,7 +157,7 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 	url := l.urlList[l.currentIndex]
 	newRpc, err := l.rpcInitFunc(url)
 	if err != nil {
-		return fmt.Errorf("the fallback client init RPC failed,url:%s, err:%v", url, err)
+		return fmt.Errorf("the fallback client init RPC failed,url:%s, err:%w", url, err)
 	}
 	vErr := l.validateRpc(newRpc)
 	if vErr != nil {

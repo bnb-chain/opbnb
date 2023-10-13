@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum"
 
 	"github.com/ethereum-optimism/optimism/op-node/eth"

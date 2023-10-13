@@ -2,18 +2,20 @@ package client
 
 import (
 	"context"
-	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rpc"
+	"errors"
 	"math/big"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func MultiUrlParse(url string) (isMultiUrl bool, urlList []string) {
@@ -210,10 +212,11 @@ func (l *FallbackClient) NonceAt(ctx context.Context, account common.Address, bl
 }
 
 func (l *FallbackClient) handleErr(err error) {
-	if err == rpc.ErrNoResult {
+	if errors.Is(err, rpc.ErrNoResult) {
 		return
 	}
-	if _, ok := err.(rpc.Error); ok {
+	var targetErr rpc.Error
+	if errors.As(err, &targetErr) {
 		return
 	}
 	l.lastMinuteFail.Add(1)

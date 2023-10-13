@@ -1,8 +1,9 @@
 package batcher
 
 import (
-	"github.com/ethereum-optimism/optimism/op-service/client"
 	"time"
+
+	"github.com/ethereum-optimism/optimism/op-service/client"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
