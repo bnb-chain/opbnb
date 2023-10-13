@@ -80,3 +80,7 @@ func (o *OracleL1Client) InfoAndTxsByHash(ctx context.Context, hash common.Hash)
 	info, txs := o.oracle.TransactionsByBlockHash(hash)
 	return info, txs, nil
 }
+
+func (o *OracleL1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error {
+	return o.oracle.GoOrUpdatePreFetchReceipts(ctx, l1StartBlock)
+}

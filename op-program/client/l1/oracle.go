@@ -1,6 +1,7 @@
 package l1
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +22,7 @@ type Oracle interface {
 
 	// ReceiptsByBlockHash retrieves the receipts from the block with the given hash.
 	ReceiptsByBlockHash(blockHash common.Hash) (eth.BlockInfo, types.Receipts)
+	GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error
 }
 
 // PreimageOracle implements Oracle using by interfacing with the pure preimage.Oracle
@@ -85,4 +87,9 @@ func (p *PreimageOracle) ReceiptsByBlockHash(blockHash common.Hash) (eth.BlockIn
 	}
 
 	return info, receipts
+}
+
+func (p *PreimageOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
+	// do nothing
+	return nil
 }
