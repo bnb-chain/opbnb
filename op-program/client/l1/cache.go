@@ -1,6 +1,7 @@
 package l1
 
 import (
+	"context"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,4 +61,9 @@ func (o *CachingOracle) ReceiptsByBlockHash(blockHash common.Hash) (eth.BlockInf
 	o.blocks.Add(blockHash, block)
 	o.rcpts.Add(blockHash, rcpts)
 	return block, rcpts
+}
+
+func (o *CachingOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
+	// do nothing
+	return nil
 }
