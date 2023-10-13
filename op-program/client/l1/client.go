@@ -81,6 +81,10 @@ func (o *OracleL1Client) InfoAndTxsByHash(ctx context.Context, hash common.Hash)
 	return info, txs, nil
 }
 
+func (o *OracleL1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error {
+	return o.oracle.GoOrUpdatePreFetchReceipts(ctx, l1StartBlock)
+}
+
 func (o *OracleL1Client) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
 	return true
 }
