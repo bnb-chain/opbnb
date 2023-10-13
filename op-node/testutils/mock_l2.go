@@ -43,3 +43,7 @@ func (m *MockL2Client) SystemConfigByL2Hash(ctx context.Context, hash common.Has
 func (m *MockL2Client) ExpectSystemConfigByL2Hash(hash common.Hash, cfg eth.SystemConfig, err error) {
 	m.Mock.On("SystemConfigByL2Hash", hash).Once().Return(cfg, &err)
 }
+
+func (m *MockL2Client) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}
