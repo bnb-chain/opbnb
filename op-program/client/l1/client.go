@@ -80,3 +80,7 @@ func (o *OracleL1Client) InfoAndTxsByHash(ctx context.Context, hash common.Hash)
 	info, txs := o.oracle.TransactionsByBlockHash(hash)
 	return info, txs, nil
 }
+
+func (o *OracleL1Client) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}
