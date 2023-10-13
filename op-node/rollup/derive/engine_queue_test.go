@@ -236,6 +236,8 @@ func TestEngineQueue_Finalize(t *testing.T) {
 	l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
 	l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
 
+	l1F.ExpectGoOrUpdatePreFetchReceipts(context.Background(), refB.Number, nil)
+
 	// and mock a L1 config for the last L2 block that references the L1 starting point
 	eng.ExpectSystemConfigByL2Hash(refB1.Hash, eth.SystemConfig{
 		BatcherAddr: common.Address{42},
@@ -469,6 +471,8 @@ func TestEngineQueue_ResetWhenUnsafeOriginNotCanonical(t *testing.T) {
 	// and we fetch the L1 origin of that as starting point for engine queue
 	l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
 	l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
+
+	l1F.ExpectGoOrUpdatePreFetchReceipts(context.Background(), refB.Number, nil)
 
 	// and mock a L1 config for the last L2 block that references the L1 starting point
 	eng.ExpectSystemConfigByL2Hash(refB1.Hash, eth.SystemConfig{
@@ -801,6 +805,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			// and we fetch the L1 origin of that as starting point for engine queue
 			l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
 			l1F.ExpectL1BlockRefByHash(refB.Hash, refB, nil)
+			l1F.ExpectGoOrUpdatePreFetchReceipts(context.Background(), refB.Number, nil)
 
 			// and mock a L1 config for the last L2 block that references the L1 starting point
 			eng.ExpectSystemConfigByL2Hash(refB1.Hash, eth.SystemConfig{
@@ -893,6 +898,8 @@ func TestBlockBuildingRace(t *testing.T) {
 	l1F.ExpectL1BlockRefByNumber(refA.Number, refA, nil)
 	l1F.ExpectL1BlockRefByHash(refA.Hash, refA, nil)
 	l1F.ExpectL1BlockRefByHash(refA.Hash, refA, nil)
+
+	l1F.ExpectGoOrUpdatePreFetchReceipts(context.Background(), refA.Number, nil)
 
 	eng.ExpectSystemConfigByL2Hash(refA0.Hash, cfg.Genesis.SystemConfig, nil)
 
@@ -1076,6 +1083,7 @@ func TestResetLoop(t *testing.T) {
 	l1F.ExpectL1BlockRefByNumber(refA.Number, refA, nil)
 	l1F.ExpectL1BlockRefByHash(refA.Hash, refA, nil)
 	l1F.ExpectL1BlockRefByHash(refA.Hash, refA, nil)
+	l1F.ExpectGoOrUpdatePreFetchReceipts(context.Background(), refA.Number, nil)
 
 	prev := &fakeAttributesQueue{origin: refA, attrs: attrs}
 
