@@ -76,7 +76,7 @@ func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_
 			log.Error("Key manager load key is not exist")
 			return errors.New("Key manager load key is not exist")
 		}
-		log.Info("Key manager load key ", "key", key)
+		log.Info("Key manager load key_v0.8 ", "key", key)
 		ctx.Set(key_flag_name, key)
 	}
 	return nil
