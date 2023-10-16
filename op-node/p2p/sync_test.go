@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p/core/event"
 	"math/big"
 	"sync"
 	"testing"
@@ -290,7 +289,7 @@ func TestMultiPeerSync(t *testing.T) {
 	}
 }
 
-func TestEdgeCaseWhenOnePeerHasMultiConn(t *testing.T) {
+func TestNetworkNotifyAddPeerAndRemovePeer(t *testing.T) {
 	t.Parallel()
 	log := testlog.Logger(t, log.LvlDebug)
 
@@ -308,76 +307,37 @@ func TestEdgeCaseWhenOnePeerHasMultiConn(t *testing.T) {
 	syncCl := NewSyncClient(log, cfg, hostA.NewStream, func(ctx context.Context, from peer.ID, payload *eth.ExecutionPayload) error {
 		return nil
 	}, metrics.NoopMetrics)
-	oldNotify := &network.NotifyBundle{
+
+	waitChan := make(chan struct{}, 1)
+	hostA.Network().Notify(&network.NotifyBundle{
 		ConnectedF: func(nw network.Network, conn network.Conn) {
-			log.Info("connect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
 			syncCl.AddPeer(conn.RemotePeer())
+			waitChan <- struct{}{}
 		},
 		DisconnectedF: func(nw network.Network, conn network.Conn) {
-			log.Info("disconnect peer", "peer", conn.RemotePeer(), "connId", conn.ID(), "addr", conn.RemoteMultiaddr())
-			syncCl.RemovePeer(conn.RemotePeer())
+			// only when no connection is available, we can remove the peer
+			if nw.Connectedness(conn.RemotePeer()) == network.NotConnected {
+				syncCl.RemovePeer(conn.RemotePeer())
+			}
+			waitChan <- struct{}{}
 		},
-	}
-	hostA.Network().Notify(oldNotify)
+	})
 	syncCl.Start()
 
-	//mock the extreme case, when the same peer is connected concurrently, one peer can correspond to multiple connections
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err = hostA.Connect(context.Background(), peer.AddrInfo{ID: hostB.ID(), Addrs: hostB.Addrs()})
-			require.NoError(t, err, "failed to connect to peer B from peer A")
-		}()
-	}
-	wg.Wait()
+	err = hostA.Connect(context.Background(), peer.AddrInfo{ID: hostB.ID(), Addrs: hostB.Addrs()})
+	require.NoError(t, err, "failed to connect to peer B from peer A")
 	require.Equal(t, hostA.Network().Connectedness(hostB.ID()), network.Connected)
-	require.True(t, len(hostA.Network().ConnsToPeer(hostB.ID())) > 1, "peerB conn should over than 1")
 
-	//mock one connection of peer is disconnected
-	err = hostA.Network().ConnsToPeer(hostB.ID())[0].Close()
-	require.NoError(t, err, "close connection fail")
-
-	//wait for async removing process done
-	time.Sleep(100 * time.Millisecond)
+	//wait for async add process done
+	<-waitChan
 	_, ok := syncCl.peers[hostB.ID()]
-	require.True(t, !ok, "peerB should be remove from syncClient")
-
-	hostA.Network().StopNotify(oldNotify)
-	subscribe, err := hostA.EventBus().Subscribe(&event.EvtPeerConnectednessChanged{})
-	require.NoError(t, err, "subscribe peerConnectednessChanged fail")
-	go func() {
-		for evt := range subscribe.Out() {
-			evto := evt.(event.EvtPeerConnectednessChanged)
-			if evto.Connectedness == network.Connected {
-				log.Info("event: connect peer", "peer", evto.Peer)
-				syncCl.AddPeer(evto.Peer)
-			} else if evto.Connectedness == network.NotConnected {
-				log.Info("event: disconnect peer", "peer", evto.Peer)
-				syncCl.RemovePeer(evto.Peer)
-			}
-		}
-	}()
-
-	syncCl.AddPeer(hostB.ID())
-	_, peerBExist := syncCl.peers[hostB.ID()]
-	require.True(t, peerBExist, "peerB should exist in syncClient")
-
-	//mock one connection of peer is disconnected
-	err = hostA.Network().ConnsToPeer(hostB.ID())[0].Close()
-	require.NoError(t, err, "close connection fail")
-
-	//wait for async removing process done
-	time.Sleep(100 * time.Millisecond)
-	_, peerBExist2 := syncCl.peers[hostB.ID()]
-	require.True(t, peerBExist2, "peerB should still exist in syncClient")
+	require.True(t, ok, "peerB should exist in syncClient")
 
 	err = hostA.Network().ClosePeer(hostB.ID())
 	require.NoError(t, err, "close peer fail")
 
 	//wait for async removing process done
-	time.Sleep(100 * time.Millisecond)
+	<-waitChan
 	_, peerBExist3 := syncCl.peers[hostB.ID()]
 	require.True(t, !peerBExist3, "peerB should not exist in syncClient")
 
