@@ -162,8 +162,7 @@ var OPBNBDevnet = rollup.Config{
 	DepositContractAddress: common.HexToAddress("0x25f4c037c1804ab94d95a2538ae2e9ff498c04cc"),
 	L1SystemConfigAddress:  common.HexToAddress("0x2322e47f9f64c14a86b39b6d633e4a532e1a7fb8"),
 	RegolithTime:           u64Ptr(0),
-	// todo update block number
-	Fermat: big.NewInt(0),
+	Fermat:                 big.NewInt(586789),
 }
 
 var NetworksByName = map[string]rollup.Config{
