@@ -89,6 +89,51 @@ func NewL1Replica(t Testing, log log.Logger, genesis *core.Genesis) *L1Replica {
 	}
 }
 
+func NewL1ReplicaWithPort(t Testing, log log.Logger, genesis *core.Genesis, port int) *L1Replica {
+	ethCfg := &ethconfig.Config{
+		NetworkId:                 genesis.Config.ChainID.Uint64(),
+		Genesis:                   genesis,
+		RollupDisableTxPoolGossip: true,
+	}
+	nodeCfg := &node.Config{
+		Name:        "l1-geth",
+		WSHost:      "127.0.0.1",
+		WSPort:      port,
+		HTTPHost:    "127.0.0.1",
+		HTTPPort:    port,
+		WSModules:   []string{"debug", "admin", "eth", "txpool", "net", "rpc", "web3", "personal"},
+		HTTPModules: []string{"debug", "admin", "eth", "txpool", "net", "rpc", "web3", "personal"},
+		DataDir:     "", // in-memory
+		P2P: p2p.Config{
+			NoDiscovery: true,
+			NoDial:      true,
+		},
+	}
+	n, err := node.New(nodeCfg)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = n.Close()
+	})
+
+	backend, err := eth.New(n, ethCfg)
+	require.NoError(t, err)
+	backend.Merger().FinalizePoS()
+
+	n.RegisterAPIs(tracers.APIs(backend.APIBackend))
+
+	require.NoError(t, n.Start(), "failed to start L1 geth node")
+	return &L1Replica{
+		log:        log,
+		node:       n,
+		eth:        backend,
+		l1Chain:    backend.BlockChain(),
+		l1Database: backend.ChainDb(),
+		l1Cfg:      genesis,
+		l1Signer:   types.LatestSigner(genesis.Config),
+		failL1RPC:  nil,
+	}
+}
+
 // ActL1RewindToParent rewinds the L1 chain to parent block of head
 func (s *L1Replica) ActL1RewindToParent(t Testing) {
 	s.ActL1RewindDepth(1)(t)
