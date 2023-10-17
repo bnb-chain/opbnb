@@ -126,6 +126,12 @@ var (
 		Required: false,
 		Value:    0,
 	}
+	SequencerPriorityFlag = cli.BoolFlag{
+		Name:     "sequencer.priority",
+		Usage:    "Enable sequencer step takes precedence over other steps.",
+		EnvVar:   prefixEnvVar("SEQUENCER_PRIORITY"),
+		Required: false,
+	}
 	SequencerL1Confs = cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
@@ -230,6 +236,7 @@ var optionalFlags = []cli.Flag{
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
+	SequencerPriorityFlag,
 	SequencerL1Confs,
 	L1EpochPollIntervalFlag,
 	RPCEnableAdmin,

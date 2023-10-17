@@ -269,18 +269,20 @@ func (s *Driver) eventLoop() {
 			altSyncTicker.Reset(syncCheckInterval)
 		}
 
-		// help sequencerStep not interrupt by other steps
-		select {
-		case <-sequencerCh:
-			if err := sequencerStep(); err != nil {
-				return
+		if s.driverConfig.SequencerPriority {
+			// help sequencerStep not interrupt by other steps
+			select {
+			case <-sequencerCh:
+				if err := sequencerStep(); err != nil {
+					return
+				}
+				continue
+			case newL1Head := <-s.l1HeadSig: // sequencerStep may depend on this when FindL1Origin
+				s.l1State.HandleNewL1HeadBlock(newL1Head)
+				reqStep() // a new L1 head may mean we have the data to not get an EOF again.
+				continue
+			default:
 			}
-			continue
-		case newL1Head := <-s.l1HeadSig: // sequencerStep may depend on this when FindL1Origin
-			s.l1State.HandleNewL1HeadBlock(newL1Head)
-			reqStep() // a new L1 head may mean we have the data to not get an EOF again.
-			continue
-		default:
 		}
 
 		select {
