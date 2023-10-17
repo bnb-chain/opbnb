@@ -46,6 +46,7 @@ func Key_manager(context context.Context, ctx *cli.Context, keyName string) erro
 	return load(context, ctx, aws_key_region, aws_key_id, key_flag_name)
 }
 func load(context context.Context, ctx *cli.Context, aws_key_region string, aws_key_id string, key_flag_name string) error {
+	log.Info("Key manager load key ", "aws_key_region", aws_key_region, "aws_key_id", aws_key_id)
 	aws_key_id = os.Getenv(aws_key_id)
 	aws_key_region = os.Getenv(aws_key_region)
 	if aws_key_id != "" || aws_key_region != "" {
