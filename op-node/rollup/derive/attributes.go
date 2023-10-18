@@ -3,6 +3,7 @@ package derive
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -58,11 +59,16 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	}
 
 	// Calculate bsc block base fee
-	_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
-	if err != nil {
-		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+	var l1BaseFee *big.Int
+	if ba.cfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
+		l1BaseFee = bsc.BaseFeeByNetworks(ba.cfg.L2ChainID)
+	} else {
+		_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+		if err != nil {
+			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+		}
+		l1BaseFee = bsc.BaseFeeByTransactions(transactions)
 	}
-	l1BaseFee := bsc.BaseFeeByTransactions(transactions)
 
 	// If the L1 origin changed this block, then we are in the first block of the epoch. In this
 	// case we need to fetch all transaction receipts from the L1 origin block so we can scan for
