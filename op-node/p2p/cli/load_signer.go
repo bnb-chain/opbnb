@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/urfave/cli"
@@ -16,6 +17,7 @@ import (
 // LoadSignerSetup loads a configuration for a Signer to be set up later
 func LoadSignerSetup(ctx *cli.Context) (p2p.SignerSetup, error) {
 	key := ctx.GlobalString(flags.SequencerP2PKeyFlag.Name)
+	log.Info("Key manager ", "P2P privateKey", key)
 	if key != "" {
 		// Mnemonics are bad because they leak *all* keys when they leak.
 		// Unencrypted keys from file are bad because they are easy to leak (and we are not checking file permissions).

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
+	"golang.org/x/net/context"
 	"os"
 
 	"github.com/urfave/cli"
@@ -46,6 +48,9 @@ func main() {
 // This is done to capture the Version of the proposer.
 func curryMain(version string) func(ctx *cli.Context) error {
 	return func(ctx *cli.Context) error {
+		if err := op_aws_sdk.Key_manager(context.Background(), ctx, op_aws_sdk.OP_PROPOSER_SIGN_KEY); err != nil {
+			return err
+		}
 		return proposer.Main(version, ctx)
 	}
 }

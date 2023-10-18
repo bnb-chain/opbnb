@@ -202,6 +202,7 @@ func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, err
 		hdPath = cfg.L2OutputHDPath
 	}
 
+	log.Info("Key manager ", "PrivateKey", cfg.PrivateKey)
 	signerFactory, from, err := opcrypto.SignerFactoryFromConfig(l, cfg.PrivateKey, cfg.Mnemonic, hdPath, cfg.SignerCLIConfig)
 	if err != nil {
 		return Config{}, fmt.Errorf("could not init signer: %w", err)
