@@ -341,6 +341,10 @@ func (s *EthClient) PayloadByHash(ctx context.Context, hash common.Hash) (*eth.E
 	return s.payloadCall(ctx, "eth_getBlockByHash", hashID(hash))
 }
 
+func (s *EthClient) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return s.payloadsCache.Add(payload.BlockHash, payload)
+}
+
 func (s *EthClient) PayloadByNumber(ctx context.Context, number uint64) (*eth.ExecutionPayload, error) {
 	return s.payloadCall(ctx, "eth_getBlockByNumber", numberID(number))
 }

@@ -36,3 +36,7 @@ func (m *MockEngine) NewPayload(ctx context.Context, payload *eth.ExecutionPaylo
 func (m *MockEngine) ExpectNewPayload(payload *eth.ExecutionPayload, result *eth.PayloadStatusV1, err error) {
 	m.Mock.On("NewPayload", payload).Once().Return(result, &err)
 }
+
+func (m *MockEngine) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}
