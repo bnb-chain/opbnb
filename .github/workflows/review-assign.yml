@@ -10,5 +10,5 @@ jobs:
     steps:
       - uses: hkusu/review-assign-action@v1
         with:
-          reviewers: bnoieh,welkin22,owen-reorg,bendanzhentan,redhdx,krish-nr,xuan-cu,andyzhang2023
+          reviewers: ${{ vars.REVIEWERS }}
           max-num-of-reviewers: 2
