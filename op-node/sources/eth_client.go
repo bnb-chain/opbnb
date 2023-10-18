@@ -310,7 +310,7 @@ func (s *EthClient) InfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.
 func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.BlockInfo, error) {
 	// can't hit the cache when querying the head due to reorgs / changes.
 	if label == eth.Finalized {
-		return s.headerCall(ctx, "eth_getFinalizedBlock", numberID(15))
+		return s.bscFinalizedHeader(ctx, 21)
 	}
 	return s.headerCall(ctx, "eth_getBlockByNumber", label)
 }
@@ -437,4 +437,21 @@ func (s *EthClient) ReadStorageAt(ctx context.Context, address common.Address, s
 
 func (s *EthClient) Close() {
 	s.client.Close()
+}
+
+func (s *EthClient) bscFinalizedHeader(ctx context.Context, probabilisticFinalized int64) (eth.BlockInfo, error) {
+	var header *rpcHeader
+	err := s.client.CallContext(ctx, &header, "eth_getFinalizedHeader", probabilisticFinalized) // headers are just blocks without txs
+	if err != nil {
+		return nil, err
+	}
+	if header == nil {
+		return nil, ethereum.NotFound
+	}
+	info, err := header.Info(s.trustRPC, s.mustBePostMerge)
+	if err != nil {
+		return nil, err
+	}
+	s.headersCache.Add(info.Hash(), info)
+	return info, nil
 }
