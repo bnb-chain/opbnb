@@ -18,7 +18,6 @@ services:
     ports:
       - "8545:8545"
       - "7060:6060"
-      - "9999:9999"
     env_file:
       - ./l1.env
     user: root
