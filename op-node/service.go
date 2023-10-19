@@ -23,6 +23,7 @@ import (
 	p2pcli "github.com/ethereum-optimism/optimism/op-node/p2p/cli"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/driver"
+	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 )
 
 // NewConfig creates a Config from the provided flags or environment variables.
@@ -57,6 +58,8 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 
 	l2SyncEndpoint := NewL2SyncEndpointConfig(ctx)
 
+	syncConfig := NewSyncConfig(ctx)
+
 	cfg := &node.Config{
 		L1:     l1Endpoint,
 		L2:     l2Endpoint,
@@ -86,6 +89,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 			Moniker: ctx.GlobalString(flags.HeartbeatMonikerFlag.Name),
 			URL:     ctx.GlobalString(flags.HeartbeatURLFlag.Name),
 		},
+		Sync: *syncConfig,
 	}
 	if err := cfg.Check(); err != nil {
 		return nil, err
@@ -150,6 +154,7 @@ func NewDriverConfig(ctx *cli.Context) *driver.Config {
 		SequencerEnabled:    ctx.GlobalBool(flags.SequencerEnabledFlag.Name),
 		SequencerStopped:    ctx.GlobalBool(flags.SequencerStoppedFlag.Name),
 		SequencerMaxSafeLag: ctx.GlobalUint64(flags.SequencerMaxSafeLagFlag.Name),
+		SequencerPriority:   ctx.GlobalBool(flags.SequencerPriorityFlag.Name),
 	}
 }
 
@@ -175,7 +180,14 @@ func NewRollupConfig(ctx *cli.Context) (*rollup.Config, error) {
 	if err := json.NewDecoder(file).Decode(&rollupConfig); err != nil {
 		return nil, fmt.Errorf("failed to decode rollup config: %w", err)
 	}
-	return &rollupConfig, nil
+	if rollupConfig.L2ChainID == nil {
+		return nil, fmt.Errorf("l2 chain ID must not be nil")
+	}
+	newRollupConfig, err := chaincfg.GetRollupConfigByChainId(rollupConfig.L2ChainID.String())
+	if err != nil {
+		return &rollupConfig, nil
+	}
+	return &newRollupConfig, nil
 }
 
 func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {
@@ -192,4 +204,11 @@ func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {
 	logger := log.New()
 	logger.SetHandler(handler)
 	return logger, nil
+}
+
+func NewSyncConfig(ctx *cli.Context) *sync.Config {
+	return &sync.Config{
+		EngineSync:         ctx.Bool(flags.L2EngineSyncEnabled.Name),
+		SkipSyncStartCheck: ctx.Bool(flags.SkipSyncStartCheck.Name),
+	}
 }

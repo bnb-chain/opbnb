@@ -76,6 +76,7 @@ type Metricer interface {
 	RecordIPUnban()
 	RecordDial(allow bool)
 	RecordAccept(allow bool)
+	RecordL1UrlSwitchEvent()
 }
 
 // Metrics tracks all the metrics for the op-node.
@@ -99,6 +100,7 @@ type Metrics struct {
 	DerivationErrors *EventMetrics
 	SequencingErrors *EventMetrics
 	PublishingErrors *EventMetrics
+	L1UrlSwitchEvent *EventMetrics
 
 	P2PReqDurationSeconds *prometheus.HistogramVec
 	P2PReqTotal           *prometheus.CounterVec
@@ -236,6 +238,7 @@ func NewMetrics(procName string) *Metrics {
 		DerivationErrors: NewEventMetrics(factory, ns, "derivation_errors", "derivation errors"),
 		SequencingErrors: NewEventMetrics(factory, ns, "sequencing_errors", "sequencing errors"),
 		PublishingErrors: NewEventMetrics(factory, ns, "publishing_errors", "p2p publishing errors"),
+		L1UrlSwitchEvent: NewEventMetrics(factory, ns, "l1_url_switch", "L1 URL switch events"),
 
 		SequencerInconsistentL1Origin: NewEventMetrics(factory, ns, "sequencer_inconsistent_l1_origin", "events when the sequencer selects an inconsistent L1 origin"),
 		SequencerResets:               NewEventMetrics(factory, ns, "sequencer_resets", "sequencer resets"),
@@ -725,6 +728,10 @@ func (m *Metrics) RecordAccept(allow bool) {
 	}
 }
 
+func (m *Metrics) RecordL1UrlSwitchEvent() {
+	m.L1UrlSwitchEvent.RecordEvent()
+}
+
 type noopMetricer struct{}
 
 var NoopMetrics Metricer = new(noopMetricer)
@@ -844,4 +851,7 @@ func (n *noopMetricer) RecordDial(allow bool) {
 }
 
 func (n *noopMetricer) RecordAccept(allow bool) {
+}
+
+func (n *noopMetricer) RecordL1UrlSwitchEvent() {
 }

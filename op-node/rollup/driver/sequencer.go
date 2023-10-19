@@ -226,6 +226,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			}
 			return nil, nil
 		} else {
+			d.attrBuilder.CachePayloadByHash(payload)
 			d.log.Info("sequencer successfully built a new block", "block", payload.ID(), "time", uint64(payload.Timestamp), "txs", len(payload.Transactions))
 			return payload, nil
 		}

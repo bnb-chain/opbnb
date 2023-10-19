@@ -137,6 +137,10 @@ func (fn testAttrBuilderFn) PreparePayloadAttributes(ctx context.Context, l2Pare
 	return fn(ctx, l2Parent, epoch)
 }
 
+func (fn testAttrBuilderFn) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}
+
 var _ derive.AttributesBuilder = (testAttrBuilderFn)(nil)
 
 type testOriginSelectorFn func(ctx context.Context, l2Head eth.L2BlockRef) (eth.L1BlockRef, error)

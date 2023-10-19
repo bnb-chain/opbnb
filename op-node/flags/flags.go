@@ -25,7 +25,7 @@ var (
 	/* Required Flags */
 	L1NodeAddr = cli.StringFlag{
 		Name:   "l1",
-		Usage:  "Address of L1 User JSON-RPC endpoint to use (eth namespace required)",
+		Usage:  "Address of L1 User JSON-RPC endpoint to use (eth namespace required). Multiple alternative addresses are supported, separated by commas, and the first address is used by default",
 		Value:  "http://127.0.0.1:8545",
 		EnvVar: prefixEnvVar("L1_ETH_RPC"),
 	}
@@ -126,6 +126,12 @@ var (
 		Required: false,
 		Value:    0,
 	}
+	SequencerPriorityFlag = cli.BoolFlag{
+		Name:     "sequencer.priority",
+		Usage:    "Enable sequencer step takes precedence over other steps.",
+		EnvVar:   prefixEnvVar("SEQUENCER_PRIORITY"),
+		Required: false,
+	}
 	SequencerL1Confs = cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
@@ -208,6 +214,19 @@ var (
 		EnvVar:   prefixEnvVar("L2_BACKUP_UNSAFE_SYNC_RPC_TRUST_RPC"),
 		Required: false,
 	}
+	L2EngineSyncEnabled = cli.BoolFlag{
+		Name:     "l2.engine-sync",
+		Usage:    "Enables or disables execution engine P2P sync",
+		EnvVar:   prefixEnvVar("L2_ENGINE_SYNC_ENABLED"),
+		Required: false,
+	}
+	SkipSyncStartCheck = cli.BoolFlag{
+		Name: "l2.skip-sync-start-check",
+		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
+			"This defers the L1-origin verification, and is recommended to use in when utilizing l2.engine-sync",
+		EnvVar:   prefixEnvVar("L2_SKIP_SYNC_START_CHECK"),
+		Required: false,
+	}
 )
 
 var requiredFlags = []cli.Flag{
@@ -230,6 +249,7 @@ var optionalFlags = []cli.Flag{
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
+	SequencerPriorityFlag,
 	SequencerL1Confs,
 	L1EpochPollIntervalFlag,
 	RPCEnableAdmin,
@@ -245,6 +265,8 @@ var optionalFlags = []cli.Flag{
 	HeartbeatURLFlag,
 	BackupL2UnsafeSyncRPC,
 	BackupL2UnsafeSyncRPCTrustRPC,
+	L2EngineSyncEnabled,
+	SkipSyncStartCheck,
 }
 
 // Flags contains the list of configuration options available to the binary.

@@ -112,3 +112,7 @@ func (o *OracleEngine) SystemConfigByL2Hash(ctx context.Context, hash common.Has
 	}
 	return derive.PayloadToSystemConfig(payload, o.rollupCfg)
 }
+
+func (o *OracleEngine) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}

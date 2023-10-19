@@ -10,7 +10,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 )
 
-var DefaultBaseFeeByTransactions = big.NewInt(3000000000)
+var DefaultBaseFee = big.NewInt(3000000000)
+var DefaultOPBNBTestnetBaseFee = big.NewInt(5000000000)
+var OPBNBTestnet = big.NewInt(5611)
 
 type BlockInfoBSCWrapper struct {
 	eth.BlockInfo
@@ -31,7 +33,7 @@ func (b *BlockInfoBSCWrapper) BaseFee() *big.Int {
 }
 
 // BaseFeeByTransactions calculates the average gas price of the non-zero-gas-price transactions in the block.
-// If there is no non-zero-gas-price transaction in the block, it returns DefaultBaseFeeByTransactions.
+// If there is no non-zero-gas-price transaction in the block, it returns DefaultBaseFee.
 func BaseFeeByTransactions(transactions types.Transactions) *big.Int {
 	nonZeroTxsCnt := big.NewInt(0)
 	nonZeroTxsSum := big.NewInt(0)
@@ -43,9 +45,18 @@ func BaseFeeByTransactions(transactions types.Transactions) *big.Int {
 	}
 
 	if nonZeroTxsCnt.Cmp(big.NewInt(0)) == 0 {
-		return DefaultBaseFeeByTransactions
+		return DefaultBaseFee
 	}
 	return nonZeroTxsSum.Div(nonZeroTxsSum, nonZeroTxsCnt)
+}
+
+// BaseFeeByNetworks set l1 gas price by network.
+func BaseFeeByNetworks(chainId *big.Int) *big.Int {
+	if chainId.Cmp(OPBNBTestnet) == 0 {
+		return DefaultOPBNBTestnetBaseFee
+	} else {
+		return DefaultBaseFee
+	}
 }
 
 func ToLegacyTx(dynTx *types.DynamicFeeTx) types.TxData {
