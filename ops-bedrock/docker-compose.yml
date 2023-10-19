@@ -33,7 +33,6 @@ services:
     ports:
       - "9545:8545"
       - "8060:6060"
-      - "8551:8551"
     volumes:
       - "l2_data:/db"
       - "${PWD}/../.devnet/genesis-l2.json:/genesis.json"
@@ -147,16 +146,3 @@ services:
       OP_BATCHER_SUB_SAFETY_MARGIN: 30 # SWS is 15, ChannelTimeout is 40
       OP_BATCHER_MAX_PENDING_TX: 100
 
-#  stateviz:
-#    build:
-#      context: ../
-#      dockerfile: ./ops-bedrock/Dockerfile.stateviz
-#    command:
-#      - stateviz
-#      - -addr=0.0.0.0:8080
-#      - -snapshot=/op_log/snapshot.log
-#      - -refresh=10s
-#    ports:
-#      - "9090:8080"
-#    volumes:
-#      - op_log:/op_log:ro
