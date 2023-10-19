@@ -15,19 +15,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.l1
-    platform: linux/amd64
     ports:
       - "8545:8545"
       - "7060:6060"
+      - "9999:9999"
     env_file:
       - ./l1.env
     user: root
     volumes:
       - "l1_data:/db"
       - "./l1-entrypoint.sh:/l1-entrypoint.sh"
-      - "./create_bls_key.sh:/create_bls_key.sh"
-      - "./config.toml:/config.toml"
-      - "./init_holders.template:/init_holders.template"
     entrypoint: /l1-entrypoint.sh
 
   l2:
@@ -106,7 +103,7 @@ services:
       OP_PROPOSER_L1_ETH_RPC: http://l1:8545
       OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
       OP_PROPOSER_POLL_INTERVAL: 1s
-      OP_PROPOSER_NUM_CONFIRMATIONS: 1
+      OP_PROPOSER_NUM_CONFIRMATIONS: 4
       OP_PROPOSER_SAFE_ABORT_NONCE_TOO_LOW_COUNT: 3
       OP_PROPOSER_RESUBMISSION_TIMEOUT: "30s"
       OP_PROPOSER_LOG_TERMINAL: "true"
@@ -137,10 +134,10 @@ services:
       OP_BATCHER_TARGET_NUM_FRAMES: 30
       OP_BATCHER_APPROX_COMPR_RATIO: "0.4"
       OP_BATCHER_MAX_CHANNEL_DURATION: 120
-      OP_BATCHER_CHANNEL_TIMEOUT: 40
+      OP_BATCHER_CHANNEL_TIMEOUT: 20
       OP_BATCHER_POLL_INTERVAL: 1s
       OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT: 3
-      OP_BATCHER_NUM_CONFIRMATIONS: 1
+      OP_BATCHER_NUM_CONFIRMATIONS: 4
       OP_BATCHER_TXMGR_RECEIPT_QUERY_INTERVAL: 1s
       OP_BATCHER_RESUBMISSION_TIMEOUT: "30s"
       OP_BATCHER_PRIVATE_KEY: ${INIT_HOLDER_PRV}

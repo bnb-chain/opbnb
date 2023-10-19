@@ -42,6 +42,7 @@ const config: HardhatUserConfig = {
       live: false,
       url: 'http://localhost:8545',
       accounts: [process.env.PRIVATE_KEY_DEPLOYER || ethers.constants.HashZero],
+      gasPrice: 11000000000
     },
     devnetL2: {
       live: false,
