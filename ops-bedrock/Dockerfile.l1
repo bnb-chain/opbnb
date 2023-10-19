@@ -1,9 +1,7 @@
-FROM ethereum/client-go:v1.11.2
+FROM --platform=linux/amd64 golang:1.19-alpine3.18
 
-RUN apk add --no-cache jq
-
-COPY entrypoint.sh /entrypoint.sh
+RUN apk add --no-cache bash expect wget nodejs npm git jq make cmake gcc musl-dev linux-headers build-base libc-dev gcompat
 
 VOLUME ["/db"]
 
-ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/l1-entrypoint.sh"]

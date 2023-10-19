@@ -12,7 +12,9 @@ volumes:
 
 services:
   l1:
-    image: ghcr.io/bnb-chain/bsc:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.l1
     platform: linux/amd64
     ports:
       - "8545:8545"

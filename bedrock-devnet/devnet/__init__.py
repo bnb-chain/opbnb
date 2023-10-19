@@ -52,11 +52,6 @@ def main():
     )
 
     os.makedirs(devnet_dir, exist_ok=True)
-    l1env = dotenv_values('./ops-bedrock/l1.env')
-    log.info(l1env)
-    bscChainId = l1env['BSC_CHAIN_ID']
-    l1_init_holder = l1env['INIT_HOLDER']
-    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
 
     if args.deploy:
       log.info('Devnet with upcoming smart contract deployments')
@@ -120,8 +115,14 @@ def devnet_deploy(paths):
     run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    wait_up_url("http://127.0.0.1:8545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}',"wait L1 up...")
+    msg="wait L1 up...Since the binary file of the bsc chain needs to be built, the first execution will take a long time. Please check the log of the l1 container to confirm the detailed progress."
+    wait_up_url("http://127.0.0.1:8545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}', msg)
 
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    bscChainId = l1env['BSC_CHAIN_ID']
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
