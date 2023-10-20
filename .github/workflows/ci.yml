@@ -184,7 +184,7 @@ jobs:
 
   op-e2e-ws-test:
     runs-on: ubuntu-latest
-    needs: [op-node-test, op-batcher-test, op-proposer-test]
+    needs: [op-node-test, op-batcher-test, op-proposer-test, op-e2e-http-test]
 
     steps:
       - name: Check out code
