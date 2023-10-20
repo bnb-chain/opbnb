@@ -15,13 +15,21 @@ cd genesis
 npm install
 cd ..
 
+if [ ! -f init_file_bc ]; then
+  bash +x ./setup_bc_node.sh native_init
+  echo "finish" > init_file_bc
+else
+  echo "bc init already finish"
+fi
+bash +x ./setup_bc_node.sh native_start
+
 if [ ! -f init_file_bsc ]; then
-  bash +x ./setup_bsc_node.sh native_run_alone
+  bash +x ./setup_bsc_node.sh native_init
   echo "finish" > init_file_bsc
 else
-  echo "bsc native_start"
-  bash +x ./setup_bsc_node.sh native_start
+  echo "bsc init already finish"
 fi
+bash +x ./setup_bsc_node.sh native_start
 
 
 while true; do

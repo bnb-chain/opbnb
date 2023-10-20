@@ -115,7 +115,7 @@ def devnet_deploy(paths):
     run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    msg="wait L1 up...Since the binary file of the bsc chain needs to be built, the first execution will take a long time. Please check the log of the l1 container to confirm the detailed progress."
+    msg="wait L1 up...Since the bsc chain needs to be initialized, the first execution will take a long time. Please check the log of the l1 container to confirm the detailed progress."
     wait_up_url("http://127.0.0.1:8545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}', msg)
 
     l1env = dotenv_values('./ops-bedrock/l1.env')
@@ -127,10 +127,6 @@ def devnet_deploy(paths):
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
     shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
-    deploy_config = read_json(devnet_cfg_orig)
-    deploy_config['l1GenesisBlockTimestamp'] = GENESIS_TMPL['timestamp']
-    deploy_config['l1StartingBlockTag'] = 'earliest'
-    write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.addresses_json_path):
         log.info('Contracts already deployed.')
@@ -167,7 +163,6 @@ def devnet_deploy(paths):
         log.info('L2 genesis and rollup configs already generated.')
     else:
         log.info('Generating network config.')
-        shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
         deploy_config = read_json(devnet_cfg_orig)
         l1BlockTag = l1BlockTagGet()["result"]
         log.info(l1BlockTag)

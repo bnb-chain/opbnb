@@ -13,7 +13,7 @@ RUN apk add --no-cache bash expect wget nodejs npm git jq make cmake gcc musl-de
 
 RUN mkdir /db
 RUN cd /db && git clone https://github.com/bnb-chain/node-deploy.git
-RUN cd /db/node-deploy && make tool
+RUN cd /db/node-deploy && git checkout 7492b04275c6e802acc90868e29b6a0a34b8849b && make tool
 COPY --from=build /go/bsc/build/bin/geth /db/node-deploy/bin/geth
 COPY --from=build /go/bsc/build/bin/bootnode /db/node-deploy/bin/bootnode
 COPY --from=build /go/node/build/tbnbcli /db/node-deploy/bin/tbnbcli
