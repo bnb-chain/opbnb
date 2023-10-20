@@ -3,7 +3,7 @@ name: DockerImage build and push
 on:
   workflow_dispatch:
   push:
-    tags:
+    tags: '*'
     branches:
       - develop
       - main

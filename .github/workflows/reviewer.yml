@@ -1,0 +1,14 @@
+name: Review Assign
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hkusu/review-assign-action@v1
+        with:
+          reviewers: ${{ vars.REVIEWERS }}
+          max-num-of-reviewers: 2

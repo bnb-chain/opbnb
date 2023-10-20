@@ -87,7 +87,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 // Notice, we cannot cache a block reference by label because labels are not guaranteed to be unique.
 func (s *L1Client) L1BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L1BlockRef, error) {
 	info, err := s.BSCInfoByLabel(ctx, label)
-	if label == eth.Finalized && err != nil && strings.Contains(err.Error(), "eth_getFinalizedBlock does not exist") {
+	if label == eth.Finalized && err != nil && strings.Contains(err.Error(), "eth_getFinalizedHeader does not exist") {
 		// op-e2e not support bsc as L1 currently, so fallback to not use bsc specific method eth_getFinalizedBlock
 		info, err = s.InfoByLabel(ctx, label)
 	}

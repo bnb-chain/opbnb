@@ -180,7 +180,14 @@ func NewRollupConfig(ctx *cli.Context) (*rollup.Config, error) {
 	if err := json.NewDecoder(file).Decode(&rollupConfig); err != nil {
 		return nil, fmt.Errorf("failed to decode rollup config: %w", err)
 	}
-	return &rollupConfig, nil
+	if rollupConfig.L2ChainID == nil {
+		return nil, fmt.Errorf("l2 chain ID must not be nil")
+	}
+	newRollupConfig, err := chaincfg.GetRollupConfigByChainId(rollupConfig.L2ChainID.String())
+	if err != nil {
+		return &rollupConfig, nil
+	}
+	return &newRollupConfig, nil
 }
 
 func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {
