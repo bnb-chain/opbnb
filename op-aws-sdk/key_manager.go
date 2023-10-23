@@ -40,7 +40,7 @@ func KeyManager(context context.Context, ctx *cli.Context, keyType string) error
 		flagName = "private-key"
 	default:
 		log.Error("Key manager ", "error keyType", keyType)
-		return nil
+		return errors.New("unknown key type")
 	}
 	return load(context, ctx, awsRegion, secretName, flagName)
 }
