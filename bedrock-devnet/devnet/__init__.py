@@ -7,10 +7,12 @@ import socket
 import calendar
 import datetime
 import time
+import requests
 import shutil
 
 import devnet.log_setup
 from devnet.genesis import GENESIS_TMPL
+from dotenv import dotenv_values
 
 pjoin = os.path.join
 
@@ -113,16 +115,18 @@ def devnet_deploy(paths):
     run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    wait_up(8545)
+    msg="wait L1 up...Since the bsc chain needs to be initialized, the first execution will take a long time. Please check the log of the l1 container to confirm the detailed progress."
+    wait_up_url("http://127.0.0.1:8545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}', msg)
 
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    bscChainId = l1env['BSC_CHAIN_ID']
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
     shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
-    deploy_config = read_json(devnet_cfg_orig)
-    deploy_config['l1GenesisBlockTimestamp'] = GENESIS_TMPL['timestamp']
-    deploy_config['l1StartingBlockTag'] = 'earliest'
-    write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.addresses_json_path):
         log.info('Contracts already deployed.')
@@ -130,9 +134,9 @@ def devnet_deploy(paths):
     else:
         log.info('Deploying contracts.')
         run_command(['yarn', 'hardhat', '--network', 'devnetL1', 'deploy', '--tags', 'l1'], env={
-            'CHAIN_ID': '900',
+            'CHAIN_ID': bscChainId,
             'L1_RPC': 'http://localhost:8545',
-            'PRIVATE_KEY_DEPLOYER': 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+            'PRIVATE_KEY_DEPLOYER': l1_init_holder_prv
         }, cwd=paths.contracts_bedrock_dir)
         contracts = os.listdir(paths.deployment_dir)
         addresses = {}
@@ -158,6 +162,26 @@ def devnet_deploy(paths):
     if os.path.exists(paths.genesis_l2_path):
         log.info('L2 genesis and rollup configs already generated.')
     else:
+        log.info('Generating network config.')
+        deploy_config = read_json(devnet_cfg_orig)
+        l1BlockTag = l1BlockTagGet()["result"]
+        log.info(l1BlockTag)
+        l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
+        log.info(l1BlockTimestamp)
+        deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
+        deploy_config['l1StartingBlockTag'] = l1BlockTag
+        deploy_config['l1ChainID'] = int(bscChainId,10)
+        deploy_config['batchSenderAddress'] = l1_init_holder
+        deploy_config['l2OutputOracleProposer'] = l1_init_holder
+        deploy_config['baseFeeVaultRecipient'] = l1_init_holder
+        deploy_config['l1FeeVaultRecipient'] = l1_init_holder
+        deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
+        deploy_config['proxyAdminOwner'] = l1_init_holder
+        deploy_config['finalSystemOwner'] = l1_init_holder
+        deploy_config['portalGuardian'] = l1_init_holder
+        deploy_config['controller'] = l1_init_holder
+        deploy_config['governanceTokenOwner'] = l1_init_holder
+        write_json(devnet_cfg_orig, deploy_config)
         log.info('Generating L2 genesis and rollup configs.')
         run_command([
             'go', 'run', 'cmd/main.go', 'genesis', 'l2',
@@ -177,13 +201,15 @@ def devnet_deploy(paths):
     run_command(['docker-compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    wait_up(9545)
+    wait_up_url("http://127.0.0.1:9545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}',"wait L2 geth up...")
 
     log.info('Bringing up everything else.')
     run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir,
         'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
-        'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address']
+        'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
+        'OP_BATCHER_SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
+        'INIT_HOLDER_PRV': l1_init_holder_prv
     })
 
     log.info('Devnet ready.')
@@ -217,6 +243,53 @@ def wait_up(port, retries=10, wait_secs=1):
 
     raise Exception(f'Timed out waiting for port {port}.')
 
+def wait_up_url(url,body,wait_msg):
+    status = True
+    log.info(wait_msg)
+    while status:
+        try:
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            response = requests.post(url, headers=headers, data=body)
+            if response.status_code != 200:
+                time.sleep(5)
+            else:
+                log.info("Status code is 200, continue next step")
+                status = False
+        except requests.exceptions.ConnectionError:
+                time.sleep(5)
+
+def l1BlockTagGet():
+    headers = {
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post("http://127.0.0.1:8545",headers=headers,data='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}')
+        if response.status_code != 200:
+            log.info(f'l1BlockTagGet resp status code is not 200, is {response.status_code}')
+            raise Exception("l1BlockTagGet status not 200!")
+        else:
+            result=response.json()
+            log.info(result)
+            return result
+    except requests.exceptions.ConnectionError:
+        raise Exception("l1BlockTagGet connection fail")
+
+def l1BlockTimestampGet(block_tag):
+    headers = {
+            "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post("http://127.0.0.1:8545",headers=headers,data=f'{{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["{block_tag}", false],"id":74}}')
+        if response.status_code != 200:
+            log.info(f'l1BlockTimestampGet resp status code is not 200, is {response.status_code}')
+            raise Exception("l1BlockTimestampGet status not 200!")
+        else:
+            return response.json()
+    except requests.exceptions.ConnectionError:
+        raise Exception("l1BlockTimestampGet connection fail")
 
 def write_json(path, data):
     with open(path, 'w+') as f:
