@@ -1,6 +1,7 @@
 # bedrock-devnet
 
 This is a utility for running a local Bedrock devnet.
+
 It allows us to quickly start the devnet locally (with L1 network as BSC network and L2 network as opbnb network).
 
 # requirement
@@ -8,10 +9,12 @@ It allows us to quickly start the devnet locally (with L1 network as BSC network
 docker, nodejs 16+, yarn, foundry, python2, python3
 
 Tips:
+
 Install Foundry by following [the instructions located here](https://getfoundry.sh/).
 
 # usage
 First, execute `yarn install` and `yarn build` commands in the root directory.
+
 Then we can use the following commands in the project root directory:
 
 Initialize and start devnet:
@@ -51,6 +54,7 @@ make devnet-logs
 
 # Additional Information
 L1 chain ID is 714.
+
 L2 chain ID is 901.
 
 L1 test account:
