@@ -1,6 +1,7 @@
 package op_aws_sdk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli"
-	"golang.org/x/net/context"
 )
 
 const (
