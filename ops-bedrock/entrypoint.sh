@@ -55,9 +55,21 @@ exec geth \
 	--nodiscover \
 	--maxpeers=1 \
 	--networkid=$CHAIN_ID \
+	--triesInMemory=32 \
 	--unlock=$BLOCK_SIGNER_ADDRESS \
 	--mine \
 	--miner.etherbase=$BLOCK_SIGNER_ADDRESS \
+	--miner.gaslimit=150000000 \
+  --miner.newpayload-timeout=650ms \
+  --miner.gasprice=1000 \
+  --txpool.globalslots=18000 \
+  --txpool.globalqueue=6000 \
+  --txpool.accountqueue=200 \
+  --txpool.accountslots=200 \
+  --txpool.nolocals=true \
+  --txpool.pricelimit=1000 \
+  --cache 32000 \
+  --cache.preimages \
 	--password="$GETH_DATA_DIR"/password \
 	--allow-insecure-unlock \
 	--authrpc.addr="0.0.0.0" \
@@ -65,6 +77,9 @@ exec geth \
 	--authrpc.vhosts="*" \
 	--authrpc.jwtsecret=/config/jwt-secret.txt \
 	--gcmode=archive \
+	--pprof \
+  --pprof.addr 0.0.0.0 \
+  --pprof.port 8080 \
 	--metrics \
 	--metrics.addr=0.0.0.0 \
 	--metrics.port=6060 \
