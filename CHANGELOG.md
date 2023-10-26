@@ -38,7 +38,7 @@ https://github.com/bnb-chain/opbnb/compare/v0.1.2...v0.2.0
 
 This is the initial release for opBNB Testnet.
 
-The repo base is [optimism v1.0.8](https://github.com/ethereum-optimism/optimism/commits/v1.0.8).
+The repo base is [optimism v1.1.0](https://github.com/ethereum-optimism/optimism/releases/tag/op-node%2Fv1.1.0).
 
 ### Changelog
 
