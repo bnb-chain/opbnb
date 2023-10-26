@@ -15,6 +15,9 @@ cd genesis
 npm install
 cd ..
 
+sed -i -e "s/INIT_HOLDER=\"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\"/INIT_HOLDER=\"$INIT_HOLDER\"/g" .env
+sed -i -e "s/INIT_HOLDER_PRV=\"59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8\"/INIT_HOLDER_PRV=\"$INIT_HOLDER_PRV\"/g" .env
+
 if [ ! -f init_file_bc ]; then
   bash +x ./setup_bc_node.sh native_init
   echo "finish" > init_file_bc

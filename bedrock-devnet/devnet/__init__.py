@@ -127,6 +127,25 @@ def devnet_deploy(paths):
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
     shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
+    deploy_config = read_json(devnet_cfg_orig)
+    l1BlockTag = l1BlockTagGet()["result"]
+    log.info(l1BlockTag)
+    l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
+    log.info(l1BlockTimestamp)
+    deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
+    deploy_config['l1StartingBlockTag'] = l1BlockTag
+    deploy_config['l1ChainID'] = int(bscChainId,10)
+    deploy_config['batchSenderAddress'] = l1_init_holder
+    deploy_config['l2OutputOracleProposer'] = l1_init_holder
+    deploy_config['baseFeeVaultRecipient'] = l1_init_holder
+    deploy_config['l1FeeVaultRecipient'] = l1_init_holder
+    deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
+    deploy_config['proxyAdminOwner'] = l1_init_holder
+    deploy_config['finalSystemOwner'] = l1_init_holder
+    deploy_config['portalGuardian'] = l1_init_holder
+    deploy_config['controller'] = l1_init_holder
+    deploy_config['governanceTokenOwner'] = l1_init_holder
+    write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.addresses_json_path):
         log.info('Contracts already deployed.')
@@ -163,25 +182,6 @@ def devnet_deploy(paths):
         log.info('L2 genesis and rollup configs already generated.')
     else:
         log.info('Generating network config.')
-        deploy_config = read_json(devnet_cfg_orig)
-        l1BlockTag = l1BlockTagGet()["result"]
-        log.info(l1BlockTag)
-        l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
-        log.info(l1BlockTimestamp)
-        deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
-        deploy_config['l1StartingBlockTag'] = l1BlockTag
-        deploy_config['l1ChainID'] = int(bscChainId,10)
-        deploy_config['batchSenderAddress'] = l1_init_holder
-        deploy_config['l2OutputOracleProposer'] = l1_init_holder
-        deploy_config['baseFeeVaultRecipient'] = l1_init_holder
-        deploy_config['l1FeeVaultRecipient'] = l1_init_holder
-        deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
-        deploy_config['proxyAdminOwner'] = l1_init_holder
-        deploy_config['finalSystemOwner'] = l1_init_holder
-        deploy_config['portalGuardian'] = l1_init_holder
-        deploy_config['controller'] = l1_init_holder
-        deploy_config['governanceTokenOwner'] = l1_init_holder
-        write_json(devnet_cfg_orig, deploy_config)
         log.info('Generating L2 genesis and rollup configs.')
         run_command([
             'go', 'run', 'cmd/main.go', 'genesis', 'l2',
