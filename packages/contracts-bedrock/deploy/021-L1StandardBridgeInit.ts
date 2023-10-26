@@ -44,8 +44,8 @@ const deployFn: DeployFunction = async (hre) => {
     console.log('L1StandardBridge already initialized')
   }
 
-  const version = await l1StandardBridgeProxy.callStatic.version()
-  console.log(`L1StandardBridge version: ${version}`)
+  // const version = await l1StandardBridgeProxy.callStatic.version()
+  // console.log(`L1StandardBridge version: ${version}`)
 
   console.log('Upgraded L1StandardBridge')
 }

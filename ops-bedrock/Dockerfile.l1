@@ -1,9 +1,23 @@
-FROM ethereum/client-go:v1.11.2
+FROM golang:1.19-alpine3.18 as build
+RUN apk add --no-cache git make cmake gcc musl-dev linux-headers build-base libc-dev gcompat
+RUN git clone https://github.com/bnb-chain/bsc.git
+RUN cd bsc && git checkout v1.2.12 && make geth && go build -o ./build/bin/bootnode ./cmd/bootnode
+RUN git clone https://github.com/bnb-chain/node.git
+RUN cd node && git checkout v0.10.16 && make build
+RUN git clone https://github.com/bnb-chain/test-crosschain-transfer.git
+RUN cd test-crosschain-transfer && go build
 
-RUN apk add --no-cache jq
+FROM golang:1.19-alpine3.18
 
-COPY entrypoint.sh /entrypoint.sh
+RUN apk add --no-cache bash expect wget nodejs npm git jq make cmake gcc musl-dev linux-headers build-base libc-dev gcompat python3
 
-VOLUME ["/db"]
+RUN mkdir /db
+RUN cd /db && git clone https://github.com/bnb-chain/node-deploy.git
+RUN cd /db/node-deploy && git checkout 7492b04275c6e802acc90868e29b6a0a34b8849b && make tool
+COPY --from=build /go/bsc/build/bin/geth /db/node-deploy/bin/geth
+COPY --from=build /go/bsc/build/bin/bootnode /db/node-deploy/bin/bootnode
+COPY --from=build /go/node/build/tbnbcli /db/node-deploy/bin/tbnbcli
+COPY --from=build /go/node/build/bnbchaind /db/node-deploy/bin/bnbchaind
+COPY --from=build /go/test-crosschain-transfer/test-crosschain-transfer /db/node-deploy/bin/test-crosschain-transfer
 
-ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/l1-entrypoint.sh"]
