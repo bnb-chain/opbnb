@@ -48,12 +48,12 @@ func load(context context.Context, ctx *cli.Context, awsRegion string, secretNam
 	name := os.Getenv(secretName)
 	region := os.Getenv(awsRegion)
 	if name != "" {
-		config, err := config.LoadDefaultConfig(context, config.WithRegion(region))
+		loadKeyConfig, err := config.LoadDefaultConfig(context, config.WithRegion(region))
 		if err != nil {
 			log.Error("Key manager load key config from aws", "error", err)
 			return err
 		}
-		secretManager := secretsmanager.NewFromConfig(config)
+		secretManager := secretsmanager.NewFromConfig(loadKeyConfig)
 		input := &secretsmanager.GetSecretValueInput{
 			SecretId:     aws.String(name),
 			VersionStage: aws.String("AWSCURRENT"),
@@ -71,8 +71,8 @@ func load(context context.Context, ctx *cli.Context, awsRegion string, secretNam
 		}
 		key, ok := resultMap[AWS_KEY_JSON_NAME]
 		if !ok {
-			log.Error("Key manager load key is not exist")
-			return errors.New("Key manager load key is not exist")
+			log.Error("Key manager load key does not exist")
+			return errors.New("Key manager load key does not exist")
 		}
 		log.Info("Key manager load key is success")
 		ctx.Set(flagName, key)
