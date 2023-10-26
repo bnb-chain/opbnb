@@ -1,4 +1,4 @@
-FROM us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:optimism
+FROM --platform=linux/amd64 ghcr.io/bnb-chain/op-geth:latest
 
 RUN apk add --no-cache jq
 

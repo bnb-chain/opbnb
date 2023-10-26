@@ -64,8 +64,8 @@ const deployFn: DeployFunction = async (hre) => {
     console.log('L1CrossDomainMessenger already initialized')
   }
 
-  const version = await l1CrossDomainMessengerProxy.callStatic.version()
-  console.log(`L1CrossDomainMessenger version: ${version}`)
+  // const version = await l1CrossDomainMessengerProxy.callStatic.version()
+  // console.log(`L1CrossDomainMessenger version: ${version}`)
 
   console.log('Upgraded L1CrossDomainMessenger')
 }
