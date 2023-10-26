@@ -3,12 +3,13 @@
 ## v0.2.0
 
 This is a hardfork release for the opBNB Testnet called Fermat.
-It will be activated at block height #TBD, expected to occur at #TBD.
+It will be activated at block height #13063000, expected to occur on November 14, 2023, at 6 AM UTC.
 
 ### User Facing Changes
 
 - The L1 gas price of all L2 transactions will be fixed(3 Gwei by default and 5 Gwei for Testnet).
 - Introduce a new type of RPC kind called `bsc_fullnode`. To enable it, include the parameter `--l1.rpckind=bsc_fullnode` if the layer 1 endpoint supports the `eth_getTransactionReceiptsByBlockNumber` API. This will significantly enhance the performance of retrieving L1 receipts (#63).
+- The rollup configuration for opBNB Mainnet and Testnet has been added to the code. You can now use the `--network=opBNBTestnet` or `--network=opBNBMainnet` flag instead of `--rollup.config=./rollup.json` to specify the rollup configuration for the op-node. (#7)
 -  Allow the addition of multiple L1 endpoints in the configuration. For example: `--l1=https://data-seed-prebsc-1-s1.binance.org:8545,https://data-seed-prebsc-2-s2.binance.org:8545,https://data-seed-prebsc-2-s3.binance.org:8545`. By default, it will use the first endpoint, and if it's unavailable, it will automatically switch to the next one (#55).
 - Enable the layer 2 sync mechanism for opBNB by adding `--l2.engine-sync=true` flag on the op-node. Additionally, a new flag ﻿l2.skip-sync-start-check is introduced to allow users to skip the sanity check of L1 origins for unsafe L2 blocks when determining the sync-starting point. (#62)
 
