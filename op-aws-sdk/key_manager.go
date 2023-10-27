@@ -47,7 +47,7 @@ func KeyManager(context context.Context, ctx *cli.Context, keyType string) error
 func load(context context.Context, ctx *cli.Context, awsRegion string, secretName string, flagName string) error {
 	name := os.Getenv(secretName)
 	region := os.Getenv(awsRegion)
-	if name != "" {
+	if name != "" && region != "" {
 		loadKeyConfig, err := config.LoadDefaultConfig(context, config.WithRegion(region))
 		if err != nil {
 			log.Error("Key manager load key config from aws", "error", err)
