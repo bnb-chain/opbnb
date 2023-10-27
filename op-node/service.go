@@ -92,7 +92,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 			URL:     ctx.GlobalString(flags.HeartbeatURLFlag.Name),
 		},
 		ConfigPersistence: configPersistence,
-		Sync: *syncConfig,
+		Sync:              *syncConfig,
 	}
 
 	if err := cfg.LoadPersisted(log); err != nil {
