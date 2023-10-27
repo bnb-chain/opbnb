@@ -39,8 +39,8 @@ func KeyManager(context context.Context, ctx *cli.Context, keyType string) error
 		awsRegion = "OP_PROPOSER_AWS_SECRET_REGION"
 		flagName = "private-key"
 	default:
-		log.Error("Key manager ", "error keyType", keyType)
-		return errors.New("unknown key type")
+		log.Error("Key manager ", "unknown keyType", keyType)
+		panic("Key manager unknown key type")
 	}
 	return load(context, ctx, awsRegion, secretName, flagName)
 }
@@ -76,6 +76,8 @@ func load(context context.Context, ctx *cli.Context, awsRegion string, secretNam
 		}
 		log.Info("Key manager load key is success")
 		ctx.Set(flagName, key)
+	} else {
+		log.Info("Key manager is skipped")
 	}
 	return nil
 }
