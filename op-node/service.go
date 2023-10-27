@@ -37,6 +37,8 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		return nil, err
 	}
 
+	configPersistence := NewConfigPersistence(ctx)
+
 	driverConfig := NewDriverConfig(ctx)
 
 	p2pSignerSetup, err := p2pcli.LoadSignerSetup(ctx)
@@ -89,8 +91,14 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 			Moniker: ctx.GlobalString(flags.HeartbeatMonikerFlag.Name),
 			URL:     ctx.GlobalString(flags.HeartbeatURLFlag.Name),
 		},
+		ConfigPersistence: configPersistence,
 		Sync: *syncConfig,
 	}
+
+	if err := cfg.LoadPersisted(log); err != nil {
+		return nil, fmt.Errorf("failed to load driver config: %w", err)
+	}
+
 	if err := cfg.Check(); err != nil {
 		return nil, err
 	}
@@ -145,6 +153,14 @@ func NewL2SyncEndpointConfig(ctx *cli.Context) *node.L2SyncEndpointConfig {
 		L2NodeAddr: ctx.GlobalString(flags.BackupL2UnsafeSyncRPC.Name),
 		TrustRPC:   ctx.GlobalBool(flags.BackupL2UnsafeSyncRPCTrustRPC.Name),
 	}
+}
+
+func NewConfigPersistence(ctx *cli.Context) node.ConfigPersistence {
+	stateFile := ctx.String(flags.RPCAdminPersistence.Name)
+	if stateFile == "" {
+		return node.DisabledConfigPersistence{}
+	}
+	return node.NewConfigPersistence(stateFile)
 }
 
 func NewDriverConfig(ctx *cli.Context) *driver.Config {
