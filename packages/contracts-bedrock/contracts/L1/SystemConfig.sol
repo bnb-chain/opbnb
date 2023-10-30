@@ -27,7 +27,8 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         BATCHER,
         GAS_CONFIG,
         GAS_LIMIT,
-        UNSAFE_BLOCK_SIGNER
+        UNSAFE_BLOCK_SIGNER,
+        MIN_GAS_PRICE
     }
 
     /**
@@ -71,6 +72,11 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     ResourceMetering.ResourceConfig internal _resourceConfig;
 
     /**
+     * @notice min L1 gas price.
+     */
+    uint256 public minGasPrice;
+
+    /**
      * @notice Emitted when configuration is updated
      *
      * @param version    SystemConfig version.
@@ -80,7 +86,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     event ConfigUpdate(uint256 indexed version, UpdateType indexed updateType, bytes data);
 
     /**
-     * @custom:semver 1.3.0
+     * @custom:semver 1.4.0
      *
      * @param _owner             Initial owner of the contract.
      * @param _overhead          Initial overhead value.
@@ -98,7 +104,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         uint64 _gasLimit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config
-    ) Semver(1, 3, 0) {
+    ) Semver(1, 4, 0) {
         initialize({
             _owner: _owner,
             _overhead: _overhead,
@@ -221,6 +227,18 @@ contract SystemConfig is OwnableUpgradeable, Semver {
 
         bytes memory data = abi.encode(_gasLimit);
         emit ConfigUpdate(VERSION, UpdateType.GAS_LIMIT, data);
+    }
+
+    /**
+     * @notice Updates the L1 min gas price.
+     *
+     * @param _minGasPrice New min gas price.
+     */
+    function setMinGasPrice(uint256 _minGasPrice) external onlyOwner {
+        minGasPrice = _minGasPrice;
+
+        bytes memory data = abi.encode(_minGasPrice);
+        emit ConfigUpdate(VERSION, UpdateType.MIN_GAS_PRICE, data);
     }
 
     /**
