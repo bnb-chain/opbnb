@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli"
-
+	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	"github.com/ethereum-optimism/optimism/op-batcher/batcher"
 	"github.com/ethereum-optimism/optimism/op-batcher/cmd/doc"
 	"github.com/ethereum-optimism/optimism/op-batcher/flags"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/urfave/cli"
 )
 
 var (
@@ -46,6 +47,9 @@ func main() {
 // This is done to capture the Version of the batcher.
 func curryMain(version string) func(ctx *cli.Context) error {
 	return func(ctx *cli.Context) error {
+		if err := op_aws_sdk.KeyManager(context.Background(), ctx, op_aws_sdk.OP_BATCHER_SIGN_KEY); err != nil {
+			return err
+		}
 		return batcher.Main(version, ctx)
 	}
 }
