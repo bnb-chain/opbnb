@@ -60,9 +60,14 @@ contract L1Block is Semver {
     uint256 public l1FeeScalar;
 
     /**
-     * @custom:semver 1.0.0
+     * @notice min L1 gas price.
      */
-    constructor() Semver(1, 0, 0) {}
+    uint256 public l1MinGasPrice;
+
+    /**
+     * @custom:semver 1.0.1
+     */
+    constructor() Semver(1, 0, 1) {}
 
     /**
      * @notice Updates the L1 block values.
@@ -75,6 +80,7 @@ contract L1Block is Semver {
      * @param _batcherHash    Versioned hash to authenticate batcher by.
      * @param _l1FeeOverhead  L1 fee overhead.
      * @param _l1FeeScalar    L1 fee scalar.
+     * @param _l1MinGasPrice  l1MinGasPrice.
      */
     function setL1BlockValues(
         uint64 _number,
@@ -84,7 +90,8 @@ contract L1Block is Semver {
         uint64 _sequenceNumber,
         bytes32 _batcherHash,
         uint256 _l1FeeOverhead,
-        uint256 _l1FeeScalar
+        uint256 _l1FeeScalar,
+        uint256 _l1MinGasPrice
     ) external {
         require(
             msg.sender == DEPOSITOR_ACCOUNT,
@@ -99,5 +106,6 @@ contract L1Block is Semver {
         batcherHash = _batcherHash;
         l1FeeOverhead = _l1FeeOverhead;
         l1FeeScalar = _l1FeeScalar;
+        l1MinGasPrice = _l1MinGasPrice;
     }
 }

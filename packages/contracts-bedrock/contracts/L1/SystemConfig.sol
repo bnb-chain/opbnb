@@ -86,7 +86,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     event ConfigUpdate(uint256 indexed version, UpdateType indexed updateType, bytes data);
 
     /**
-     * @custom:semver 1.4.0
+     * @custom:semver 1.3.1
      *
      * @param _owner             Initial owner of the contract.
      * @param _overhead          Initial overhead value.
@@ -104,7 +104,7 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         uint64 _gasLimit,
         address _unsafeBlockSigner,
         ResourceMetering.ResourceConfig memory _config
-    ) Semver(1, 4, 0) {
+    ) Semver(1, 3, 1) {
         initialize({
             _owner: _owner,
             _overhead: _overhead,
