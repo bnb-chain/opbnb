@@ -80,9 +80,46 @@ contract L1Block is Semver {
      * @param _batcherHash    Versioned hash to authenticate batcher by.
      * @param _l1FeeOverhead  L1 fee overhead.
      * @param _l1FeeScalar    L1 fee scalar.
-     * @param _l1MinGasPrice  l1MinGasPrice.
      */
     function setL1BlockValues(
+        uint64 _number,
+        uint64 _timestamp,
+        uint256 _basefee,
+        bytes32 _hash,
+        uint64 _sequenceNumber,
+        bytes32 _batcherHash,
+        uint256 _l1FeeOverhead,
+        uint256 _l1FeeScalar
+    ) external {
+        require(
+            msg.sender == DEPOSITOR_ACCOUNT,
+            "L1Block: only the depositor account can set L1 block values"
+        );
+
+        number = _number;
+        timestamp = _timestamp;
+        basefee = _basefee;
+        hash = _hash;
+        sequenceNumber = _sequenceNumber;
+        batcherHash = _batcherHash;
+        l1FeeOverhead = _l1FeeOverhead;
+        l1FeeScalar = _l1FeeScalar;
+    }
+
+    /**
+     * @notice Updates the L1 block values.
+     *
+     * @param _number         L1 blocknumber.
+     * @param _timestamp      L1 timestamp.
+     * @param _basefee        L1 basefee.
+     * @param _hash           L1 blockhash.
+     * @param _sequenceNumber Number of L2 blocks since epoch start.
+     * @param _batcherHash    Versioned hash to authenticate batcher by.
+     * @param _l1FeeOverhead  L1 fee overhead.
+     * @param _l1FeeScalar    L1 fee scalar.
+     * @param _l1MinGasPrice  l1MinGasPrice.
+     */
+    function setL1BlockValuesV2(
         uint64 _number,
         uint64 _timestamp,
         uint256 _basefee,

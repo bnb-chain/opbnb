@@ -24,7 +24,6 @@ contract GasPriceOracle_Test is CommonTest {
     bytes32 constant batcherHash = bytes32(uint256(777));
     uint256 constant l1FeeOverhead = 310;
     uint256 constant l1FeeScalar = 10;
-    uint256 constant l1MinGasPrice = 3;
 
     function setUp() public virtual override {
         super.setUp();
@@ -48,8 +47,7 @@ contract GasPriceOracle_Test is CommonTest {
             _sequenceNumber: sequenceNumber,
             _batcherHash: batcherHash,
             _l1FeeOverhead: l1FeeOverhead,
-            _l1FeeScalar: l1FeeScalar,
-            _l1MinGasPrice: l1MinGasPrice
+            _l1FeeScalar: l1FeeScalar
         });
     }
 
