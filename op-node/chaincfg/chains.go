@@ -98,8 +98,7 @@ var OPBNBMainnet = rollup.Config{
 	DepositContractAddress: common.HexToAddress("0x1876ea7702c0ad0c6a2ae6036de7733edfbca519"),
 	L1SystemConfigAddress:  common.HexToAddress("0x7ac836148c14c74086d57f7828f2d065672db3b8"),
 	RegolithTime:           u64Ptr(0),
-	// TODO update block number
-	Fermat: nil,
+	Fermat:                 big.NewInt(9397477), // Nov-28-2023 06 AM +UTC
 }
 
 var OPBNBTestnet = rollup.Config{
