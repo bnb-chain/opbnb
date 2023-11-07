@@ -9,7 +9,7 @@ All mainnet nodes must upgrade to this release before the hardfork.
 
 ### User Facing Changes
 
-- Support reading private keys from AWS Secret Manager for `op-node`, `op-batcher`, and `op-proposer`. Refer to PR #74 for additional information.
+- Support reading private keys from AWS Secret Manager for `op-node`, `op-batcher`, and `op-proposer`. Refer to PR #72 for additional information.
 
 ### Partial Changelog
 
