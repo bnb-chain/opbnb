@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2.2
+
+This is the Fermat Hardfork release for opBNB Mainnet.
+It will be activated at block height 9397477, expected to occur on November 28, 2023, at 6 AM UTC.
+
+All mainnet nodes must upgrade to this release before the hardfork.
+
+### User Facing Changes
+
+- Support reading private keys from AWS Secret Manager for `op-node`, `op-batcher`, and `op-proposer`. Refer to PR #74 for additional information.
+
+### Partial Changelog
+
+- #72: feat: support AWS key manager
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.2.2
+- ghcr.io/bnb-chain/op-batcher:v0.2.2
+- ghcr.io/bnb-chain/op-proposer:v0.2.2
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.2.1...v0.2.2
+
 ## v0.2.1
 
 This is a minor release and upgrading is optional.
