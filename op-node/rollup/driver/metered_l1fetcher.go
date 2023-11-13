@@ -57,6 +57,11 @@ func (m *MeteredL1Fetcher) FetchReceipts(ctx context.Context, blockHash common.H
 	return m.inner.FetchReceipts(ctx, blockHash)
 }
 
+func (m *MeteredL1Fetcher) InfoAndTxsByNumber(ctx context.Context, num uint64) (eth.BlockInfo, types.Transactions, error) {
+	defer m.recordTime("InfoAndTxsByNumber")()
+	return m.inner.InfoAndTxsByNumber(ctx, num)
+}
+
 var _ derive.L1Fetcher = (*MeteredL1Fetcher)(nil)
 
 func (m *MeteredL1Fetcher) recordTime(method string) func() {

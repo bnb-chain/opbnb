@@ -88,6 +88,8 @@ type Config struct {
 	// OPBNB hard fork
 	// Fermat switch block (nil = no fork, 0 = already on Fermat)
 	Fermat *big.Int `json:"fermat,omitempty"`
+	// L1GasPriceOptimize switch block (nil = no fork, 0 = already on L1GasPriceOptimize)
+	L1GasPriceOptimize *big.Int `json:"l1GasPriceOptimize,omitempty"`
 }
 
 // ValidateL1Config checks L1 config variables for errors.
@@ -265,6 +267,11 @@ func (c *Config) IsFermat(num *big.Int) bool {
 	return isBlockForked(c.Fermat, num)
 }
 
+// IsL1GasPriceOptimize returns true if the L1GasPriceOptimize hardfork is active at or past the given block.
+func (c *Config) IsL1GasPriceOptimize(num *big.Int) bool {
+	return isBlockForked(c.L1GasPriceOptimize, num)
+}
+
 // isBlockForked returns whether a fork scheduled at block s is active at the
 // given head block. Whilst this method is the same as isTimestampForked, they
 // are explicitly separate for clearer reading.
@@ -304,6 +311,7 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf("  - Regolith: %s\n", fmtForkTimeOrUnset(c.RegolithTime))
 	banner += "OPBNB hard forks (block based):\n"
 	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
+	banner += fmt.Sprintf(" - L1GasPriceOptimize:              #%-8v\n", c.L1GasPriceOptimize)
 	return banner
 }
 
@@ -326,7 +334,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 	log.Info("Rollup Config", "l2_chain_id", c.L2ChainID, "l2_network", networkL2, "l1_chain_id", c.L1ChainID,
 		"l1_network", networkL1, "l2_start_time", c.Genesis.L2Time, "l2_block_hash", c.Genesis.L2.Hash.String(),
 		"l2_block_number", c.Genesis.L2.Number, "l1_block_hash", c.Genesis.L1.Hash.String(),
-		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime), "Fermat", c.Fermat)
+		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime), "Fermat", c.Fermat, "L1GasPriceOptimize", c.L1GasPriceOptimize)
 }
 
 func fmtForkTimeOrUnset(v *uint64) string {

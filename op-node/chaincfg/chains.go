@@ -99,7 +99,8 @@ var OPBNBMainnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x7ac836148c14c74086d57f7828f2d065672db3b8"),
 	RegolithTime:           u64Ptr(0),
 	// TODO update block number
-	Fermat: nil,
+	Fermat:             nil,
+	L1GasPriceOptimize: nil,
 }
 
 var OPBNBTestnet = rollup.Config{
@@ -131,6 +132,7 @@ var OPBNBTestnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x406ac857817708eaf4ca3a82317ef4ae3d1ea23b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(12113000), // Nov-03-2023 06 AM +UTC
+	L1GasPriceOptimize:     nil,
 }
 
 var OPBNBDevnet = rollup.Config{
@@ -162,6 +164,7 @@ var OPBNBDevnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0xf053067cec8d8990de2ba9e17ec2f16c63c7bec4"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(3615117),
+	L1GasPriceOptimize:     nil,
 }
 
 var NetworksByName = map[string]rollup.Config{
