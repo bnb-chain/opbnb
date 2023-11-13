@@ -89,6 +89,7 @@ type Config struct {
 	// Fermat switch block (nil = no fork, 0 = already on Fermat)
 	Fermat *big.Int `json:"fermat,omitempty"`
 	// L1GasPriceOptimize switch block (nil = no fork, 0 = already on L1GasPriceOptimize)
+	// TODO update fork name
 	L1GasPriceOptimize *big.Int `json:"l1GasPriceOptimize,omitempty"`
 }
 

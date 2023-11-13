@@ -150,8 +150,14 @@ func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPa
 }
 
 func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epoch eth.BlockID) (*big.Int, error) {
+	// Consider this situation. If start a new l2 chain, starting from the block height of l1 less than CountBlockSize,
+	// in fact, this situation is unlikely to happen.
+	if epoch.Number < bsc.CountBlockSize-1 {
+		for i := 0; i < bsc.CountBlockSize-1; i++ {
+			medianGasPriceQueue.PushBack(bsc.DefaultBaseFee)
+		}
+	}
 	for medianGasPriceQueue.Len() < bsc.CountBlockSize-1 {
-		// TODO consider l1 not reach 20 block
 		_, transactions, err := ba.l1.InfoAndTxsByNumber(ctx, epoch.Number-bsc.CountBlockSize+uint64(medianGasPriceQueue.Len())+1)
 		if err != nil {
 			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))

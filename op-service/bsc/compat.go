@@ -99,15 +99,15 @@ func MedianGasPrice(transactions types.Transactions) *big.Int {
 	return medianGasPrice
 }
 
-func FinalGasPrice(queue list.List) *big.Int {
+func FinalGasPrice(medianGasPriceQueue list.List) *big.Int {
 	var allMedianGasPrice []*big.Int
-	for item := queue.Front(); item != nil; item = item.Next() {
+	for item := medianGasPriceQueue.Front(); item != nil; item = item.Next() {
 		allMedianGasPrice = append(allMedianGasPrice, item.Value.(*big.Int))
 	}
 	sort.Sort(bigIntArray(allMedianGasPrice))
-	medianGasPriceAgain := allMedianGasPrice[(len(allMedianGasPrice)-1)*percentile/100]
-	queue.Remove(queue.Front())
-	return medianGasPriceAgain
+	finalGasPrice := allMedianGasPrice[(len(allMedianGasPrice)-1)*percentile/100]
+	medianGasPriceQueue.Remove(medianGasPriceQueue.Front())
+	return finalGasPrice
 }
 
 type bigIntArray []*big.Int
