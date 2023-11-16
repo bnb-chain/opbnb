@@ -4,10 +4,11 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"math/big"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
@@ -62,7 +63,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	}
 
 	// If the L1 origin changed this block, then we are in the first block of the epoch. In this
-	// case we need to fetch all transaction receipts from the L1 origin block so we can scan for
+	// case we need to fetch all transaction receipts from the L1 origin block, so we can scan for
 	// user deposits.
 	if l2Parent.L1Origin.Number != epoch.Number {
 		info, receipts, err := ba.l1.FetchReceipts(ctx, epoch.Hash)
