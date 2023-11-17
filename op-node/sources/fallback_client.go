@@ -42,7 +42,7 @@ type FallbackClient struct {
 	metrics           metrics.Metricer
 }
 
-const threshold int64 = 20
+const threshold int64 = 10
 
 // NewFallbackClient returns a new FallbackClient. l1ChainId and l1Block are used to check
 // whether the newly switched rpc is legal.
