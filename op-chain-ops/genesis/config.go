@@ -129,6 +129,8 @@ type DeployConfig struct {
 	EIP1559Denominator uint64 `json:"eip1559Denominator"`
 
 	FundDevAccounts bool `json:"fundDevAccounts"`
+	// opBNB fermat hard fork
+	Fermat *big.Int `json:"fermat,omitempty"`
 }
 
 // Check will ensure that the config is sane and return an error when it is not
@@ -374,6 +376,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		DepositContractAddress: d.OptimismPortalProxy,
 		L1SystemConfigAddress:  d.SystemConfigProxy,
 		RegolithTime:           d.RegolithTime(l1StartBlock.Time()),
+		Fermat:                 d.Fermat,
 	}, nil
 }
 
