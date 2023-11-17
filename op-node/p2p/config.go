@@ -31,10 +31,7 @@ var DefaultBootnodes = []*enode.Node{
 	enode.MustParse("enode://9d7a3efefe442351217e73b3a593bcb8efffb55b4807699972145324eab5e6b382152f8d24f6301baebbfb5ecd4127bd3faab2842c04cd432bdf50ba092f6645@34.65.109.126:0?discport=30305"),
 }
 
-var (
-	OpBNBMainnet = big.NewInt(204)
-	OpBNBTestnet = big.NewInt(5611)
-)
+var OpBNBTestnet = big.NewInt(5611)
 
 // OpBNBMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the opBNB main network.
