@@ -128,7 +128,6 @@ func TestOriginSelectorRespectsConfDepth(t *testing.T) {
 	}
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
-	l1.ExpectFetchReceipts(b.Hash, nil, nil, nil)
 	confDepthL1 := NewConfDepth(10, func() eth.L1BlockRef { return b }, l1)
 	s := NewL1OriginSelector(log, cfg, confDepthL1)
 
@@ -172,7 +171,6 @@ func TestOriginSelectorStrictConfDepth(t *testing.T) {
 	}
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
-	l1.ExpectFetchReceipts(b.Hash, nil, nil, nil)
 	confDepthL1 := NewConfDepth(10, func() eth.L1BlockRef { return b }, l1)
 	s := NewL1OriginSelector(log, cfg, confDepthL1)
 
