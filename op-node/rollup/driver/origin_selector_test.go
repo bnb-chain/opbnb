@@ -46,6 +46,7 @@ func TestOriginSelectorAdvances(t *testing.T) {
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
 	l1.ExpectL1BlockRefByNumber(b.Number, b, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 
 	s := NewL1OriginSelector(log, cfg, l1)
 	next, err := s.FindL1Origin(context.Background(), l2Head)
@@ -87,6 +88,7 @@ func TestOriginSelectorRespectsOriginTiming(t *testing.T) {
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
 	l1.ExpectL1BlockRefByNumber(b.Number, b, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 
 	s := NewL1OriginSelector(log, cfg, l1)
 	next, err := s.FindL1Origin(context.Background(), l2Head)
@@ -126,6 +128,7 @@ func TestOriginSelectorRespectsConfDepth(t *testing.T) {
 	}
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 	confDepthL1 := NewConfDepth(10, func() eth.L1BlockRef { return b }, l1)
 	s := NewL1OriginSelector(log, cfg, confDepthL1)
 
@@ -169,6 +172,7 @@ func TestOriginSelectorStrictConfDepth(t *testing.T) {
 	}
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 	confDepthL1 := NewConfDepth(10, func() eth.L1BlockRef { return b }, l1)
 	s := NewL1OriginSelector(log, cfg, confDepthL1)
 
@@ -208,6 +212,7 @@ func TestOriginSelectorSeqDriftRespectsNextOriginTime(t *testing.T) {
 
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
 	l1.ExpectL1BlockRefByNumber(b.Number, b, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 
 	s := NewL1OriginSelector(log, cfg, l1)
 	next, err := s.FindL1Origin(context.Background(), l2Head)
@@ -265,6 +270,7 @@ func TestOriginSelectorHandlesLateL1Blocks(t *testing.T) {
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
 	l1.ExpectL1BlockRefByHash(a.Hash, a, nil)
 	l1.ExpectL1BlockRefByNumber(b.Number, b, nil)
+	l1.ExpectFetchReceipts(common.Hash{}, nil, nil, nil)
 
 	l1Head := b
 	confDepthL1 := NewConfDepth(2, func() eth.L1BlockRef { return l1Head }, l1)
