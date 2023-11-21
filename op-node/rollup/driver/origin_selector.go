@@ -50,6 +50,7 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
 	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+los.cfg.MaxSequencerDrift
+	// Limit the time to fetch next origin block by default
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()
 	if pastSeqDrift {
@@ -87,7 +88,8 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// could decide to continue to build on top of the previous origin until the Sequencer runs out
 	// of slack. For simplicity, we implement our Sequencer to always start building on the latest
 	// L1 block when we can.
-	if pastSeqDrift || (l2Head.Time+los.cfg.BlockTime >= nextOrigin.Time && receiptsCached) {
+	// If not pastSeqDrift and next origin receipts not cached, fallback to current origin.
+	if l2Head.Time+los.cfg.BlockTime >= nextOrigin.Time && (pastSeqDrift || receiptsCached) {
 		return nextOrigin, nil
 	}
 
