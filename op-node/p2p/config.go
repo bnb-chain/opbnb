@@ -37,7 +37,8 @@ var OpBNBTestnet = big.NewInt(5611)
 // the opBNB main network.
 var OpBNBMainnetBootnodes = []string{
 	// op-node
-	"enr:-J24QA9sgVxbZ0KoJ7-1gx_szfc7Oexzz7xL2iHS7VMHGj2QQaLc_IQZmFthywENgJWXbApj7tw7BiouKDOZD4noWEWGAYppffmvgmlkgnY0gmlwhDbjSM6Hb3BzdGFja4PMAQCJc2VjcDI1NmsxoQKetGQX7sXd4u8hZr6uayTZgHRDvGm36YaryqZkgnidS4N0Y3CCIyuDdWRwgiMs",
+	"enr:-J24QIGeBCpZHdaQ5i8fyyK_uzaL1DdgOOZA3_lvjHvirjpgexMGkVeGMxlqauzEX7pWAfztCa9hpEGd_bS2a-1IqB6GAYvRDk5QgmlkgnY0gmlwhDaykUmHb3BzdGFja4PMAQCJc2VjcDI1NmsxoQJ-_5GZKjs7jaB4TILdgC8EwnwyL3Qip89wmjnyjvDDwoN0Y3CCIyuDdWRwgiMs",
+	"enr:-J24QO_AhXy6stHsVvFWnECRD_1hMccZM6JqJgiXNVIRED1JRAJvIS48Pihku2z30TfizSGUAmeb22RQfPjW99hDu9WGAYvRBDnegmlkgnY0gmlwhDbjSM6Hb3BzdGFja4PMAQCJc2VjcDI1NmsxoQKetGQX7sXd4u8hZr6uayTZgHRDvGm36YaryqZkgnidS4N0Y3CCIyuDdWRwgiMs",
 }
 
 // OpBNBTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on

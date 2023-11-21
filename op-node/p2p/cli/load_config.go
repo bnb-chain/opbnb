@@ -178,14 +178,7 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context, rollupCfg *rollup.Con
 		if rollupCfg.L2ChainID.Cmp(p2p.OpBNBTestnet) == 0 {
 			records = p2p.OpBNBTestnetBootnodes
 		} else {
-		    records = p2p.OpBNBMainnetBootnodes
-		}
-	} else {
-		records = strings.Split(ctx.GlobalString(flags.Bootnodes.Name), ",")
-	}
-	if !ctx.IsSet(flags.Bootnodes.Name) {
-		if rollupCfg.L2ChainID.Cmp(p2p.OpBNBTestnet) == 0 {
-			records = p2p.OpBNBTestnetBootnodes
+			records = p2p.OpBNBMainnetBootnodes
 		}
 	} else {
 		records = strings.Split(ctx.GlobalString(flags.Bootnodes.Name), ",")
