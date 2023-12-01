@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.2.3
+
+This is a minor release and upgrading is optional.
+
+### User Facing Changes
+
+NA
+
+### Partial Changelog
+
+- #88: fix: change fallback client threshold to 10 from 20
+- #90: fix(op-node): not do sequence action instantly
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.2.3
+- ghcr.io/bnb-chain/op-batcher:v0.2.3
+- ghcr.io/bnb-chain/op-proposer:v0.2.3
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.2.2...v0.2.3
+
 ## v0.2.2
 
 This is the Fermat Hardfork release for opBNB Mainnet.
