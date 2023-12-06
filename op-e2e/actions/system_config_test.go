@@ -13,10 +13,10 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 )
 
 // TestBatcherKeyRotation tests that batcher A can operate, then be replaced with batcher B, then ignore old batcher A,
@@ -25,6 +25,7 @@ func TestBatcherKeyRotation(gt *testing.T) {
 	t := NewDefaultTesting(gt)
 
 	dp := e2eutils.MakeDeployParams(t, defaultRollupTestParams)
+	dp.DeployConfig.L2BlockTime = 2
 	sd := e2eutils.Setup(t, dp, defaultAlloc)
 	log := testlog.Logger(t, log.LvlDebug)
 	miner, seqEngine, sequencer := setupSequencerTest(t, sd, log)
@@ -74,14 +75,23 @@ func TestBatcherKeyRotation(gt *testing.T) {
 	sysCfgOwner, err := bind.NewKeyedTransactorWithChainID(dp.Secrets.SysCfgOwner, sd.RollupCfg.L1ChainID)
 	require.NoError(t, err)
 
+	owner, err := sysCfgContract.Owner(&bind.CallOpts{})
+	require.NoError(t, err)
+	require.Equal(t, dp.Addresses.SysCfgOwner, owner, "system config owner mismatch")
+
 	// Change the batch sender key to Bob!
-	tx, err := sysCfgContract.SetBatcherHash(sysCfgOwner, dp.Addresses.Bob.Hash())
+	tx, err := sysCfgContract.SetBatcherHash(sysCfgOwner, eth.AddressAsLeftPaddedHash(dp.Addresses.Bob))
 	require.NoError(t, err)
 	t.Logf("batcher changes in L1 tx %s", tx.Hash())
 	miner.ActL1StartBlock(12)(t)
 	miner.ActL1IncludeTx(dp.Addresses.SysCfgOwner)(t)
 	miner.ActL1EndBlock(t)
+
+	receipt, err := miner.EthClient().TransactionReceipt(t.Ctx(), tx.Hash())
+	require.NoError(t, err)
+
 	cfgChangeL1BlockNum := miner.l1Chain.CurrentBlock().Number.Uint64()
+	require.Equal(t, cfgChangeL1BlockNum, receipt.BlockNumber.Uint64())
 
 	// sequence L2 blocks, and submit with new batcher
 	sequencer.ActL1HeadSignal(t)
@@ -91,17 +101,30 @@ func TestBatcherKeyRotation(gt *testing.T) {
 	miner.ActL1IncludeTx(dp.Addresses.Bob)(t)
 	miner.ActL1EndBlock(t)
 
-	// check that the first L2 payload that adopted the L1 block with the batcher key change indeed changed the batcher key in the system config
+	// check that the first L2 payload that adopted the L1 block with the batcher key change
+	// indeed changed the batcher key in the system config
 	engCl := seqEngine.EngineClient(t, sd.RollupCfg)
-	payload, err := engCl.PayloadByNumber(t.Ctx(), sequencer.L2Safe().Number+12) // 12 new L2 blocks: 5 with origin before L1 block with batch, 6 with origin of L1 block with batch, 1 with new origin that changed the batcher
-	require.NoError(t, err)
-	ref, err := derive.PayloadToBlockRef(payload, &sd.RollupCfg.Genesis)
-	require.NoError(t, err)
-	require.Equal(t, ref.L1Origin.Number, cfgChangeL1BlockNum, "L2 block with L1 origin that included config change")
-	require.Equal(t, ref.SequenceNumber, uint64(0), "first L2 block with this origin")
-	sysCfg, err := derive.PayloadToSystemConfig(payload, sd.RollupCfg)
-	require.NoError(t, err)
-	require.Equal(t, dp.Addresses.Bob, sysCfg.BatcherAddr, "bob should be batcher now")
+	// 12 new L2 blocks: 5 with origin before L1 block with batch, 6 with origin of L1 block
+	// with batch, 1 with new origin that changed the batcher
+	for i := 0; i <= 12; i++ {
+		payload, err := engCl.PayloadByNumber(t.Ctx(), sequencer.L2Safe().Number+uint64(i))
+		require.NoError(t, err)
+		ref, err := derive.PayloadToBlockRef(payload, &sd.RollupCfg.Genesis)
+		require.NoError(t, err)
+		if i < 6 {
+			require.Equal(t, ref.L1Origin.Number, cfgChangeL1BlockNum-2)
+			require.Equal(t, ref.SequenceNumber, uint64(i))
+		} else if i < 12 {
+			require.Equal(t, ref.L1Origin.Number, cfgChangeL1BlockNum-1)
+			require.Equal(t, ref.SequenceNumber, uint64(i-6))
+		} else {
+			require.Equal(t, ref.L1Origin.Number, cfgChangeL1BlockNum)
+			require.Equal(t, ref.SequenceNumber, uint64(0), "first L2 block with this origin")
+			sysCfg, err := derive.PayloadToSystemConfig(payload, sd.RollupCfg)
+			require.NoError(t, err)
+			require.Equal(t, dp.Addresses.Bob, sysCfg.BatcherAddr, "bob should be batcher now")
+		}
+	}
 
 	// sync from L1
 	sequencer.ActL2PipelineFull(t)

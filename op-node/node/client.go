@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
-	"github.com/ethereum-optimism/optimism/op-node/sources"
-	service_client "github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/sources"
 
 	"github.com/ethereum/go-ethereum/log"
 	gn "github.com/ethereum/go-ethereum/node"
@@ -60,7 +59,11 @@ func (cfg *L2EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 		return nil, nil, err
 	}
 	auth := rpc.WithHTTPAuth(gn.NewJWTAuth(cfg.L2EngineJWTSecret))
-	l2Node, err := client.NewRPC(ctx, log, cfg.L2EngineAddr, client.WithGethRPCOptions(auth))
+	opts := []client.RPCOption{
+		client.WithGethRPCOptions(auth),
+		client.WithDialBackoff(10),
+	}
+	l2Node, err := client.NewRPC(ctx, log, cfg.L2EngineAddr, opts...)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -8,16 +8,19 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 type Metrics interface {
 	RecordL1Ref(name string, ref eth.L1BlockRef)
 	RecordL2Ref(name string, ref eth.L2BlockRef)
 	RecordUnsafePayloadsBuffer(length uint64, memSize uint64, next eth.BlockID)
-	RecordChannelInputBytes(inputCompresedBytes int)
+	RecordChannelInputBytes(inputCompressedBytes int)
+	RecordHeadChannelOpened()
+	RecordChannelTimedOut()
+	RecordFrame()
 }
 
 type L1Fetcher interface {
@@ -36,7 +39,7 @@ type ResettableEngineControl interface {
 	Reset()
 }
 
-type ResetableStage interface {
+type ResettableStage interface {
 	// Reset resets a pull stage. `base` refers to the L1 Block Reference to reset to, with corresponding configuration.
 	Reset(ctx context.Context, base eth.L1BlockRef, baseCfg eth.SystemConfig) error
 }
@@ -68,7 +71,7 @@ type DerivationPipeline struct {
 	// Index of the stage that is currently being reset.
 	// >= len(stages) if no additional resetting is required
 	resetting int
-	stages    []ResetableStage
+	stages    []ResettableStage
 
 	// Special stages to keep track of
 	traversal *L1Traversal
@@ -85,9 +88,9 @@ func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetch
 	dataSrc := NewDataSourceFactory(log, cfg, l1Fetcher) // auxiliary stage for L1Retrieval
 	l1Src := NewL1Retrieval(log, dataSrc, l1Traversal)
 	frameQueue := NewFrameQueue(log, l1Src)
-	bank := NewChannelBank(log, cfg, frameQueue, l1Fetcher)
-	chInReader := NewChannelInReader(log, bank, metrics)
-	batchQueue := NewBatchQueue(log, cfg, chInReader)
+	bank := NewChannelBank(log, cfg, frameQueue, l1Fetcher, metrics)
+	chInReader := NewChannelInReader(cfg, log, bank, metrics)
+	batchQueue := NewBatchQueue(log, cfg, chInReader, engine)
 	attrBuilder := NewFetchingAttributesBuilder(cfg, l1Fetcher, engine)
 	attributesQueue := NewAttributesQueue(log, cfg, attrBuilder, batchQueue)
 
@@ -97,7 +100,7 @@ func NewDerivationPipeline(log log.Logger, cfg *rollup.Config, l1Fetcher L1Fetch
 	// Reset from engine queue then up from L1 Traversal. The stages do not talk to each other during
 	// the reset, but after the engine queue, this is the order in which the stages could talk to each other.
 	// Note: The engine queue stage is the only reset that can fail.
-	stages := []ResetableStage{eng, l1Traversal, l1Src, frameQueue, bank, chInReader, batchQueue, attributesQueue}
+	stages := []ResettableStage{eng, l1Traversal, l1Src, frameQueue, bank, chInReader, batchQueue, attributesQueue}
 
 	return &DerivationPipeline{
 		log:       log,

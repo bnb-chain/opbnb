@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 var writeFile bool
@@ -58,12 +59,18 @@ func testBuildL2Genesis(t *testing.T, config *genesis.DeployConfig) *core.Genesi
 			(!config.EnableGovernance && addr == predeploys.GovernanceTokenAddr)
 		if isProxy {
 			require.Equal(t, true, ok, name)
-			require.Equal(t, predeploys.ProxyAdminAddr.Hash(), adminSlot)
+			require.Equal(t, eth.AddressAsLeftPaddedHash(predeploys.ProxyAdminAddr), adminSlot)
 			require.Equal(t, proxyBytecode, account.Code)
 		} else {
 			require.Equal(t, false, ok, name)
 			require.NotEqual(t, proxyBytecode, account.Code, name)
 		}
+	}
+
+	// All of the precompile addresses should be funded with a single wei
+	for i := 0; i < genesis.PrecompileCount; i++ {
+		addr := common.BytesToAddress([]byte{byte(i)})
+		require.Equal(t, common.Big1, gen.Alloc[addr].Balance)
 	}
 
 	if writeFile {
@@ -73,24 +80,13 @@ func testBuildL2Genesis(t *testing.T, config *genesis.DeployConfig) *core.Genesi
 	return gen
 }
 
-func TestBuildL2DeveloperGenesis(t *testing.T) {
-	config, err := genesis.NewDeployConfig("./testdata/test-deploy-config-devnet-l1.json")
-	require.Nil(t, err)
-	config.EnableGovernance = false
-	config.FundDevAccounts = true
-	err = config.InitDeveloperDeployedAddresses()
-	require.NoError(t, err)
-	gen := testBuildL2Genesis(t, config)
-	require.Equal(t, 2342, len(gen.Alloc))
-}
-
 func TestBuildL2MainnetGenesis(t *testing.T) {
 	config, err := genesis.NewDeployConfig("./testdata/test-deploy-config-devnet-l1.json")
 	require.Nil(t, err)
 	config.EnableGovernance = true
 	config.FundDevAccounts = false
 	gen := testBuildL2Genesis(t, config)
-	require.Equal(t, 2064, len(gen.Alloc))
+	require.Equal(t, 2322, len(gen.Alloc))
 }
 
 func TestBuildL2MainnetNoGovernanceGenesis(t *testing.T) {
@@ -99,5 +95,5 @@ func TestBuildL2MainnetNoGovernanceGenesis(t *testing.T) {
 	config.EnableGovernance = false
 	config.FundDevAccounts = false
 	gen := testBuildL2Genesis(t, config)
-	require.Equal(t, 2064, len(gen.Alloc))
+	require.Equal(t, 2322, len(gen.Alloc))
 }

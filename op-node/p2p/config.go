@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -53,7 +54,8 @@ type SetupP2P interface {
 
 // ScoringParams defines the various types of peer scoring parameters.
 type ScoringParams struct {
-	PeerScoring pubsub.PeerScoreParams
+	PeerScoring        pubsub.PeerScoreParams
+	ApplicationScoring ApplicationScoreParams
 }
 
 // Config sets up a p2p host and discv5 service from configuration.
@@ -63,9 +65,6 @@ type Config struct {
 
 	DisableP2P  bool
 	NoDiscovery bool
-
-	// Enable P2P-based alt-syncing method (req-resp protocol, not gossip)
-	AltSync bool
 
 	ScoringParams *ScoringParams
 
@@ -86,6 +85,7 @@ type Config struct {
 	AdvertiseUDPPort uint16
 	Bootnodes        []*enode.Node
 	DiscoveryDB      *enode.DB
+	NetRestrict      *netutil.Netlist
 
 	StaticPeers []core.Multiaddr
 
@@ -137,11 +137,11 @@ func (conf *Config) Disabled() bool {
 	return conf.DisableP2P
 }
 
-func (conf *Config) PeerScoringParams() *pubsub.PeerScoreParams {
+func (conf *Config) PeerScoringParams() *ScoringParams {
 	if conf.ScoringParams == nil {
 		return nil
 	}
-	return &conf.ScoringParams.PeerScoring
+	return conf.ScoringParams
 }
 
 func (conf *Config) BanPeers() bool {

@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +50,7 @@ func TestRewriteRequest(t *testing.T) {
 				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"fromBlock": hexutil.Uint64(55).String()}})},
 				res:  nil,
 			},
-			expected: RewriteNone,
+			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
 				var p []map[string]interface{}
 				err := json.Unmarshal(args.req.Params, &p)
@@ -88,7 +90,7 @@ func TestRewriteRequest(t *testing.T) {
 				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"toBlock": hexutil.Uint64(55).String()}})},
 				res:  nil,
 			},
-			expected: RewriteNone,
+			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
 				var p []map[string]interface{}
 				err := json.Unmarshal(args.req.Params, &p)
@@ -147,6 +149,62 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected:    RewriteOverrideError,
 			expectedErr: ErrRewriteBlockOutOfRange,
+		},
+		{
+			name: "eth_getLogs fromBlock -> toBlock above max range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100), maxBlockRange: 30},
+				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"fromBlock": hexutil.Uint64(20).String(), "toBlock": hexutil.Uint64(80).String()}})},
+				res:  nil,
+			},
+			expected:    RewriteOverrideError,
+			expectedErr: ErrRewriteRangeTooLarge,
+		},
+		{
+			name: "eth_getLogs earliest -> latest above max range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100), maxBlockRange: 30},
+				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"fromBlock": "earliest", "toBlock": "latest"}})},
+				res:  nil,
+			},
+			expected:    RewriteOverrideError,
+			expectedErr: ErrRewriteRangeTooLarge,
+		},
+		{
+			name: "eth_getLogs earliest -> pending above max range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100), maxBlockRange: 30},
+				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"fromBlock": "earliest", "toBlock": "pending"}})},
+				res:  nil,
+			},
+			expected:    RewriteOverrideError,
+			expectedErr: ErrRewriteRangeTooLarge,
+		},
+		{
+			name: "eth_getLogs earliest -> default above max range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100), maxBlockRange: 30},
+				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"fromBlock": "earliest"}})},
+				res:  nil,
+			},
+			expected:    RewriteOverrideError,
+			expectedErr: ErrRewriteRangeTooLarge,
+		},
+		{
+			name: "eth_getLogs default -> latest within range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100), maxBlockRange: 30},
+				req:  &RPCReq{Method: "eth_getLogs", Params: mustMarshalJSON([]map[string]interface{}{{"toBlock": "latest"}})},
+				res:  nil,
+			},
+			expected: RewriteOverrideRequest,
+			check: func(t *testing.T, args args) {
+				var p []map[string]interface{}
+				err := json.Unmarshal(args.req.Params, &p)
+				require.Nil(t, err)
+				require.Equal(t, hexutil.Uint64(100).String(), p[0]["fromBlock"])
+				require.Equal(t, hexutil.Uint64(100).String(), p[0]["toBlock"])
+			},
 		},
 		/* required parameter at pos 0 */
 		{
@@ -226,12 +284,14 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
-				var p []string
+				var p []interface{}
 				err := json.Unmarshal(args.req.Params, &p)
 				require.Nil(t, err)
 				require.Equal(t, 2, len(p))
 				require.Equal(t, "0x123", p[0])
-				require.Equal(t, hexutil.Uint64(100).String(), p[1])
+				bnh, err := remarshalBlockNumberOrHash(p[1])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithNumber(100), *bnh)
 			},
 		},
 		{
@@ -258,12 +318,14 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
-				var p []string
+				var p []interface{}
 				err := json.Unmarshal(args.req.Params, &p)
 				require.Nil(t, err)
 				require.Equal(t, 2, len(p))
 				require.Equal(t, "0x123", p[0])
-				require.Equal(t, hexutil.Uint64(100).String(), p[1])
+				bnh, err := remarshalBlockNumberOrHash(p[1])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithNumber(100), *bnh)
 			},
 		},
 		{
@@ -303,13 +365,15 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
-				var p []string
+				var p []interface{}
 				err := json.Unmarshal(args.req.Params, &p)
 				require.Nil(t, err)
 				require.Equal(t, 3, len(p))
 				require.Equal(t, "0x123", p[0])
 				require.Equal(t, "5", p[1])
-				require.Equal(t, hexutil.Uint64(100).String(), p[2])
+				bnh, err := remarshalBlockNumberOrHash(p[2])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithNumber(100), *bnh)
 			},
 		},
 		{
@@ -321,13 +385,15 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected: RewriteOverrideRequest,
 			check: func(t *testing.T, args args) {
-				var p []string
+				var p []interface{}
 				err := json.Unmarshal(args.req.Params, &p)
 				require.Nil(t, err)
 				require.Equal(t, 3, len(p))
 				require.Equal(t, "0x123", p[0])
 				require.Equal(t, "5", p[1])
-				require.Equal(t, hexutil.Uint64(100).String(), p[2])
+				bnh, err := remarshalBlockNumberOrHash(p[2])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithNumber(100), *bnh)
 			},
 		},
 		{
@@ -461,6 +527,88 @@ func TestRewriteRequest(t *testing.T) {
 			},
 			expected: RewriteNone,
 		},
+		// eip1898
+		{
+			name: "eth_getStorageAt using rpc.BlockNumberOrHash at genesis (blockNumber)",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100)},
+				req: &RPCReq{Method: "eth_getStorageAt", Params: mustMarshalJSON([]interface{}{
+					"0xae851f927ee40de99aabb7461c00f9622ab91d60",
+					"10",
+					map[string]interface{}{
+						"blockNumber": "0x0",
+					}})},
+				res: nil,
+			},
+			expected: RewriteNone,
+		},
+		{
+			name: "eth_getStorageAt using rpc.BlockNumberOrHash at genesis (hash)",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100)},
+				req: &RPCReq{Method: "eth_getStorageAt", Params: mustMarshalJSON([]interface{}{
+					"0xae851f927ee40de99aabb7461c00f9622ab91d60",
+					"10",
+					map[string]interface{}{
+						"blockHash":        "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
+						"requireCanonical": true,
+					}})},
+				res: nil,
+			},
+			expected: RewriteNone,
+			check: func(t *testing.T, args args) {
+				var p []interface{}
+				err := json.Unmarshal(args.req.Params, &p)
+				require.Nil(t, err)
+				require.Equal(t, 3, len(p))
+				require.Equal(t, "0xae851f927ee40de99aabb7461c00f9622ab91d60", p[0])
+				require.Equal(t, "10", p[1])
+				bnh, err := remarshalBlockNumberOrHash(p[2])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithHash(common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"), true), *bnh)
+				require.True(t, bnh.RequireCanonical)
+			},
+		},
+		{
+			name: "eth_getStorageAt using rpc.BlockNumberOrHash at latest (blockNumber)",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100)},
+				req: &RPCReq{Method: "eth_getStorageAt", Params: mustMarshalJSON([]interface{}{
+					"0xae851f927ee40de99aabb7461c00f9622ab91d60",
+					"10",
+					map[string]interface{}{
+						"blockNumber": "latest",
+					}})},
+				res: nil,
+			},
+			expected: RewriteOverrideRequest,
+			check: func(t *testing.T, args args) {
+				var p []interface{}
+				err := json.Unmarshal(args.req.Params, &p)
+				require.Nil(t, err)
+				require.Equal(t, 3, len(p))
+				require.Equal(t, "0xae851f927ee40de99aabb7461c00f9622ab91d60", p[0])
+				require.Equal(t, "10", p[1])
+				bnh, err := remarshalBlockNumberOrHash(p[2])
+				require.Nil(t, err)
+				require.Equal(t, rpc.BlockNumberOrHashWithNumber(100), *bnh)
+			},
+		},
+		{
+			name: "eth_getStorageAt using rpc.BlockNumberOrHash out of range",
+			args: args{
+				rctx: RewriteContext{latest: hexutil.Uint64(100)},
+				req: &RPCReq{Method: "eth_getStorageAt", Params: mustMarshalJSON([]interface{}{
+					"0xae851f927ee40de99aabb7461c00f9622ab91d60",
+					"10",
+					map[string]interface{}{
+						"blockNumber": "0x111",
+					}})},
+				res: nil,
+			},
+			expected:    RewriteOverrideError,
+			expectedErr: ErrRewriteBlockOutOfRange,
+		},
 	}
 
 	// generalize tests for other methods with same interface and behavior
@@ -472,6 +620,7 @@ func TestRewriteRequest(t *testing.T) {
 	tests = generalize(tests, "eth_getBlockByNumber", "eth_getUncleCountByBlockNumber")
 	tests = generalize(tests, "eth_getBlockByNumber", "eth_getTransactionByBlockNumberAndIndex")
 	tests = generalize(tests, "eth_getBlockByNumber", "eth_getUncleByBlockNumberAndIndex")
+	tests = generalize(tests, "eth_getStorageSlotAt", "eth_getProof")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

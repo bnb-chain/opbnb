@@ -7,7 +7,11 @@ import (
 	"sync"
 	"time"
 
+	//nolint:all
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+
 	libp2p "github.com/libp2p/go-libp2p"
+	mplex "github.com/libp2p/go-libp2p-mplex"
 	lconf "github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -16,8 +20,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/sec/insecure"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
-	"github.com/libp2p/go-libp2p/p2p/muxer/mplex"
 	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	tls "github.com/libp2p/go-libp2p/p2p/security/tls"
@@ -149,7 +151,7 @@ func (conf *Config) Host(log log.Logger, reporter metrics.Reporter, metrics Host
 	var scoreRetention time.Duration
 	if peerScoreParams != nil {
 		// Use the same retention period as gossip will if available
-		scoreRetention = peerScoreParams.RetainScore
+		scoreRetention = peerScoreParams.PeerScoring.RetainScore
 	} else {
 		// Disable score GC if peer scoring is disabled
 		scoreRetention = 0
@@ -186,9 +188,6 @@ func (conf *Config) Host(log log.Logger, reporter metrics.Reporter, metrics Host
 	tcpTransport := libp2p.Transport(
 		tcp.NewTCPTransport,
 		tcp.WithConnectionTimeout(time.Minute*60)) // break unused connections
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TCP transport: %w", err)
-	}
 	// TODO: technically we can also run the node on websocket and QUIC transports. Maybe in the future?
 
 	var nat lconf.NATManagerC // disabled if nil

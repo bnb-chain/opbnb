@@ -7,8 +7,9 @@ import (
 	"sync"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -28,6 +29,7 @@ type channelManager struct {
 	log  log.Logger
 	metr metrics.Metricer
 	cfg  ChannelConfig
+	rcfg *rollup.Config
 
 	// All blocks since the last request for new tx data.
 	blocks []*types.Block
@@ -45,17 +47,18 @@ type channelManager struct {
 	closed bool
 }
 
-func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig) *channelManager {
+func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rcfg *rollup.Config) *channelManager {
 	return &channelManager{
 		log:        log,
 		metr:       metr,
 		cfg:        cfg,
+		rcfg:       rcfg,
 		txChannels: make(map[txID]*channel),
 	}
 }
 
 // Clear clears the entire state of the channel manager.
-// It is intended to be used after an L2 reorg.
+// It is intended to be used before launching op-batcher and after an L2 reorg.
 func (s *channelManager) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -195,7 +198,7 @@ func (s *channelManager) ensureChannelWithSpace(l1Head eth.BlockID) error {
 		return nil
 	}
 
-	pc, err := newChannel(s.log, s.metr, s.cfg)
+	pc, err := newChannel(s.log, s.metr, s.cfg, s.rcfg)
 	if err != nil {
 		return fmt.Errorf("creating new channel: %w", err)
 	}
@@ -236,6 +239,8 @@ func (s *channelManager) processBlocks() error {
 		} else if err != nil {
 			return fmt.Errorf("adding block[%d] to channel builder: %w", i, err)
 		}
+		s.log.Debug("Added block to channel", "channel", s.currentChannel.ID(), "block", block)
+
 		blocksAdded += 1
 		latestL2ref = l2BlockRefFromBlockAndL1Info(block, l1info)
 		s.metr.RecordL2BlockInChannel(block)

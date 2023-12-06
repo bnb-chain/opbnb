@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
+	"github.com/ethereum-optimism/optimism/op-service/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,11 +36,8 @@ func setupL2OutputOracle() (common.Address, *bind.TransactOpts, *backends.Simula
 		backend,
 		big.NewInt(10),
 		big.NewInt(2),
-		big.NewInt(0),
-		big.NewInt(0),
-		from,
-		common.Address{0xdd},
-		big.NewInt(100))
+		big.NewInt(100),
+	)
 	if err != nil {
 		return common.Address{}, nil, nil, nil, err
 	}

@@ -1,21 +1,29 @@
 package metrics
 
 import (
-	"github.com/ethereum-optimism/optimism/op-node/eth"
-	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 )
 
-type noopMetrics struct {
-	opmetrics.NoopRefMetrics
+type NoopMetricsImpl struct {
 	txmetrics.NoopTxMetrics
 }
 
-var NoopMetrics Metricer = new(noopMetrics)
+var NoopMetrics Metricer = new(NoopMetricsImpl)
 
-func (*noopMetrics) RecordInfo(version string) {}
-func (*noopMetrics) RecordUp()                 {}
+func (*NoopMetricsImpl) RecordInfo(version string) {}
+func (*NoopMetricsImpl) RecordUp()                 {}
 
-func (*noopMetrics) RecordValidOutput(l2ref eth.L2BlockRef)      {}
-func (*noopMetrics) RecordInvalidOutput(l2ref eth.L2BlockRef)    {}
-func (*noopMetrics) RecordOutputChallenged(l2ref eth.L2BlockRef) {}
+func (*NoopMetricsImpl) RecordGameMove() {}
+func (*NoopMetricsImpl) RecordGameStep() {}
+
+func (*NoopMetricsImpl) RecordCannonExecutionTime(t float64) {}
+
+func (*NoopMetricsImpl) RecordGamesStatus(inProgress, defenderWon, challengerWon int) {}
+
+func (*NoopMetricsImpl) RecordGameUpdateScheduled() {}
+func (*NoopMetricsImpl) RecordGameUpdateCompleted() {}
+
+func (*NoopMetricsImpl) IncActiveExecutors() {}
+func (*NoopMetricsImpl) DecActiveExecutors() {}
+func (*NoopMetricsImpl) IncIdleExecutors()   {}
+func (*NoopMetricsImpl) DecIdleExecutors()   {}

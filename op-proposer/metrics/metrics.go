@@ -3,14 +3,13 @@ package metrics
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum"
-
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 )
@@ -37,6 +36,7 @@ type Metrics struct {
 
 	opmetrics.RefMetrics
 	txmetrics.TxMetrics
+	opmetrics.RPCMetrics
 
 	info prometheus.GaugeVec
 	up   prometheus.Gauge
@@ -60,6 +60,7 @@ func NewMetrics(procName string) *Metrics {
 
 		RefMetrics: opmetrics.MakeRefMetrics(ns, factory),
 		TxMetrics:  txmetrics.MakeTxMetrics(ns, factory),
+		RPCMetrics: opmetrics.MakeRPCMetrics(ns, factory),
 
 		info: *factory.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns,
@@ -76,13 +77,18 @@ func NewMetrics(procName string) *Metrics {
 	}
 }
 
-func (m *Metrics) Serve(ctx context.Context, host string, port int) error {
-	return opmetrics.ListenAndServe(ctx, m.registry, host, port)
+func (m *Metrics) Start(host string, port int) (*httputil.HTTPServer, error) {
+	return opmetrics.StartServer(m.registry, host, port)
 }
 
 func (m *Metrics) StartBalanceMetrics(ctx context.Context,
-	l log.Logger, client ethereum.ChainStateReader, account common.Address) {
-	opmetrics.LaunchBalanceMetrics(ctx, l, m.registry, m.ns, client, account)
+	l log.Logger, client *ethclient.Client, account common.Address) {
+	// TODO(7684): util was refactored to close, but ctx is still being used by caller for shutdown
+	balanceMetric := opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
+	go func() {
+		<-ctx.Done()
+		_ = balanceMetric.Close()
+	}()
 }
 
 // RecordInfo sets a pseudo-metric that contains versioning and

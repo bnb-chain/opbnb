@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/compressor"
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 type SyncStatusAPI interface {
@@ -140,7 +140,7 @@ func (s *L2Batcher) Buffer(t Testing) error {
 				ApproxComprRatio: 1,
 			})
 			require.NoError(t, e, "failed to create compressor")
-			ch, err = derive.NewChannelOut(c)
+			ch, err = derive.NewChannelOut(derive.SingularBatchType, c, nil)
 		}
 		require.NoError(t, err, "failed to create channel")
 		s.l2ChannelOut = ch

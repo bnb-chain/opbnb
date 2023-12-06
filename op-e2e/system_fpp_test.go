@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-node/client"
-	"github.com/ethereum-optimism/optimism/op-node/sources"
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/geth"
 	"github.com/ethereum-optimism/optimism/op-program/client/driver"
 	opp "github.com/ethereum-optimism/optimism/op-program/host"
 	oppconf "github.com/ethereum-optimism/optimism/op-program/host/config"
+	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/sources"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -56,7 +57,7 @@ func testVerifyL2OutputRootEmptyBlock(t *testing.T, detached bool) {
 	// But not too small to ensure that our claim and subsequent state change is published
 	cfg.DeployConfig.SequencerWindowSize = 16
 
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.Nil(t, err, "Error starting up system")
 	defer sys.Close()
 
@@ -86,17 +87,20 @@ func testVerifyL2OutputRootEmptyBlock(t *testing.T, detached bool) {
 	require.NoError(t, waitForSafeHead(ctx, receipt.BlockNumber.Uint64(), rollupClient))
 
 	t.Logf("Capture current L2 head as agreed starting point. l2Head=%x l2BlockNumber=%v", receipt.BlockHash, receipt.BlockNumber)
-	l2Head := receipt.BlockHash
+	agreedL2Output, err := rollupClient.OutputAtBlock(ctx, receipt.BlockNumber.Uint64())
+	require.NoError(t, err, "could not retrieve l2 agreed block")
+	l2Head := agreedL2Output.BlockRef.Hash
+	l2OutputRoot := agreedL2Output.OutputRoot
 
 	t.Log("=====Stopping batch submitter=====")
-	err = sys.BatchSubmitter.Stop(ctx)
+	err = sys.BatchSubmitter.Driver().StopBatchSubmitting(ctx)
 	require.NoError(t, err, "could not stop batch submitter")
 
 	// Wait for the sequencer to catch up with the current L1 head so we know all submitted batches are processed
 	t.Log("Wait for sequencer to catch up with last submitted batch")
 	l1HeadNum, err := l1Client.BlockNumber(ctx)
 	require.NoError(t, err)
-	_, err = waitForL1OriginOnL2(l1HeadNum, l2Seq, 30*time.Second)
+	_, err = geth.WaitForL1OriginOnL2(l1HeadNum, l2Seq, 30*time.Second)
 	require.NoError(t, err)
 
 	// Get the current safe head now that the batcher is stopped
@@ -117,7 +121,7 @@ func testVerifyL2OutputRootEmptyBlock(t *testing.T, detached bool) {
 	l2Claim := l2Output.OutputRoot
 
 	t.Log("=====Restarting batch submitter=====")
-	err = sys.BatchSubmitter.Start()
+	err = sys.BatchSubmitter.Driver().StartBatchSubmitting()
 	require.NoError(t, err, "could not start batch submitter")
 
 	t.Log("Add a transaction to the next batch after sequence of empty blocks")
@@ -136,6 +140,7 @@ func testVerifyL2OutputRootEmptyBlock(t *testing.T, detached bool) {
 	testFaultProofProgramScenario(t, ctx, sys, &FaultProofProgramTestScenario{
 		L1Head:             l1Head,
 		L2Head:             l2Head,
+		L2OutputRoot:       common.Hash(l2OutputRoot),
 		L2Claim:            common.Hash(l2Claim),
 		L2ClaimBlockNumber: l2ClaimBlockNumber,
 		Detached:           detached,
@@ -150,7 +155,7 @@ func testVerifyL2OutputRoot(t *testing.T, detached bool) {
 	// We don't need a verifier - just the sequencer is enough
 	delete(cfg.Nodes, "verifier")
 
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.Nil(t, err, "Error starting up system")
 	defer sys.Close()
 
@@ -181,9 +186,12 @@ func testVerifyL2OutputRoot(t *testing.T, detached bool) {
 	})
 
 	t.Log("Capture current L2 head as agreed starting point")
-	l2AgreedBlock, err := l2Seq.BlockByNumber(ctx, nil)
+	latestBlock, err := l2Seq.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	agreedL2Output, err := rollupClient.OutputAtBlock(ctx, latestBlock.NumberU64())
 	require.NoError(t, err, "could not retrieve l2 agreed block")
-	l2Head := l2AgreedBlock.Hash()
+	l2Head := agreedL2Output.BlockRef.Hash
+	l2OutputRoot := agreedL2Output.OutputRoot
 
 	t.Log("Sending transactions to modify existing state, within challenged period")
 	SendDepositTx(t, cfg, l1Client, l2Seq, opts, func(l2Opts *DepositTxOpts) {
@@ -214,6 +222,7 @@ func testVerifyL2OutputRoot(t *testing.T, detached bool) {
 	testFaultProofProgramScenario(t, ctx, sys, &FaultProofProgramTestScenario{
 		L1Head:             l1Head,
 		L2Head:             l2Head,
+		L2OutputRoot:       common.Hash(l2OutputRoot),
 		L2Claim:            common.Hash(l2Claim),
 		L2ClaimBlockNumber: l2ClaimBlockNumber,
 		Detached:           detached,
@@ -223,6 +232,7 @@ func testVerifyL2OutputRoot(t *testing.T, detached bool) {
 type FaultProofProgramTestScenario struct {
 	L1Head             common.Hash
 	L2Head             common.Hash
+	L2OutputRoot       common.Hash
 	L2Claim            common.Hash
 	L2ClaimBlockNumber uint64
 	Detached           bool
@@ -231,7 +241,7 @@ type FaultProofProgramTestScenario struct {
 // testFaultProofProgramScenario runs the fault proof program in several contexts, given a test scenario.
 func testFaultProofProgramScenario(t *testing.T, ctx context.Context, sys *System, s *FaultProofProgramTestScenario) {
 	preimageDir := t.TempDir()
-	fppConfig := oppconf.NewConfig(sys.RollupConfig, sys.L2GenesisCfg.Config, s.L1Head, s.L2Head, common.Hash(s.L2Claim), s.L2ClaimBlockNumber)
+	fppConfig := oppconf.NewConfig(sys.RollupConfig, sys.L2GenesisCfg.Config, s.L1Head, s.L2Head, s.L2OutputRoot, common.Hash(s.L2Claim), s.L2ClaimBlockNumber)
 	fppConfig.L1URL = sys.NodeEndpoint("l1")
 	fppConfig.L2URL = sys.NodeEndpoint("sequencer")
 	fppConfig.DataDir = preimageDir
@@ -248,11 +258,11 @@ func testFaultProofProgramScenario(t *testing.T, ctx context.Context, sys *Syste
 
 	t.Log("Shutting down network")
 	// Shutdown the nodes from the actual chain. Should now be able to run using only the pre-fetched data.
-	sys.BatchSubmitter.StopIfRunning(context.Background())
+	require.NoError(t, sys.BatchSubmitter.Kill())
 	sys.L2OutputSubmitter.Stop()
 	sys.L2OutputSubmitter = nil
-	for _, node := range sys.Nodes {
-		require.NoError(t, node.Close())
+	for _, node := range sys.EthInstances {
+		node.Close()
 	}
 
 	t.Log("Running fault proof in offline mode")

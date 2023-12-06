@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -21,6 +21,8 @@ func TestBatchInLastPossibleBlocks(gt *testing.T) {
 	t := NewDefaultTesting(gt)
 	dp := e2eutils.MakeDeployParams(t, defaultRollupTestParams)
 	dp.DeployConfig.SequencerWindowSize = 4
+	dp.DeployConfig.L2BlockTime = 2
+
 	sd := e2eutils.Setup(t, dp, defaultAlloc)
 	log := testlog.Logger(t, log.LvlDebug)
 
