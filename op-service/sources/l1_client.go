@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -57,6 +58,13 @@ type L1Client struct {
 	// cache L1BlockRef by hash
 	// common.Hash -> eth.L1BlockRef
 	l1BlockRefsCache *caching.LRUCache[common.Hash, eth.L1BlockRef]
+
+	//ensure pre-fetch receipts only once
+	preFetchReceiptsOnce sync.Once
+	//start block for pre-fetch receipts
+	preFetchReceiptsStartBlockChan chan uint64
+	//done chan
+	done chan struct{}
 }
 
 // NewL1Client wraps a RPC with bindings to fetch L1 data, while logging errors, tracking metrics (optional), and caching.
@@ -67,15 +75,22 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 	}
 
 	return &L1Client{
-		EthClient:        ethClient,
-		l1BlockRefsCache: caching.NewLRUCache[common.Hash, eth.L1BlockRef](metrics, "blockrefs", config.L1BlockRefsCacheSize),
+		EthClient:                      ethClient,
+		l1BlockRefsCache:               caching.NewLRUCache[common.Hash, eth.L1BlockRef](metrics, "blockrefs", config.L1BlockRefsCacheSize),
+		preFetchReceiptsOnce:           sync.Once{},
+		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		done:                           make(chan struct{}),
 	}, nil
 }
 
 // L1BlockRefByLabel returns the [eth.L1BlockRef] for the given block label.
 // Notice, we cannot cache a block reference by label because labels are not guaranteed to be unique.
 func (s *L1Client) L1BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L1BlockRef, error) {
-	info, err := s.InfoByLabel(ctx, label)
+	info, err := s.BSCInfoByLabel(ctx, label)
+	if label == eth.Finalized && err != nil && strings.Contains(err.Error(), "eth_getFinalizedHeader does not exist") {
+		// op-e2e not support bsc as L1 currently, so fallback to not use bsc specific method eth_getFinalizedBlock
+		info, err = s.InfoByLabel(ctx, label)
+	}
 	if err != nil {
 		// Both geth and erigon like to serve non-standard errors for the safe and finalized heads, correct that.
 		// This happens when the chain just started and nothing is marked as safe/finalized yet.
@@ -114,4 +129,44 @@ func (s *L1Client) L1BlockRefByHash(ctx context.Context, hash common.Hash) (eth.
 	ref := eth.InfoToL1BlockRef(info)
 	s.l1BlockRefsCache.Add(ref.Hash, ref)
 	return ref, nil
+}
+
+func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
+	s.preFetchReceiptsOnce.Do(func() {
+		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
+		go func() {
+			var currentL1Block uint64
+			for {
+				select {
+				case <-s.done:
+					s.log.Info("pre-fetching receipts done")
+					return
+				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
+					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
+				default:
+					blockInfo, err := s.L1BlockRefByNumber(ctx, currentL1Block)
+					if err != nil {
+						s.log.Debug("failed to fetch next block info", "err", err)
+						time.Sleep(3 * time.Second)
+						continue
+					}
+					_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
+					if err != nil {
+						s.log.Warn("failed to pre-fetch receipts", "err", err)
+						time.Sleep(200 * time.Millisecond)
+						continue
+					}
+					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
+					currentL1Block = currentL1Block + 1
+				}
+			}
+		}()
+	})
+	s.preFetchReceiptsStartBlockChan <- l1Start
+	return nil
+}
+
+func (s *L1Client) Close() {
+	close(s.done)
+	s.EthClient.Close()
 }

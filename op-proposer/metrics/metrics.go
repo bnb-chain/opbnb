@@ -5,6 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
@@ -82,7 +83,7 @@ func (m *Metrics) Start(host string, port int) (*httputil.HTTPServer, error) {
 }
 
 func (m *Metrics) StartBalanceMetrics(ctx context.Context,
-	l log.Logger, client *ethclient.Client, account common.Address) {
+	l log.Logger, client ethereum.ChainStateReader, account common.Address) {
 	// TODO(7684): util was refactored to close, but ctx is still being used by caller for shutdown
 	balanceMetric := opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
 	go func() {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
-	op_aws_sdk "github.com/ethereum-optimism/optimism/op-aws-sdk"
+	opaws "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	opnode "github.com/ethereum-optimism/optimism/op-node"
 	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	"github.com/ethereum-optimism/optimism/op-node/cmd/genesis"
@@ -71,8 +71,8 @@ func RollupNodeMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.
 	oplog.SetGlobalLogHandler(log.GetHandler())
 	opservice.ValidateEnvVars(flags.EnvVarPrefix, flags.Flags, log)
 	m := metrics.NewMetrics("default")
-	if err := op_aws_sdk.KeyManager(context.Background(), ctx, op_aws_sdk.OP_NODE_P2P_SEQUENCER_KEY); err != nil {
-		return err
+	if err := opaws.KeyManager(context.Background(), ctx, opaws.OP_NODE_P2P_SEQUENCER_KEY); err != nil {
+		return nil, err
 	}
 	cfg, err := opnode.NewConfig(ctx, log)
 	if err != nil {

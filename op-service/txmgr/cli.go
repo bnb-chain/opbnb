@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 	"math/big"
 	"time"
 
+	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
+
 	opservice "github.com/ethereum-optimism/optimism/op-service"
-	service_client "github.com/ethereum-optimism/optimism/op-service/client"
 	opcrypto "github.com/ethereum-optimism/optimism/op-service/crypto"
+	"github.com/ethereum-optimism/optimism/op-service/dial"
 	opsigner "github.com/ethereum-optimism/optimism/op-service/signer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -250,7 +251,7 @@ func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, err
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.NetworkTimeout)
 	defer cancel()
-	l1, err := service_client.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1RPCURL, service_client.DefaultDialTimeout, l, service_client.TxmgrFallbackThreshold, m)
+	l1, err := dial.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1RPCURL, dial.DefaultDialTimeout, l, dial.TxmgrFallbackThreshold, m)
 	if err != nil {
 		return Config{}, fmt.Errorf("could not dial eth client: %w", err)
 	}

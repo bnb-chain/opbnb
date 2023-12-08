@@ -55,3 +55,7 @@ func (m *MockL2Client) OutputV0AtBlock(ctx context.Context, blockHash common.Has
 func (m *MockL2Client) ExpectOutputV0AtBlock(blockHash common.Hash, output *eth.OutputV0, err error) {
 	m.Mock.On("OutputV0AtBlock", blockHash).Once().Return(output, &err)
 }
+
+func (m *MockL2Client) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+	return true
+}

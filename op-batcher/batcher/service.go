@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-batcher/rpc"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
@@ -38,7 +39,7 @@ type BatcherConfig struct {
 type BatcherService struct {
 	Log        log.Logger
 	Metrics    metrics.Metricer
-	L1Client   *ethclient.Client
+	L1Client   client.IFallbackClient
 	L2Client   *ethclient.Client
 	RollupNode *sources.RollupClient
 	TxManager  txmgr.TxManager
@@ -117,7 +118,7 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 }
 
 func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) error {
-	l1Client, err := dial.DialEthClientWithTimeout(ctx, dial.DefaultDialTimeout, bs.Log, cfg.L1EthRpc)
+	l1Client, err := dial.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, dial.DefaultDialTimeout, bs.Log, dial.BatcherFallbackThreshold, bs.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}

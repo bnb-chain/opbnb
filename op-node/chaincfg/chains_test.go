@@ -128,7 +128,3 @@ var sepoliaCfg = rollup.Config{
 	CanyonTime:              u64Ptr(1699981200),
 	ProtocolVersionsAddress: common.HexToAddress("0x79ADD5713B383DAa0a138d3C4780C7A1804a8090"),
 }
-
-func u64Ptr(v uint64) *uint64 {
-	return &v
-}

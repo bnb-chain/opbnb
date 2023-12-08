@@ -81,6 +81,10 @@ type Config struct {
 
 	SpanBatchTime *uint64 `json:"span_batch_time,omitempty"`
 
+	// OPBNB hard fork L2 block number
+	// Fermat switch block (nil = no fork, 0 = already on Fermat)
+	Fermat *big.Int `json:"fermat,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -278,6 +282,21 @@ func (c *Config) IsSpanBatch(timestamp uint64) bool {
 	return c.SpanBatchTime != nil && timestamp >= *c.SpanBatchTime
 }
 
+// IsFermat returns true if the Fermat hardfork is active at or past the given block.
+func (c *Config) IsFermat(num *big.Int) bool {
+	return isBlockForked(c.Fermat, num)
+}
+
+// isBlockForked returns whether a fork scheduled at block s is active at the
+// given head block. Whilst this method is the same as isTimestampForked, they
+// are explicitly separate for clearer reading.
+func isBlockForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
+}
+
 // Description outputs a banner describing the important parts of rollup configuration in a human-readable form.
 // Optionally provide a mapping of L2 chain IDs to network names to label the L2 chain with if not unknown.
 // The config should be config.Check()-ed before creating a description.
@@ -307,6 +326,8 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf("  - Regolith: %s\n", fmtForkTimeOrUnset(c.RegolithTime))
 	banner += fmt.Sprintf("  - Canyon: %s\n", fmtForkTimeOrUnset(c.CanyonTime))
 	banner += fmt.Sprintf("  - SpanBatch: %s\n", fmtForkTimeOrUnset(c.SpanBatchTime))
+	banner += "OPBNB hard forks (block based):\n"
+	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	return banner
@@ -334,6 +355,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime),
 		"canyon_time", fmtForkTimeOrUnset(c.CanyonTime),
 		"span_batch_time", fmtForkTimeOrUnset(c.SpanBatchTime),
+		"Fermat", c.Fermat,
 	)
 }
 

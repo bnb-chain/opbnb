@@ -24,6 +24,7 @@ const config: HardhatUserConfig = {
     devnetL1: {
       url: 'http://localhost:8545',
       accounts: [
+        process.env.PRIVATE_KEY_DEPLOYER || ethers.constants.HashZero,
         // warning: keys 0 - 12 (incl) are used by the system
         'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', // 0
         '59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d', // 1
@@ -46,6 +47,7 @@ const config: HardhatUserConfig = {
         'de9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0', // 18
         'df57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e', // 19
       ],
+      gasPrice: 11000000000
     },
     hivenet: {
       url: process.env.L1_RPC || '',

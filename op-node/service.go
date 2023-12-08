@@ -182,6 +182,7 @@ func NewDriverConfig(ctx *cli.Context) *driver.Config {
 		SequencerEnabled:    ctx.Bool(flags.SequencerEnabledFlag.Name),
 		SequencerStopped:    ctx.Bool(flags.SequencerStoppedFlag.Name),
 		SequencerMaxSafeLag: ctx.Uint64(flags.SequencerMaxSafeLagFlag.Name),
+		SequencerPriority:   ctx.Bool(flags.SequencerPriorityFlag.Name),
 	}
 }
 
@@ -198,7 +199,7 @@ Startup will proceed to use the network-parameter and ignore the rollup config.
 Conflicting configuration is deprecated, and will stop the op-node from starting in the future.
 `, "network", network, "rollup_config", rollupConfigPath)
 		}
-		config, err := chaincfg.GetRollupConfig(network)
+		config, err := chaincfg.GetRollupConfigByNetwork(network)
 		if err != nil {
 			return nil, err
 		}
@@ -206,8 +207,7 @@ Conflicting configuration is deprecated, and will stop the op-node from starting
 			canyon := ctx.Uint64(flags.CanyonOverrideFlag.Name)
 			config.CanyonTime = &canyon
 		}
-
-		return config, nil
+		return &config, nil
 	}
 
 	file, err := os.Open(rollupConfigPath)
@@ -224,7 +224,21 @@ Conflicting configuration is deprecated, and will stop the op-node from starting
 		canyon := ctx.Uint64(flags.CanyonOverrideFlag.Name)
 		rollupConfig.CanyonTime = &canyon
 	}
-	return &rollupConfig, nil
+
+	if rollupConfig.L2ChainID == nil {
+		return nil, fmt.Errorf("l2 chain ID must not be nil")
+	}
+	presetRollupConfig, err := chaincfg.GetRollupConfigByChainId(rollupConfig.L2ChainID.String())
+	if err != nil {
+		return &rollupConfig, nil
+	}
+
+	if ctx.IsSet(flags.CanyonOverrideFlag.Name) {
+		canyon := ctx.Uint64(flags.CanyonOverrideFlag.Name)
+		presetRollupConfig.CanyonTime = &canyon
+	}
+	log.Warn("using preset rollup config of", rollupConfig.L2ChainID, "overwrite rollup file")
+	return &presetRollupConfig, nil
 }
 
 func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {

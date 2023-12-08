@@ -5,6 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -29,7 +30,7 @@ type Metricer interface {
 
 	opmetrics.RPCMetricer
 
-	StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer
+	StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer
 
 	RecordLatestL1Block(l1ref eth.L1BlockRef)
 	RecordL2BlocksLoaded(l2ref eth.L2BlockRef)
@@ -193,7 +194,7 @@ func (m *Metrics) Document() []opmetrics.DocumentedMetric {
 	return m.factory.Document()
 }
 
-func (m *Metrics) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {
+func (m *Metrics) StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer {
 	return opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
 }
 

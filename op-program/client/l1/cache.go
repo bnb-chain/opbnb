@@ -1,6 +1,8 @@
 package l1
 
 import (
+	"context"
+
 	"github.com/hashicorp/golang-lru/v2/simplelru"
 
 	"github.com/ethereum/go-ethereum/common"

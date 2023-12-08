@@ -114,17 +114,18 @@ func makeReceiptRequest(txHash common.Hash) (*types.Receipt, rpc.BatchElem) {
 type RPCProviderKind string
 
 const (
-	RPCKindAlchemy    RPCProviderKind = "alchemy"
-	RPCKindQuickNode  RPCProviderKind = "quicknode"
-	RPCKindInfura     RPCProviderKind = "infura"
-	RPCKindParity     RPCProviderKind = "parity"
-	RPCKindNethermind RPCProviderKind = "nethermind"
-	RPCKindDebugGeth  RPCProviderKind = "debug_geth"
-	RPCKindErigon     RPCProviderKind = "erigon"
-	RPCKindBasic      RPCProviderKind = "basic"    // try only the standard most basic receipt fetching
-	RPCKindAny        RPCProviderKind = "any"      // try any method available
-	RPCKindStandard   RPCProviderKind = "standard" // try standard methods, including newer optimized standard RPC methods
-	RPCKindRethDB     RPCProviderKind = "reth_db"  // read data directly from reth's database
+	RPCKindAlchemy     RPCProviderKind = "alchemy"
+	RPCKindQuickNode   RPCProviderKind = "quicknode"
+	RPCKindInfura      RPCProviderKind = "infura"
+	RPCKindParity      RPCProviderKind = "parity"
+	RPCKindNethermind  RPCProviderKind = "nethermind"
+	RPCKindDebugGeth   RPCProviderKind = "debug_geth"
+	RPCKindErigon      RPCProviderKind = "erigon"
+	RPCKindBasic       RPCProviderKind = "basic"    // try only the standard most basic receipt fetching
+	RPCKindAny         RPCProviderKind = "any"      // try any method available
+	RPCKindStandard    RPCProviderKind = "standard" // try standard methods, including newer optimized standard RPC methods
+	RPCKindRethDB      RPCProviderKind = "reth_db"  // read data directly from reth's database
+	RPCKindBscFullNode RPCProviderKind = "bsc_fullnode"
 )
 
 var RPCProviderKinds = []RPCProviderKind{
@@ -138,6 +139,7 @@ var RPCProviderKinds = []RPCProviderKind{
 	RPCKindBasic,
 	RPCKindAny,
 	RPCKindStandard,
+	RPCKindBscFullNode,
 }
 
 // Copy of RPCProviderKinds with RethDB added to all RethDB to be used but to hide it from the flags
@@ -193,6 +195,7 @@ func (r ReceiptsFetchingMethod) String() string {
 	addMaybe(ParityGetBlockReceipts, "parity_getBlockReceipts")
 	addMaybe(EthGetBlockReceipts, "eth_getBlockReceipts")
 	addMaybe(ErigonGetBlockReceiptsByBlockHash, "erigon_getBlockReceiptsByBlockHash")
+	addMaybe(EthGetTransactionReceiptsByBlockNumber, "eth_getTransactionReceiptsByBlockNumber")
 	addMaybe(^ReceiptsFetchingMethod(0), "unknown") // if anything is left, describe it as unknown
 	return out
 }
@@ -286,6 +289,14 @@ const (
 	// See:
 	//   - reth's DB crate documentation: https://github.com/paradigmxyz/reth/blob/main/docs/crates/db.md
 	RethGetBlockReceipts
+	// EthGetTransactionReceiptsByBlockNumber is a method provided by the fullnode of the bsc network to obtain receipts.
+	// Method: eth_getTransactionReceiptsByBlockNumber
+	// Params:
+	//   - blockNumberTag
+	// Returns: array of receipts
+	// See:
+	// https://github.com/bnb-chain/bsc/blob/f8439514e33ad6430f50558ce1d85a83ec6ef658/internal/ethapi/api.go#L1960
+	EthGetTransactionReceiptsByBlockNumber
 
 	// Other:
 	//  - 250 credits, not supported, strictly worse than other options. In quicknode price-table.
@@ -314,6 +325,8 @@ func AvailableReceiptsFetchingMethods(kind RPCProviderKind) ReceiptsFetchingMeth
 		return ErigonGetBlockReceiptsByBlockHash | EthGetTransactionReceiptBatch
 	case RPCKindBasic:
 		return EthGetTransactionReceiptBatch
+	case RPCKindBscFullNode:
+		return EthGetTransactionReceiptsByBlockNumber | EthGetTransactionReceiptBatch
 	case RPCKindAny:
 		// if it's any kind of RPC provider, then try all methods (except for RethGetBlockReceipts)
 		return AlchemyGetTransactionReceipts | EthGetBlockReceipts |
@@ -367,6 +380,9 @@ func PickBestReceiptsFetchingMethod(kind RPCProviderKind, available ReceiptsFetc
 	}
 	if available&ParityGetBlockReceipts != 0 {
 		return ParityGetBlockReceipts
+	}
+	if available&EthGetTransactionReceiptsByBlockNumber != 0 {
+		return EthGetTransactionReceiptsByBlockNumber
 	}
 	// otherwise fall back on per-tx fetching
 	return EthGetTransactionReceiptBatch
@@ -486,6 +502,8 @@ func (job *receiptsFetchingJob) runAltMethod(ctx context.Context, m ReceiptsFetc
 		err = job.client.CallContext(ctx, &result, "eth_getBlockReceipts", job.block.Hash)
 	case ErigonGetBlockReceiptsByBlockHash:
 		err = job.client.CallContext(ctx, &result, "erigon_getBlockReceiptsByBlockHash", job.block.Hash)
+	case EthGetTransactionReceiptsByBlockNumber:
+		err = job.client.CallContext(ctx, &result, "eth_getTransactionReceiptsByBlockNumber", hexutil.EncodeUint64(job.block.Number))
 	case RethGetBlockReceipts:
 		if job.rethDbPath == "" {
 			return fmt.Errorf("reth_db path not set")

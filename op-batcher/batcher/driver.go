@@ -14,10 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -325,9 +321,7 @@ func (l *BatchSubmitter) publishTxToL1(ctx context.Context, queue *txmgr.Queue[t
 	l.recordL1Tip(l1tip)
 
 	// Collect next transaction data
-	l.publishReceiveMu.Lock()
 	txdata, err := l.state.TxData(l1tip.ID())
-	l.publishReceiveMu.Unlock()
 	if err == io.EOF {
 		l.Log.Trace("no transaction data available")
 		return err
@@ -361,9 +355,6 @@ func (l *BatchSubmitter) sendTransaction(txdata txData, queue *txmgr.Queue[txDat
 }
 
 func (l *BatchSubmitter) handleReceipt(r txmgr.TxReceipt[txData]) {
-	l.publishReceiveMu.Lock()
-	defer l.publishReceiveMu.Unlock()
-
 	// Record TX Status
 	if r.Err != nil {
 		l.Log.Warn("unable to publish tx", "err", r.Err, "data_size", r.ID.Len())

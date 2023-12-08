@@ -2,13 +2,13 @@ package metrics
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -28,7 +28,7 @@ func weiToEther(wei *big.Int) float64 {
 // LaunchBalanceMetrics starts a periodic query of the balance of the supplied account and records it
 // to the "balance" metric of the namespace. The balance of the account is recorded in Ether (not Wei).
 // Cancel the supplied context to shut down the go routine
-func LaunchBalanceMetrics(log log.Logger, r *prometheus.Registry, ns string, client *ethclient.Client, account common.Address) *clock.LoopFn {
+func LaunchBalanceMetrics(log log.Logger, r *prometheus.Registry, ns string, client ethereum.ChainStateReader, account common.Address) *clock.LoopFn {
 	balanceGuage := promauto.With(r).NewGauge(prometheus.GaugeOpts{
 		Namespace: ns,
 		Name:      "balance",

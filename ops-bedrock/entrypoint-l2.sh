@@ -49,4 +49,13 @@ exec geth \
 	--metrics \
 	--metrics.addr=0.0.0.0 \
 	--metrics.port=6060 \
+	-miner.newpayload-timeout=650ms \
+	--miner.gasprice=1000 \
+	--txpool.globalslots=18000 \
+	--txpool.globalqueue=6000 \
+	--txpool.accountqueue=200 \
+	--txpool.accountslots=200 \
+	--txpool.nolocals=true \
+	--txpool.pricelimit=1000 \
+	--cache.preimages \
 	"$@"

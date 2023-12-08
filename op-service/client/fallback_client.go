@@ -43,16 +43,16 @@ func NewFallbackClientMetrics(ns string, factory opmetrics.Factory) *FallbackCli
 	}
 }
 
-// FallbackClient is an EthClient, it can automatically switch to the next l1 endpoint
+// FallbackClient is an Client, it can automatically switch to the next l1 endpoint
 // when there is a problem with the current l1 endpoint
 // and automatically switch back after the first l1 endpoint recovers.
 type FallbackClient struct {
 	// firstClient is created by the first of the l1 urls, it should be used first in a healthy state
-	firstClient       EthClient
+	firstClient       Client
 	urlList           []string
-	clientInitFunc    func(url string) (EthClient, error)
+	clientInitFunc    func(url string) (Client, error)
 	lastMinuteFail    atomic.Int64
-	currentClient     atomic.Pointer[EthClient]
+	currentClient     atomic.Pointer[Client]
 	currentIndex      int
 	mx                sync.Mutex
 	log               log.Logger
@@ -64,7 +64,7 @@ type FallbackClient struct {
 }
 
 // NewFallbackClient returns a new FallbackClient.
-func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallbackThreshold int64, m FallbackClientMetricer, clientInitFunc func(url string) (EthClient, error)) EthClient {
+func NewFallbackClient(rpc Client, urlList []string, log log.Logger, fallbackThreshold int64, m FallbackClientMetricer, clientInitFunc func(url string) (Client, error)) IFallbackClient {
 	fallbackClient := &FallbackClient{
 		firstClient:       rpc,
 		urlList:           urlList,
