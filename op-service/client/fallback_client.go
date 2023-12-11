@@ -219,6 +219,7 @@ func (l *FallbackClient) handleErr(err error) {
 	if errors.As(err, &targetErr) {
 		return
 	}
+	log.Debug("fallback client fail count err", "err", err)
 	l.lastMinuteFail.Add(1)
 }
 
