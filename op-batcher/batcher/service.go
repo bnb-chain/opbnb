@@ -39,7 +39,7 @@ type BatcherConfig struct {
 type BatcherService struct {
 	Log        log.Logger
 	Metrics    metrics.Metricer
-	L1Client   client.IFallbackClient
+	L1Client   client.ETHClient
 	L2Client   *ethclient.Client
 	RollupNode *sources.RollupClient
 	TxManager  txmgr.TxManager

@@ -277,7 +277,7 @@ func instrument2[O any](m *metrics.Metrics, name string, cb func() (O, error)) (
 	return res, err
 }
 
-type IFallbackClient interface {
+type ETHClient interface {
 	ChainID(ctx context.Context) (*big.Int, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)

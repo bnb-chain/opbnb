@@ -63,8 +63,10 @@ type FallbackClient struct {
 	metrics           FallbackClientMetricer
 }
 
+var _ ETHClient = (*FallbackClient)(nil)
+
 // NewFallbackClient returns a new FallbackClient.
-func NewFallbackClient(rpc Client, urlList []string, log log.Logger, fallbackThreshold int64, m FallbackClientMetricer, clientInitFunc func(url string) (Client, error)) IFallbackClient {
+func NewFallbackClient(rpc Client, urlList []string, log log.Logger, fallbackThreshold int64, m FallbackClientMetricer, clientInitFunc func(url string) (Client, error)) ETHClient {
 	fallbackClient := &FallbackClient{
 		firstClient:       rpc,
 		urlList:           urlList,
