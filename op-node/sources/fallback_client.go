@@ -42,7 +42,7 @@ type FallbackClient struct {
 	metrics           metrics.Metricer
 }
 
-const threshold int64 = 20
+const threshold int64 = 10
 
 // NewFallbackClient returns a new FallbackClient. l1ChainId and l1Block are used to check
 // whether the newly switched rpc is legal.
@@ -100,6 +100,9 @@ func (l *FallbackClient) CallContext(ctx context.Context, result any, method str
 
 func (l *FallbackClient) handleErr(err error) {
 	if errors.Is(err, rpc.ErrNoResult) {
+		return
+	}
+	if errors.Is(err, ethereum.NotFound) {
 		return
 	}
 	var targetErr rpc.Error
