@@ -269,17 +269,7 @@ func (s *Driver) eventLoop() {
 				// This may adjust at any time based on fork-choice changes or previous errors.
 				//
 				// update sequencer time if the head changed
-				delay := s.sequencer.PlanNextSequencerAction()
-				if delay == 0 {
-					// immediately do sequencerStep if time is ready
-					if err := sequencerStep(); err != nil {
-						return
-					}
-					// sequencerStep was already done, so we continue to next round
-					continue
-				} else {
-					planSequencerAction()
-				}
+				planSequencerAction()
 			}
 		} else {
 			sequencerCh = nil
