@@ -3,6 +3,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"time"
 
@@ -28,6 +29,24 @@ var DefaultBootnodes = []*enode.Node{
 	enode.MustParse("enode://869d07b5932f17e8490990f75a3f94195e9504ddb6b85f7189e5a9c0a8fff8b00aecf6f3ac450ecba6cdabdb5858788a94bde2b613e0f2d82e9b395355f76d1a@34.65.67.101:0?discport=30305"),
 	enode.MustParse("enode://2d4e7e9d48f4dd4efe9342706dd1b0024681bd4c3300d021f86fc75eab7865d4e0cbec6fbc883f011cfd6a57423e7e2f6e104baad2b744c3cafaec6bc7dc92c1@34.65.43.171:0?discport=30305"),
 	enode.MustParse("enode://9d7a3efefe442351217e73b3a593bcb8efffb55b4807699972145324eab5e6b382152f8d24f6301baebbfb5ecd4127bd3faab2842c04cd432bdf50ba092f6645@34.65.109.126:0?discport=30305"),
+}
+
+var OpBNBTestnet = big.NewInt(5611)
+
+// OpBNBMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the opBNB main network.
+var OpBNBMainnetBootnodes = []string{
+	// op-node
+	"enr:-J24QIGeBCpZHdaQ5i8fyyK_uzaL1DdgOOZA3_lvjHvirjpgexMGkVeGMxlqauzEX7pWAfztCa9hpEGd_bS2a-1IqB6GAYvRDk5QgmlkgnY0gmlwhDaykUmHb3BzdGFja4PMAQCJc2VjcDI1NmsxoQJ-_5GZKjs7jaB4TILdgC8EwnwyL3Qip89wmjnyjvDDwoN0Y3CCIyuDdWRwgiMs",
+	"enr:-J24QO_AhXy6stHsVvFWnECRD_1hMccZM6JqJgiXNVIRED1JRAJvIS48Pihku2z30TfizSGUAmeb22RQfPjW99hDu9WGAYvRBDnegmlkgnY0gmlwhDbjSM6Hb3BzdGFja4PMAQCJc2VjcDI1NmsxoQKetGQX7sXd4u8hZr6uayTZgHRDvGm36YaryqZkgnidS4N0Y3CCIyuDdWRwgiMs",
+}
+
+// OpBNBTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the opBNB testnet network.
+var OpBNBTestnetBootnodes = []string{
+	// op-node
+	"enr:-J24QGQBeMsXOaCCaLWtNFSfb2Gv50DjGOKToH2HUTAIn9yXImowlRoMDNuPNhSBZNQGCCE8eAl5O3dsONuuQp5Qix2GAYjB7KHSgmlkgnY0gmlwhDREiqaHb3BzdGFja4PrKwCJc2VjcDI1NmsxoQL4I9wpEVDcUb8bLWu6V8iPoN5w8E8q-GrS5WUCygYUQ4N0Y3CCIyuDdWRwgiMr",
+	"enr:-J24QJKXHEkIhy0tmIk2EscMZ2aRrivNsZf_YhgIU51g4ZKHWY0BxW6VedRJ1jxmneW9v7JjldPOPpLkaNSo6cXGFxqGAYpK96oCgmlkgnY0gmlwhANzx96Hb3BzdGFja4PrKwCJc2VjcDI1NmsxoQMOCzUFffz04eyDrmkbaSCrMEvLvn5O4RZaZ5k1GV4wa4N0Y3CCIyuDdWRwgiMr",
 }
 
 type HostMetrics interface {
