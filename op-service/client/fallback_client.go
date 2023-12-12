@@ -99,7 +99,7 @@ func NewFallbackClient(rpc EthClient, urlList []string, log log.Logger, fallback
 func (l *FallbackClient) BlockNumber(ctx context.Context) (uint64, error) {
 	number, err := (*l.currentClient.Load()).BlockNumber(ctx)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "BlockNumber")
 	}
 	return number, err
 }
@@ -107,7 +107,7 @@ func (l *FallbackClient) BlockNumber(ctx context.Context) (uint64, error) {
 func (l *FallbackClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	receipt, err := (*l.currentClient.Load()).TransactionReceipt(ctx, txHash)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "TransactionReceipt")
 	}
 	return receipt, err
 }
@@ -115,7 +115,7 @@ func (l *FallbackClient) TransactionReceipt(ctx context.Context, txHash common.H
 func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	err := (*l.currentClient.Load()).SendTransaction(ctx, tx)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "SendTransaction")
 	}
 	return err
 }
@@ -123,7 +123,7 @@ func (l *FallbackClient) SendTransaction(ctx context.Context, tx *types.Transact
 func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 	tipCap, err := (*l.currentClient.Load()).SuggestGasTipCap(ctx)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "SuggestGasTipCap")
 	}
 	return tipCap, err
 }
@@ -131,7 +131,7 @@ func (l *FallbackClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	at, err := (*l.currentClient.Load()).PendingNonceAt(ctx, account)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "PendingNonceAt")
 	}
 	return at, err
 }
@@ -139,7 +139,7 @@ func (l *FallbackClient) PendingNonceAt(ctx context.Context, account common.Addr
 func (l *FallbackClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
 	estimateGas, err := (*l.currentClient.Load()).EstimateGas(ctx, msg)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "EstimateGas")
 	}
 	return estimateGas, err
 }
@@ -147,7 +147,7 @@ func (l *FallbackClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) 
 func (l *FallbackClient) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
 	contract, err := (*l.currentClient.Load()).CallContract(ctx, call, blockNumber)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "CallContract")
 	}
 	return contract, err
 }
@@ -166,7 +166,7 @@ func (l *FallbackClient) Close() {
 func (l *FallbackClient) ChainID(ctx context.Context) (*big.Int, error) {
 	id, err := (*l.currentClient.Load()).ChainID(ctx)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "ChainID")
 	}
 	return id, err
 }
@@ -174,7 +174,7 @@ func (l *FallbackClient) ChainID(ctx context.Context) (*big.Int, error) {
 func (l *FallbackClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	balanceAt, err := (*l.currentClient.Load()).BalanceAt(ctx, account, blockNumber)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "BalanceAt")
 	}
 	return balanceAt, err
 }
@@ -182,7 +182,7 @@ func (l *FallbackClient) BalanceAt(ctx context.Context, account common.Address, 
 func (l *FallbackClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	headerByNumber, err := (*l.currentClient.Load()).HeaderByNumber(ctx, number)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "HeaderByNumber")
 	}
 	return headerByNumber, err
 }
@@ -190,7 +190,7 @@ func (l *FallbackClient) HeaderByNumber(ctx context.Context, number *big.Int) (*
 func (l *FallbackClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
 	storageAt, err := (*l.currentClient.Load()).StorageAt(ctx, account, key, blockNumber)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "StorageAt")
 	}
 	return storageAt, err
 }
@@ -198,7 +198,7 @@ func (l *FallbackClient) StorageAt(ctx context.Context, account common.Address, 
 func (l *FallbackClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
 	codeAt, err := (*l.currentClient.Load()).CodeAt(ctx, account, blockNumber)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "CodeAt")
 	}
 	return codeAt, err
 }
@@ -206,19 +206,23 @@ func (l *FallbackClient) CodeAt(ctx context.Context, account common.Address, blo
 func (l *FallbackClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
 	nonceAt, err := (*l.currentClient.Load()).NonceAt(ctx, account, blockNumber)
 	if err != nil {
-		l.handleErr(err)
+		l.handleErr(err, "NonceAt")
 	}
 	return nonceAt, err
 }
 
-func (l *FallbackClient) handleErr(err error) {
+func (l *FallbackClient) handleErr(err error, methodName string) {
 	if errors.Is(err, rpc.ErrNoResult) {
+		return
+	}
+	if errors.Is(err, ethereum.NotFound) {
 		return
 	}
 	var targetErr rpc.Error
 	if errors.As(err, &targetErr) {
 		return
 	}
+	log.Debug("fallback client fail count+1", "err", err, "methodName", methodName)
 	l.lastMinuteFail.Add(1)
 }
 
