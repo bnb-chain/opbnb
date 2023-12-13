@@ -43,7 +43,7 @@ func NewConfig(ctx *cli.Context, rollupCfg *rollup.Config) (*p2p.Config, error) 
 		return nil, fmt.Errorf("failed to load p2p listen options: %w", err)
 	}
 
-	if err := loadDiscoveryOpts(conf, ctx); err != nil {
+	if err := loadDiscoveryOpts(conf, ctx, rollupCfg); err != nil {
 		return nil, fmt.Errorf("failed to load p2p discovery options: %w", err)
 	}
 
@@ -130,7 +130,7 @@ func loadListenOpts(conf *p2p.Config, ctx *cli.Context) error {
 	return nil
 }
 
-func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
+func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context, rollupCfg *rollup.Config) error {
 	if ctx.GlobalBool(flags.NoDiscovery.Name) {
 		conf.NoDiscovery = true
 	}
@@ -173,8 +173,16 @@ func loadDiscoveryOpts(conf *p2p.Config, ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to open discovery db: %w", err)
 	}
-
-	records := strings.Split(ctx.GlobalString(flags.Bootnodes.Name), ",")
+	var records []string
+	if !ctx.IsSet(flags.Bootnodes.Name) {
+		if rollupCfg.L2ChainID.Cmp(p2p.OpBNBTestnet) == 0 {
+			records = p2p.OpBNBTestnetBootnodes
+		} else {
+			records = p2p.OpBNBMainnetBootnodes
+		}
+	} else {
+		records = strings.Split(ctx.GlobalString(flags.Bootnodes.Name), ",")
+	}
 	for i, recordB64 := range records {
 		recordB64 = strings.TrimSpace(recordB64)
 		if recordB64 == "" { // ignore empty records

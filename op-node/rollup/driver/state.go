@@ -269,17 +269,7 @@ func (s *Driver) eventLoop() {
 				// This may adjust at any time based on fork-choice changes or previous errors.
 				//
 				// update sequencer time if the head changed
-				delay := s.sequencer.PlanNextSequencerAction()
-				if delay == 0 {
-					// immediately do sequencerStep if time is ready
-					if err := sequencerStep(); err != nil {
-						return
-					}
-					// sequencerStep was already done, so we continue to next round
-					continue
-				} else {
-					planSequencerAction()
-				}
+				planSequencerAction()
 			}
 		} else {
 			sequencerCh = nil
@@ -343,7 +333,13 @@ func (s *Driver) eventLoop() {
 		case <-stepReqCh:
 			s.metrics.SetDerivationIdle(false)
 			s.log.Debug("Derivation process step", "onto_origin", s.derivation.Origin(), "attempts", stepAttempts)
-			err := s.derivation.Step(context.Background())
+			stepCtx := context.Background()
+			if s.driverConfig.SequencerEnabled && !s.driverConfig.SequencerStopped {
+				var cancelStep context.CancelFunc
+				stepCtx, cancelStep = context.WithTimeout(ctx, 3*time.Second)
+				defer cancelStep()
+			}
+			err := s.derivation.Step(stepCtx)
 			stepAttempts += 1 // count as attempt by default. We reset to 0 if we are making healthy progress.
 			if err == io.EOF {
 				s.log.Debug("Derivation process went idle", "progress", s.derivation.Origin(), "err", err)
