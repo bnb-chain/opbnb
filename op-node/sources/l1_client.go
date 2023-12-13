@@ -27,8 +27,8 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 	// Cache 3/2 worth of sequencing window of receipts and txs
 	span := int(config.SeqWindowSize) * 3 / 2
 	fullSpan := span
-	if span > 2000 { // sanity cap. If a large sequencing window is configured, do not make the cache too large
-		span = 2000
+	if span > 1000 { // sanity cap. If a large sequencing window is configured, do not make the cache too large
+		span = 1000
 	}
 	return &L1ClientConfig{
 		EthClientConfig: EthClientConfig{
