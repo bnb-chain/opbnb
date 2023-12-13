@@ -25,6 +25,8 @@ RUN make op-node VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.16
 
+RUN apk add --no-cache libstdc++
+
 COPY --from=builder /app/op-node/bin/op-node /usr/local/bin
 
 CMD ["op-node"]

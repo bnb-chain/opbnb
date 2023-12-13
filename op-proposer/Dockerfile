@@ -26,6 +26,8 @@ RUN make op-proposer VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.16
 
+RUN apk add --no-cache libstdc++
+
 COPY --from=builder /app/op-proposer/bin/op-proposer /usr/local/bin
 
 CMD ["op-proposer"]
