@@ -27,6 +27,8 @@ RUN make op-batcher VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.16
 
+RUN apk add --no-cache libstdc++
+
 COPY --from=builder /app/op-batcher/bin/op-batcher /usr/local/bin
 
 ENTRYPOINT ["op-batcher"]
