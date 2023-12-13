@@ -23,7 +23,7 @@ ARG TARGETOS TARGETARCH
 
 RUN make op-node VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-FROM alpine:latest
+FROM alpine:3.16
 
 COPY --from=builder /app/op-node/bin/op-node /usr/local/bin
 
