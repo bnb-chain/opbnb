@@ -27,8 +27,8 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 	// Cache 3/2 worth of sequencing window of receipts and txs
 	span := int(config.SeqWindowSize) * 3 / 2
 	fullSpan := span
-	if span > 1000 { // sanity cap. If a large sequencing window is configured, do not make the cache too large
-		span = 1000
+	if span > 2000 { // sanity cap. If a large sequencing window is configured, do not make the cache too large
+		span = 2000
 	}
 	return &L1ClientConfig{
 		EthClientConfig: EthClientConfig{
@@ -132,6 +132,7 @@ func (s *L1Client) L1BlockRefByHash(ctx context.Context, hash common.Hash) (eth.
 }
 
 func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
+	s.preFetchReceiptsStartBlockChan <- l1Start
 	s.preFetchReceiptsOnce.Do(func() {
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		go func() {
@@ -162,7 +163,6 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 			}
 		}()
 	})
-	s.preFetchReceiptsStartBlockChan <- l1Start
 	return nil
 }
 
