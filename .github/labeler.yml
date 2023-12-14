@@ -1,0 +1,4 @@
+---
+C-Protocol-Critical:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/contracts-bedrock/**/*.sol'

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/log"
@@ -16,6 +17,7 @@ import (
 type L1Blocks interface {
 	derive.L1BlockRefByHashFetcher
 	derive.L1BlockRefByNumberFetcher
+	derive.L1ReceiptsFetcher
 }
 
 type L1OriginSelector struct {
@@ -48,14 +50,19 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
 	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+los.cfg.MaxSequencerDrift
+	// Limit the time to fetch next origin block by default
+	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer refCancel()
 	if pastSeqDrift {
 		log.Warn("Next L2 block time is past the sequencer drift + current origin time")
+		// Must fetch next L1 block as long as it may take, cause we are pastSeqDrift
+		refCtx = ctx
 	}
 
 	// Attempt to find the next L1 origin block, where the next origin is the immediate child of
 	// the current origin block.
 	// The L1 source can be shimmed to hide new L1 blocks and enforce a sequencer confirmation distance.
-	nextOrigin, err := los.l1.L1BlockRefByNumber(ctx, currentOrigin.Number+1)
+	nextOrigin, err := los.l1.L1BlockRefByNumber(refCtx, currentOrigin.Number+1)
 	if err != nil {
 		if pastSeqDrift {
 			return eth.L1BlockRef{}, fmt.Errorf("cannot build next L2 block past current L1 origin %s by more than sequencer time drift, and failed to find next L1 origin: %w", currentOrigin, err)
@@ -68,12 +75,21 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 		return currentOrigin, nil
 	}
 
+	receiptsCached := true
+	receiptsCtx, receiptsCancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	defer receiptsCancel()
+	_, _, err = los.l1.FetchReceipts(receiptsCtx, nextOrigin.Hash)
+	if err != nil {
+		receiptsCached = false
+	}
+
 	// If the next L2 block time is greater than the next origin block's time, we can choose to
 	// start building on top of the next origin. Sequencer implementation has some leeway here and
 	// could decide to continue to build on top of the previous origin until the Sequencer runs out
 	// of slack. For simplicity, we implement our Sequencer to always start building on the latest
 	// L1 block when we can.
-	if l2Head.Time+los.cfg.BlockTime >= nextOrigin.Time {
+	// If not pastSeqDrift and next origin receipts not cached, fallback to current origin.
+	if l2Head.Time+los.cfg.BlockTime >= nextOrigin.Time && (pastSeqDrift || receiptsCached) {
 		return nextOrigin, nil
 	}
 

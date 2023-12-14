@@ -2,6 +2,7 @@ FROM --platform=$BUILDPLATFORM golang:1.21.5-alpine3.18 as builder
 
 ARG VERSION=v0.0.0
 
+RUN apk add --no-cache build-base libc-dev
 RUN apk add --no-cache make gcc musl-dev linux-headers git jq bash
 
 # build op-node with the shared go.mod & go.sum files
@@ -20,9 +21,13 @@ RUN go mod download
 
 ARG TARGETOS TARGETARCH
 
+ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 RUN make op-node VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.18
+
+RUN apk add --no-cache libstdc++
 
 COPY --from=builder /app/op-node/bin/op-node /usr/local/bin
 

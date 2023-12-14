@@ -102,6 +102,9 @@ func (l *FallbackClient) handleErr(err error) {
 	if errors.Is(err, rpc.ErrNoResult) {
 		return
 	}
+	if errors.Is(err, ethereum.NotFound) {
+		return
+	}
 	var targetErr rpc.Error
 	if errors.As(err, &targetErr) {
 		return

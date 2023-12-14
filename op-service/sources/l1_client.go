@@ -132,6 +132,7 @@ func (s *L1Client) L1BlockRefByHash(ctx context.Context, hash common.Hash) (eth.
 }
 
 func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint64) error {
+	s.preFetchReceiptsStartBlockChan <- l1Start
 	s.preFetchReceiptsOnce.Do(func() {
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		go func() {
@@ -162,7 +163,6 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 			}
 		}()
 	})
-	s.preFetchReceiptsStartBlockChan <- l1Start
 	return nil
 }
 

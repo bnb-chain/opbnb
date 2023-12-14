@@ -3,6 +3,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"time"
 
@@ -27,6 +28,24 @@ import (
 
 // TODO add values
 var DefaultBootnodes = []*enode.Node{}
+
+var OpBNBTestnet = big.NewInt(5611)
+
+// OpBNBMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the opBNB main network.
+var OpBNBMainnetBootnodes = []string{
+	// op-node
+	"enr:-J24QIGeBCpZHdaQ5i8fyyK_uzaL1DdgOOZA3_lvjHvirjpgexMGkVeGMxlqauzEX7pWAfztCa9hpEGd_bS2a-1IqB6GAYvRDk5QgmlkgnY0gmlwhDaykUmHb3BzdGFja4PMAQCJc2VjcDI1NmsxoQJ-_5GZKjs7jaB4TILdgC8EwnwyL3Qip89wmjnyjvDDwoN0Y3CCIyuDdWRwgiMs",
+	"enr:-J24QO_AhXy6stHsVvFWnECRD_1hMccZM6JqJgiXNVIRED1JRAJvIS48Pihku2z30TfizSGUAmeb22RQfPjW99hDu9WGAYvRBDnegmlkgnY0gmlwhDbjSM6Hb3BzdGFja4PMAQCJc2VjcDI1NmsxoQKetGQX7sXd4u8hZr6uayTZgHRDvGm36YaryqZkgnidS4N0Y3CCIyuDdWRwgiMs",
+}
+
+// OpBNBTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the opBNB testnet network.
+var OpBNBTestnetBootnodes = []string{
+	// op-node
+	"enr:-J24QGQBeMsXOaCCaLWtNFSfb2Gv50DjGOKToH2HUTAIn9yXImowlRoMDNuPNhSBZNQGCCE8eAl5O3dsONuuQp5Qix2GAYjB7KHSgmlkgnY0gmlwhDREiqaHb3BzdGFja4PrKwCJc2VjcDI1NmsxoQL4I9wpEVDcUb8bLWu6V8iPoN5w8E8q-GrS5WUCygYUQ4N0Y3CCIyuDdWRwgiMr",
+	"enr:-J24QJKXHEkIhy0tmIk2EscMZ2aRrivNsZf_YhgIU51g4ZKHWY0BxW6VedRJ1jxmneW9v7JjldPOPpLkaNSo6cXGFxqGAYpK96oCgmlkgnY0gmlwhANzx96Hb3BzdGFja4PrKwCJc2VjcDI1NmsxoQMOCzUFffz04eyDrmkbaSCrMEvLvn5O4RZaZ5k1GV4wa4N0Y3CCIyuDdWRwgiMr",
+}
 
 type HostMetrics interface {
 	gating.UnbanMetrics

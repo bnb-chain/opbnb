@@ -212,6 +212,8 @@ type DeployConfig struct {
 	// FundDevAccounts configures whether or not to fund the dev accounts. Should only be used
 	// during devnet deployments.
 	FundDevAccounts bool `json:"fundDevAccounts"`
+	// opBNB fermat hard fork
+	Fermat *big.Int `json:"fermat,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -519,6 +521,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		RegolithTime:           d.RegolithTime(l1StartBlock.Time()),
 		CanyonTime:             d.CanyonTime(l1StartBlock.Time()),
 		SpanBatchTime:          d.SpanBatchTime(l1StartBlock.Time()),
+		Fermat:                 d.Fermat,
 	}, nil
 }
 
@@ -760,8 +763,8 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 		"_symbol": "ETH",
 	}
 	storage["WETH9"] = state.StorageValues{
-		"name":     "Wrapped Ether",
-		"symbol":   "WETH",
+		"name":     "Wrapped BNB",
+		"symbol":   "WBNB",
 		"decimals": 18,
 	}
 	if config.EnableGovernance {
