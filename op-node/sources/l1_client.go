@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"golang.org/x/time/rate"
 
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
@@ -61,6 +62,8 @@ type L1Client struct {
 
 	//ensure pre-fetch receipts only once
 	preFetchReceiptsOnce sync.Once
+	//control the number of concurrent pre-fetch receipt requests.
+	preFetchReceiptsRateLimiter *rate.Limiter
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
 	//done chan
@@ -79,6 +82,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache(metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		preFetchReceiptsRateLimiter:    rate.NewLimiter(rate.Limit(config.MaxConcurrentRequests), config.MaxConcurrentRequests),
 		done:                           make(chan struct{}),
 	}, nil
 }
@@ -151,13 +155,20 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 						time.Sleep(3 * time.Second)
 						continue
 					}
-					_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
-					if err != nil {
-						s.log.Warn("failed to pre-fetch receipts", "err", err)
-						time.Sleep(200 * time.Millisecond)
+					waitErr := s.preFetchReceiptsRateLimiter.Wait(ctx)
+					if waitErr != nil {
+						s.log.Warn("failed to wait pre-fetch receipts rateLimiter", "err", waitErr)
 						continue
 					}
-					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
+
+					go func(ctx context.Context, blockInfo eth.L1BlockRef) {
+						_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
+						if err != nil {
+							s.log.Warn("failed to pre-fetch receipts", "err", err)
+							return
+						}
+						s.log.Debug("pre-fetching receipts", "block", currentL1Block)
+					}(ctx, blockInfo)
 					currentL1Block = currentL1Block + 1
 				}
 			}
