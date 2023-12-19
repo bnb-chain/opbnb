@@ -269,7 +269,24 @@ func (s *Driver) eventLoop() {
 				// This may adjust at any time based on fork-choice changes or previous errors.
 				//
 				// update sequencer time if the head changed
-				planSequencerAction()
+				delay := s.sequencer.PlanNextSequencerAction()
+				if delay == 0 {
+					select {
+					case newL1Head := <-s.l1HeadSig: // sequencerStep may depend on this when FindL1Origin
+						s.l1State.HandleNewL1HeadBlock(newL1Head)
+						reqStep() // a new L1 head may mean we have the data to not get an EOF again.
+						continue
+					default:
+						// immediately do sequencerStep if time is ready
+						if err := sequencerStep(); err != nil {
+							return
+						}
+						// sequencerStep was already done, so we continue to next round
+						continue
+					}
+				} else {
+					planSequencerAction()
+				}
 			}
 		} else {
 			sequencerCh = nil
@@ -282,8 +299,8 @@ func (s *Driver) eventLoop() {
 			altSyncTicker.Reset(syncCheckInterval)
 		}
 
+		// Following cases are high priority
 		if s.driverConfig.SequencerPriority {
-			// help sequencerStep not interrupt by other steps
 			select {
 			case <-sequencerCh:
 				if err := sequencerStep(); err != nil {
@@ -293,6 +310,25 @@ func (s *Driver) eventLoop() {
 			case newL1Head := <-s.l1HeadSig: // sequencerStep may depend on this when FindL1Origin
 				s.l1State.HandleNewL1HeadBlock(newL1Head)
 				reqStep() // a new L1 head may mean we have the data to not get an EOF again.
+				continue
+			case respCh := <-s.stopSequencer:
+				if s.driverConfig.SequencerStopped {
+					respCh <- hashAndError{err: errors.New("sequencer not running")}
+				} else {
+					if err := s.sequencerNotifs.SequencerStopped(); err != nil {
+						respCh <- hashAndError{err: fmt.Errorf("sequencer start notification: %w", err)}
+						continue
+					}
+					s.log.Warn("Sequencer has been stopped")
+					s.driverConfig.SequencerStopped = true
+					respCh <- hashAndError{hash: s.derivation.UnsafeL2Head().Hash}
+				}
+				continue
+			case respCh := <-s.sequencerActive:
+				respCh <- !s.driverConfig.SequencerStopped
+				continue
+			case respCh := <-s.stateReq:
+				respCh <- struct{}{}
 				continue
 			default:
 			}
@@ -334,7 +370,7 @@ func (s *Driver) eventLoop() {
 			s.metrics.SetDerivationIdle(false)
 			s.log.Debug("Derivation process step", "onto_origin", s.derivation.Origin(), "attempts", stepAttempts)
 			stepCtx := context.Background()
-			if s.driverConfig.SequencerEnabled && !s.driverConfig.SequencerStopped {
+			if s.driverConfig.SequencerEnabled && !s.driverConfig.SequencerStopped && s.driverConfig.SequencerPriority {
 				var cancelStep context.CancelFunc
 				stepCtx, cancelStep = context.WithTimeout(ctx, 3*time.Second)
 				defer cancelStep()
