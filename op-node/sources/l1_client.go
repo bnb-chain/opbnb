@@ -39,7 +39,7 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 			HeadersCacheSize:      span,
 			PayloadsCacheSize:     span,
 			MaxRequestsPerBatch:   20, // TODO: tune batch param
-			MaxConcurrentRequests: 10,
+			MaxConcurrentRequests: 20,
 			TrustRPC:              trustRPC,
 			MustBePostMerge:       false,
 			RPCProviderKind:       kind,
@@ -82,7 +82,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache(metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
-		preFetchReceiptsRateLimiter:    rate.NewLimiter(rate.Limit(config.MaxConcurrentRequests), config.MaxConcurrentRequests),
+		preFetchReceiptsRateLimiter:    rate.NewLimiter(rate.Limit(config.MaxConcurrentRequests/2), config.MaxConcurrentRequests/2),
 		done:                           make(chan struct{}),
 	}, nil
 }
