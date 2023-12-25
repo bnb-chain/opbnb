@@ -384,10 +384,6 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
-		_, err := job.Fetch(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
 		s.receiptsCache.Add(blockHash, job)
 	}
 
@@ -395,6 +391,8 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 	if err != nil {
 		return nil, nil, err
 	}
+
+	s.receiptsCache.Add(blockHash, job)
 
 	return info, receipts, nil
 }

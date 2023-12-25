@@ -1,9 +1,10 @@
 package caching
 
 import (
-	lru "github.com/hashicorp/golang-lru/v2"
 	"math"
 	"sync"
+
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 type SizeFn func(value any) int
@@ -45,21 +46,25 @@ func (c *SizeConstrainedCache[K, V]) Add(key K, value V) (evicted bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// Unless it is already present, might need to evict something.
-	// OBS: If it is present, we still call Add internally to bump the recentness.
-	if !c.lru.Contains(key) {
-		targetSize := c.size + c.sizeFn(value)
-		for targetSize > c.maxSize {
-			evicted = true
-			_, v, ok := c.lru.RemoveOldest()
-			if !ok {
-				// list is now empty. Break
-				break
-			}
-			targetSize -= c.sizeFn(v)
-		}
-		c.size = targetSize
+	// If there is already a item with the same key in the cache,
+	// remove the old element first, then write in the new item.
+	if oldValue, ok := c.lru.Get(key); ok {
+		c.lru.Remove(key)
+		c.size -= c.sizeFn(oldValue)
 	}
+
+	// Evict the oldest items if cache is overflow
+	targetSize := c.size + c.sizeFn(value)
+	for targetSize > c.maxSize {
+		evicted = true
+		_, v, ok := c.lru.RemoveOldest()
+		if !ok {
+			// list is now empty. Break
+			break
+		}
+		targetSize -= c.sizeFn(v)
+	}
+	c.size = targetSize
 
 	c.lru.Add(key, value)
 	if c.m != nil {
