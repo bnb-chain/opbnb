@@ -7,7 +7,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-type SizeFn func(value any) int
+type SizeFn func(value any) uint64
 
 // SizeConstrainedCache is a cache where capacity is in bytes (instead of item count). When the cache
 // is at capacity, and a new item is added, older items are evicted until the size
@@ -18,15 +18,15 @@ type SizeFn func(value any) int
 type SizeConstrainedCache[K comparable, V any] struct {
 	m       Metrics
 	label   string
-	size    int
-	maxSize int
+	size    uint64
+	maxSize uint64
 	sizeFn  SizeFn
 	lru     *lru.Cache[K, V]
 	lock    sync.Mutex
 }
 
 // NewSizeConstrainedCache creates a new size-constrained LRU cache.
-func NewSizeConstrainedCache[K comparable, V any](m Metrics, label string, maxSize int, sizeFn SizeFn) *SizeConstrainedCache[K, V] {
+func NewSizeConstrainedCache[K comparable, V any](m Metrics, label string, maxSize uint64, sizeFn SizeFn) *SizeConstrainedCache[K, V] {
 	cache, _ := lru.New[K, V](math.MaxInt)
 	return &SizeConstrainedCache[K, V]{
 		m:       m,

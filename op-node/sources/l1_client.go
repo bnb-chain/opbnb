@@ -34,8 +34,8 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 	return &L1ClientConfig{
 		EthClientConfig: EthClientConfig{
 			// receipts and transactions are cached per block
-			ReceiptsCacheVolumeByte:     span * 1024 * 1024,
-			TransactionsCacheVolumeByte: span * 1024 * 1024,
+			ReceiptsCacheVolumeByte:     uint64(span * 1024 * 1024),
+			TransactionsCacheVolumeByte: uint64(span * 1024 * 1024),
 			HeadersCacheSize:            span,
 			PayloadsCacheSize:           span,
 			MaxRequestsPerBatch:         20, // TODO: tune batch param

@@ -36,9 +36,9 @@ type EthClientConfig struct {
 	// cache sizes
 
 	// Volume of blocks worth of receipts to cache
-	ReceiptsCacheVolumeByte int
+	ReceiptsCacheVolumeByte uint64
 	// Volume of blocks worth of transactions to cache
-	TransactionsCacheVolumeByte int
+	TransactionsCacheVolumeByte uint64
 	// Number of block headers to cache
 	HeadersCacheSize int
 	// Number of payloads to cache
@@ -65,12 +65,6 @@ type EthClientConfig struct {
 }
 
 func (c *EthClientConfig) Check() error {
-	if c.ReceiptsCacheVolumeByte < 0 {
-		return fmt.Errorf("invalid receipts cache volume: %d", c.ReceiptsCacheVolumeByte)
-	}
-	if c.TransactionsCacheVolumeByte < 0 {
-		return fmt.Errorf("invalid transactions cache volume: %d", c.TransactionsCacheVolumeByte)
-	}
 	if c.HeadersCacheSize < 0 {
 		return fmt.Errorf("invalid headers cache size: %d", c.HeadersCacheSize)
 	}
@@ -165,17 +159,17 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		return nil, fmt.Errorf("bad config, cannot create L1 source: %w", err)
 	}
 	client = LimitRPC(client, config.MaxConcurrentRequests)
-	receiptsFetchingJobSizeFn := func(value any) (size int) {
+	receiptsFetchingJobSizeFn := func(value any) (size uint64) {
 		job := value.(*receiptsFetchingJob)
 		for _, rec := range job.result {
-			size += int(rec.Size())
+			size += uint64(rec.Size())
 		}
 		return
 	}
-	transactionsSizeFn := func(value any) (size int) {
+	transactionsSizeFn := func(value any) (size uint64) {
 		transactions := value.(types.Transactions)
 		for _, tx := range transactions {
-			size += int(tx.Size())
+			size += tx.Size()
 		}
 		return
 	}
