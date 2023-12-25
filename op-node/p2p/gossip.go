@@ -291,8 +291,8 @@ func BuildBlocksValidator(log log.Logger, cfg *rollup.Config, runCfg GossipRunti
 		// rounding down to seconds is fine here.
 		now := uint64(time.Now().Unix())
 
-		// [REJECT] if the `payload.timestamp` is older than 60 seconds in the past
-		if uint64(payload.Timestamp) < now-60 {
+		// [REJECT] if the `payload.timestamp` is older than 20 min in the past
+		if uint64(payload.Timestamp) < now-1200 {
 			log.Warn("payload is too old", "timestamp", uint64(payload.Timestamp))
 			return pubsub.ValidationReject
 		}
