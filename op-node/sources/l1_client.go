@@ -7,15 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/time/rate"
-
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/sources/caching"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type L1ClientConfig struct {
@@ -62,10 +60,10 @@ type L1Client struct {
 
 	//ensure pre-fetch receipts only once
 	preFetchReceiptsOnce sync.Once
-	//control the number of concurrent pre-fetch receipt requests.
-	preFetchReceiptsRateLimiter *rate.Limiter
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
+	//max concurrent requests
+	maxConcurrentRequests int
 	//done chan
 	done chan struct{}
 }
@@ -82,7 +80,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache(metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
-		preFetchReceiptsRateLimiter:    rate.NewLimiter(rate.Limit(config.MaxConcurrentRequests/2), config.MaxConcurrentRequests/2),
+		maxConcurrentRequests:          config.MaxConcurrentRequests,
 		done:                           make(chan struct{}),
 	}, nil
 }
@@ -149,27 +147,52 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
 				default:
-					blockInfo, err := s.L1BlockRefByNumber(ctx, currentL1Block)
+					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
 					if err != nil {
-						s.log.Debug("failed to fetch next block info", "err", err)
+						s.log.Debug("failed to fetch latest block ref", "err", err)
 						time.Sleep(3 * time.Second)
 						continue
 					}
-					waitErr := s.preFetchReceiptsRateLimiter.Wait(ctx)
-					if waitErr != nil {
-						s.log.Warn("failed to wait pre-fetch receipts rateLimiter", "err", waitErr)
+
+					if currentL1Block > blockRef.Number {
+						s.log.Debug("current block height exceeds the latest block height of l1, will wait for a while.", "currentL1Block", currentL1Block, "l1Latest", blockRef.Number)
+						time.Sleep(3 * time.Second)
 						continue
 					}
 
-					go func(ctx context.Context, blockInfo eth.L1BlockRef) {
-						_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
-						if err != nil {
-							s.log.Warn("failed to pre-fetch receipts", "err", err)
-							return
-						}
-						s.log.Debug("pre-fetching receipts", "block", currentL1Block)
-					}(ctx, blockInfo)
-					currentL1Block = currentL1Block + 1
+					var taskCount int
+					if blockRef.Number-currentL1Block >= uint64(s.maxConcurrentRequests) {
+						taskCount = s.maxConcurrentRequests
+					} else {
+						taskCount = int(blockRef.Number-currentL1Block) + 1
+					}
+
+					var wg sync.WaitGroup
+					for i := 0; i < taskCount; i++ {
+						wg.Add(1)
+						go func(ctx context.Context, blockNumber uint64) {
+							defer wg.Done()
+							var blockInfo eth.L1BlockRef
+							for {
+								var err error
+								blockInfo, err = s.L1BlockRefByNumber(ctx, blockNumber)
+								if err != nil {
+									s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
+									time.Sleep(1 * time.Second)
+									continue
+								}
+								break
+							}
+							_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
+							if err != nil {
+								s.log.Warn("failed to pre-fetch receipts", "err", err)
+								return
+							}
+							s.log.Debug("pre-fetching receipts", "block", blockInfo.Number)
+						}(ctx, currentL1Block)
+						currentL1Block = currentL1Block + 1
+					}
+					wg.Wait()
 				}
 			}
 		}()
