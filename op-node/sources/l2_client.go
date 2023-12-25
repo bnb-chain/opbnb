@@ -42,16 +42,16 @@ func L2ClientDefaultConfig(config *rollup.Config, trustRPC bool) *L2ClientConfig
 	return &L2ClientConfig{
 		EthClientConfig: EthClientConfig{
 			// receipts and transactions are cached per block
-			ReceiptsCacheSize:     span,
-			TransactionsCacheSize: span,
-			HeadersCacheSize:      span,
-			PayloadsCacheSize:     span,
-			MaxRequestsPerBatch:   20, // TODO: tune batch param
-			MaxConcurrentRequests: 10,
-			TrustRPC:              trustRPC,
-			MustBePostMerge:       true,
-			RPCProviderKind:       RPCKindBasic,
-			MethodResetDuration:   time.Minute,
+			ReceiptsCacheVolumeByte:     span * 1024 * 1024,
+			TransactionsCacheVolumeByte: span * 1024 * 1024,
+			HeadersCacheSize:            span,
+			PayloadsCacheSize:           span,
+			MaxRequestsPerBatch:         20, // TODO: tune batch param
+			MaxConcurrentRequests:       10,
+			TrustRPC:                    trustRPC,
+			MustBePostMerge:             true,
+			RPCProviderKind:             RPCKindBasic,
+			MethodResetDuration:         time.Minute,
 		},
 		// Not bounded by span, to cover find-sync-start range fully for speedy recovery after errors.
 		L2BlockRefsCacheSize: fullSpan,

@@ -35,10 +35,10 @@ type EthClientConfig struct {
 
 	// cache sizes
 
-	// Number of blocks worth of receipts to cache
-	ReceiptsCacheSize int
-	// Number of blocks worth of transactions to cache
-	TransactionsCacheSize int
+	// Volume of blocks worth of receipts to cache
+	ReceiptsCacheVolumeByte int
+	// Volume of blocks worth of transactions to cache
+	TransactionsCacheVolumeByte int
 	// Number of block headers to cache
 	HeadersCacheSize int
 	// Number of payloads to cache
@@ -65,11 +65,11 @@ type EthClientConfig struct {
 }
 
 func (c *EthClientConfig) Check() error {
-	if c.ReceiptsCacheSize < 0 {
-		return fmt.Errorf("invalid receipts cache size: %d", c.ReceiptsCacheSize)
+	if c.ReceiptsCacheVolumeByte < 0 {
+		return fmt.Errorf("invalid receipts cache volume: %d", c.ReceiptsCacheVolumeByte)
 	}
-	if c.TransactionsCacheSize < 0 {
-		return fmt.Errorf("invalid transactions cache size: %d", c.TransactionsCacheSize)
+	if c.TransactionsCacheVolumeByte < 0 {
+		return fmt.Errorf("invalid transactions cache volume: %d", c.TransactionsCacheVolumeByte)
 	}
 	if c.HeadersCacheSize < 0 {
 		return fmt.Errorf("invalid headers cache size: %d", c.HeadersCacheSize)
@@ -106,11 +106,11 @@ type EthClient struct {
 	// cache receipts in bundles per block hash
 	// We cache the receipts fetching job to not lose progress when we have to retry the `Fetch` call
 	// common.Hash -> *receiptsFetchingJob
-	receiptsCache *caching.LRUCache
+	receiptsCache *caching.SizeConstrainedCache[common.Hash, *receiptsFetchingJob]
 
 	// cache transactions in bundles per block hash
 	// common.Hash -> types.Transactions
-	transactionsCache *caching.LRUCache
+	transactionsCache *caching.SizeConstrainedCache[common.Hash, types.Transactions]
 
 	// cache block headers of blocks by hash
 	// common.Hash -> *HeaderInfo
@@ -165,6 +165,20 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		return nil, fmt.Errorf("bad config, cannot create L1 source: %w", err)
 	}
 	client = LimitRPC(client, config.MaxConcurrentRequests)
+	receiptsFetchingJobSizeFn := func(value any) (size int) {
+		job := value.(*receiptsFetchingJob)
+		for _, rec := range job.result {
+			size += int(rec.Size())
+		}
+		return
+	}
+	transactionsSizeFn := func(value any) (size int) {
+		transactions := value.(types.Transactions)
+		for _, tx := range transactions {
+			size += int(tx.Size())
+		}
+		return
+	}
 	return &EthClient{
 		client:                  client,
 		maxBatchSize:            config.MaxRequestsPerBatch,
@@ -172,8 +186,8 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		mustBePostMerge:         config.MustBePostMerge,
 		provKind:                config.RPCProviderKind,
 		log:                     log,
-		receiptsCache:           caching.NewLRUCache(metrics, "receipts", config.ReceiptsCacheSize),
-		transactionsCache:       caching.NewLRUCache(metrics, "txs", config.TransactionsCacheSize),
+		receiptsCache:           caching.NewSizeConstrainedCache[common.Hash, *receiptsFetchingJob](metrics, "receipts", config.ReceiptsCacheVolumeByte, receiptsFetchingJobSizeFn),
+		transactionsCache:       caching.NewSizeConstrainedCache[common.Hash, types.Transactions](metrics, "txs", config.TransactionsCacheVolumeByte, transactionsSizeFn),
 		headersCache:            caching.NewLRUCache(metrics, "headers", config.HeadersCacheSize),
 		payloadsCache:           caching.NewLRUCache(metrics, "payloads", config.PayloadsCacheSize),
 		availableReceiptMethods: AvailableReceiptsFetchingMethods(config.RPCProviderKind),
@@ -318,7 +332,7 @@ func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (e
 func (s *EthClient) InfoAndTxsByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, types.Transactions, error) {
 	if header, ok := s.headersCache.Get(hash); ok {
 		if txs, ok := s.transactionsCache.Get(hash); ok {
-			return header.(eth.BlockInfo), txs.(types.Transactions), nil
+			return header.(eth.BlockInfo), txs, nil
 		}
 	}
 	return s.blockCall(ctx, "eth_getBlockByHash", hashID(hash))
@@ -366,12 +380,17 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 	// The underlying fetcher uses the receipts hash to verify receipt integrity.
 	var job *receiptsFetchingJob
 	if v, ok := s.receiptsCache.Get(blockHash); ok {
-		job = v.(*receiptsFetchingJob)
+		job = v
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
+		_, err := job.Fetch(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
 		s.receiptsCache.Add(blockHash, job)
 	}
+
 	receipts, err := job.Fetch(ctx)
 	if err != nil {
 		return nil, nil, err

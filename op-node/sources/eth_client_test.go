@@ -44,15 +44,15 @@ func (m *mockRPC) Close() {
 var _ client.RPC = (*mockRPC)(nil)
 
 var testEthClientConfig = &EthClientConfig{
-	ReceiptsCacheSize:     10,
-	TransactionsCacheSize: 10,
-	HeadersCacheSize:      10,
-	PayloadsCacheSize:     10,
-	MaxRequestsPerBatch:   20,
-	MaxConcurrentRequests: 10,
-	TrustRPC:              false,
-	MustBePostMerge:       false,
-	RPCProviderKind:       RPCKindBasic,
+	ReceiptsCacheVolumeByte:     10 * 1024 * 1024,
+	TransactionsCacheVolumeByte: 10 * 1024 * 1024,
+	HeadersCacheSize:            10,
+	PayloadsCacheSize:           10,
+	MaxRequestsPerBatch:         20,
+	MaxConcurrentRequests:       10,
+	TrustRPC:                    false,
+	MustBePostMerge:             false,
+	RPCProviderKind:             RPCKindBasic,
 }
 
 func randHash() (out common.Hash) {

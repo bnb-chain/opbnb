@@ -147,16 +147,16 @@ func (tc *ReceiptsTestCase) Run(t *testing.T) {
 	cl := rpc.DialInProc(srv)
 	testCfg := &EthClientConfig{
 		// receipts and transactions are cached per block
-		ReceiptsCacheSize:     1000,
-		TransactionsCacheSize: 1000,
-		HeadersCacheSize:      1000,
-		PayloadsCacheSize:     1000,
-		MaxRequestsPerBatch:   20,
-		MaxConcurrentRequests: 10,
-		TrustRPC:              false,
-		MustBePostMerge:       false,
-		RPCProviderKind:       tc.providerKind,
-		MethodResetDuration:   time.Minute,
+		ReceiptsCacheVolumeByte:     1000 * 1024 * 1024,
+		TransactionsCacheVolumeByte: 1000 * 1024 * 1024,
+		HeadersCacheSize:            1000,
+		PayloadsCacheSize:           1000,
+		MaxRequestsPerBatch:         20,
+		MaxConcurrentRequests:       10,
+		TrustRPC:                    false,
+		MustBePostMerge:             false,
+		RPCProviderKind:             tc.providerKind,
+		MethodResetDuration:         time.Minute,
 	}
 	if tc.staticMethod { // if static, instantly reset, for fast clock-independent testing
 		testCfg.MethodResetDuration = 0
