@@ -57,6 +57,11 @@ func (m *MeteredL1Fetcher) FetchReceipts(ctx context.Context, blockHash common.H
 	return m.inner.FetchReceipts(ctx, blockHash)
 }
 
+func (m *MeteredL1Fetcher) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
+	defer m.recordTime("PreFetchReceipts")()
+	return m.inner.PreFetchReceipts(ctx, blockHash)
+}
+
 var _ derive.L1Fetcher = (*MeteredL1Fetcher)(nil)
 
 func (m *MeteredL1Fetcher) recordTime(method string) func() {

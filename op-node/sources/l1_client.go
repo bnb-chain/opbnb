@@ -172,23 +172,26 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 						wg.Add(1)
 						go func(ctx context.Context, blockNumber uint64) {
 							defer wg.Done()
-							var blockInfo eth.L1BlockRef
 							for {
-								var err error
-								blockInfo, err = s.L1BlockRefByNumber(ctx, blockNumber)
+								blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
 								if err != nil {
 									s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
 									time.Sleep(1 * time.Second)
 									continue
 								}
+								isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
+								if err != nil {
+									s.log.Warn("failed to pre-fetch receipts", "err", err)
+									return
+								}
+								if !isSuccess {
+									s.log.Debug("pre fetch receipts fail without error,need retry", "blockHash", blockInfo.Hash, "blockNumber", blockNumber)
+									time.Sleep(1 * time.Second)
+									continue
+								}
+								s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number)
 								break
 							}
-							_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
-							if err != nil {
-								s.log.Warn("failed to pre-fetch receipts", "err", err)
-								return
-							}
-							s.log.Debug("pre-fetching receipts", "block", blockInfo.Number)
 						}(ctx, currentL1Block)
 						currentL1Block = currentL1Block + 1
 					}

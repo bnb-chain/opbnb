@@ -357,27 +357,57 @@ func (s *EthClient) PayloadByLabel(ctx context.Context, label eth.BlockLabel) (*
 // It verifies the receipt hash in the block header against the receipt hash of the fetched receipts
 // to ensure that the execution engine did not fail to return any receipts.
 func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error) {
+	blockInfo, receipts, err, _ := s.fetchReceiptsInner(ctx, blockHash, false)
+	return blockInfo, receipts, err
+}
+
+func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Hash, isForPreFetch bool) (eth.BlockInfo, types.Receipts, error, bool) {
 	info, txs, err := s.InfoAndTxsByHash(ctx, blockHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, false
 	}
 	// Try to reuse the receipts fetcher because is caches the results of intermediate calls. This means
 	// that if just one of many calls fail, we only retry the failed call rather than all of the calls.
 	// The underlying fetcher uses the receipts hash to verify receipt integrity.
 	var job *receiptsFetchingJob
-	if v, ok := s.receiptsCache.Get(blockHash); ok {
+	var v any
+	var ok bool
+	var isFull bool
+	if isForPreFetch {
+		v, ok = s.receiptsCache.Peek(blockHash)
+	} else {
+		v, ok = s.receiptsCache.PeekAndCleanOld(blockHash)
+	}
+	if ok {
 		job = v.(*receiptsFetchingJob)
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
-		s.receiptsCache.Add(blockHash, job)
+		_, isFull = s.receiptsCache.AddIfNotFull(blockHash, job)
+		if isForPreFetch && isFull {
+			return nil, nil, nil, true
+		}
 	}
 	receipts, err := job.Fetch(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, isFull
 	}
 
-	return info, receipts, nil
+	return info, receipts, nil, isFull
+}
+
+func (s *EthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
+	if _, ok := s.receiptsCache.Peek(blockHash); ok {
+		return true, nil
+	}
+	_, _, err, isFull := s.fetchReceiptsInner(ctx, blockHash, true)
+	if err != nil {
+		return false, err
+	}
+	if isFull {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GetProof returns an account proof result, with any optional requested storage proofs.
