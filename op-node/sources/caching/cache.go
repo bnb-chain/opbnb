@@ -55,6 +55,7 @@ func (c *LRUCache) PeekAndCleanOld(key any) (value any, ok bool) {
 			oKey, _, oOk := c.inner.GetOldest()
 			if oOk && oKey != key {
 				c.inner.RemoveOldest()
+				continue
 			}
 			break
 		}
