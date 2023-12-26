@@ -28,11 +28,23 @@ func (c *LRUCache) Get(key any) (value any, ok bool) {
 	return value, ok
 }
 
+func (c *LRUCache) Add(key, value any) (evicted bool) {
+	evicted = c.inner.Add(key, value)
+	if c.m != nil {
+		c.m.CacheAdd(c.label, c.inner.Len(), evicted)
+	}
+	return evicted
+}
+
 func (c *LRUCache) Peek(key any) (value any, ok bool) {
+	defer c.lock.Unlock()
+	c.lock.Lock()
 	return c.inner.Peek(key)
 }
 
 func (c *LRUCache) PeekAndCleanOld(key any) (value any, ok bool) {
+	defer c.lock.Unlock()
+	c.lock.Lock()
 	value, ok = c.inner.Peek(key)
 	if c.m != nil {
 		c.m.CacheGet(c.label, ok)
@@ -48,14 +60,6 @@ func (c *LRUCache) PeekAndCleanOld(key any) (value any, ok bool) {
 		}
 	}
 	return value, ok
-}
-
-func (c *LRUCache) Add(key, value any) (evicted bool) {
-	evicted = c.inner.Add(key, value)
-	if c.m != nil {
-		c.m.CacheAdd(c.label, c.inner.Len(), evicted)
-	}
-	return evicted
 }
 
 func (c *LRUCache) AddIfNotFull(key, value any) (evicted bool, full bool) {
