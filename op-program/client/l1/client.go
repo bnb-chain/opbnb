@@ -88,3 +88,7 @@ func (o *OracleL1Client) InfoAndTxsByHash(ctx context.Context, hash common.Hash)
 func (o *OracleL1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error {
 	return o.oracle.GoOrUpdatePreFetchReceipts(ctx, l1StartBlock)
 }
+
+func (o *OracleL1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
+	//do nothing
+}

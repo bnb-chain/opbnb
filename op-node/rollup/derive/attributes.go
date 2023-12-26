@@ -22,6 +22,7 @@ type L1ReceiptsFetcher interface {
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
 	PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error)
 	GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error
+	ClearReceiptsCacheBefore(blockNumber uint64)
 }
 
 type SystemConfigL2Fetcher interface {

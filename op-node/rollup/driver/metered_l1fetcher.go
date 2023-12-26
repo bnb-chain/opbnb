@@ -76,3 +76,8 @@ func (m *MeteredL1Fetcher) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Sta
 	defer m.recordTime("GoOrUpdatePreFetchReceipts")()
 	return m.inner.GoOrUpdatePreFetchReceipts(ctx, l1StartBlock)
 }
+
+func (m *MeteredL1Fetcher) ClearReceiptsCacheBefore(blockNumber uint64) {
+	defer m.recordTime("ClearReceiptsCacheBefore")()
+	m.inner.ClearReceiptsCacheBefore(blockNumber)
+}

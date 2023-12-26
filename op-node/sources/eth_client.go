@@ -105,8 +105,8 @@ type EthClient struct {
 
 	// cache receipts in bundles per block hash
 	// We cache the receipts fetching job to not lose progress when we have to retry the `Fetch` call
-	// common.Hash -> *receiptsFetchingJob
-	receiptsCache *caching.LRUCache
+	// common.Hash -> *receiptsFetchingJobPair
+	receiptsCache *caching.PreFetchCache[*receiptsFetchingJobPair]
 
 	// cache transactions in bundles per block hash
 	// common.Hash -> types.Transactions
@@ -172,7 +172,7 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		mustBePostMerge:         config.MustBePostMerge,
 		provKind:                config.RPCProviderKind,
 		log:                     log,
-		receiptsCache:           caching.NewLRUCache(metrics, "receipts", config.ReceiptsCacheSize),
+		receiptsCache:           caching.NewPreFetchCache[*receiptsFetchingJobPair](metrics, "receipts", config.ReceiptsCacheSize),
 		transactionsCache:       caching.NewLRUCache(metrics, "txs", config.TransactionsCacheSize),
 		headersCache:            caching.NewLRUCache(metrics, "headers", config.HeadersCacheSize),
 		payloadsCache:           caching.NewLRUCache(metrics, "payloads", config.PayloadsCacheSize),
@@ -373,17 +373,17 @@ func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Has
 	var v any
 	var ok bool
 	var isFull bool
-	if isForPreFetch {
-		v, ok = s.receiptsCache.Peek(blockHash)
-	} else {
-		v, ok = s.receiptsCache.PeekAndCleanOld(blockHash)
-	}
-	if ok {
-		job = v.(*receiptsFetchingJob)
+	v, ok = s.receiptsCache.Get(info.NumberU64())
+	pair, pairOk := v.(*receiptsFetchingJobPair)
+	if ok && pairOk && pair.blockHash == blockHash {
+		job = pair.job
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
-		_, isFull = s.receiptsCache.AddIfNotFull(blockHash, job)
+		_, isFull = s.receiptsCache.AddIfNotFull(info.NumberU64(), &receiptsFetchingJobPair{
+			blockHash: blockHash,
+			job:       job,
+		})
 		if isForPreFetch && isFull {
 			return nil, nil, nil, true
 		}
@@ -397,9 +397,6 @@ func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Has
 }
 
 func (s *EthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
-	if _, ok := s.receiptsCache.Peek(blockHash); ok {
-		return true, nil
-	}
 	_, _, err, isFull := s.fetchReceiptsInner(ctx, blockHash, true)
 	if err != nil {
 		return false, err

@@ -46,3 +46,7 @@ func (m *MockL1Source) GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBl
 func (m *MockL1Source) ExpectGoOrUpdatePreFetchReceipts(background context.Context, number uint64, err error) {
 	m.Mock.On("GoOrUpdatePreFetchReceipts", background, number).Once().Return(&err)
 }
+
+func (m *MockL1Source) ClearReceiptsCacheBefore(blockNumber uint64) {
+	m.Mock.MethodCalled("ClearReceiptsCacheBefore", blockNumber)
+}

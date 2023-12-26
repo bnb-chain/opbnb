@@ -146,6 +146,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
+					s.receiptsCache.RemoveAll()
 				default:
 					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
 					if err != nil {
@@ -173,6 +174,9 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 						go func(ctx context.Context, blockNumber uint64) {
 							defer wg.Done()
 							for {
+								if _, ok := s.receiptsCache.Get(blockNumber); ok {
+									return
+								}
 								blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
 								if err != nil {
 									s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
@@ -201,6 +205,10 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 		}()
 	})
 	return nil
+}
+
+func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
+	s.receiptsCache.RemoveLessThan(blockNumber)
 }
 
 func (s *L1Client) Close() {
