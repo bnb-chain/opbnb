@@ -50,3 +50,7 @@ func (m *MockL1Source) ExpectGoOrUpdatePreFetchReceipts(background context.Conte
 func (m *MockL1Source) ClearReceiptsCacheBefore(blockNumber uint64) {
 	m.Mock.MethodCalled("ClearReceiptsCacheBefore", blockNumber)
 }
+
+func (m *MockL1Source) ExpectClearReceiptsCacheBefore(blockNumber uint64) {
+	m.Mock.On("ClearReceiptsCacheBefore", blockNumber).Once()
+}

@@ -260,12 +260,14 @@ func TestEngineQueue_Finalize(t *testing.T) {
 	eq.origin = refD
 	prev.origin = refD
 	eq.safeHead = refC1
+	l1F.ExpectClearReceiptsCacheBefore(refC1.L1Origin.Number)
 	eq.postProcessSafeL2()
 
 	// now say D0 was included in E and became the new safe head
 	eq.origin = refE
 	prev.origin = refE
 	eq.safeHead = refD0
+	l1F.ExpectClearReceiptsCacheBefore(refD0.L1Origin.Number)
 	eq.postProcessSafeL2()
 
 	// let's finalize D (current L1), from which we fully derived C1 (it was safe head), but not D0 (included in E)
