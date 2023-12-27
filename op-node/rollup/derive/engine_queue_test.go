@@ -951,6 +951,7 @@ func TestBlockBuildingRace(t *testing.T) {
 
 	// Expect initial forkchoice update
 	eng.ExpectForkchoiceUpdate(preFc, nil, preFcRes, nil)
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
 	// Expect initial building update, to process the attributes we queued up
@@ -1018,6 +1019,7 @@ func TestBlockBuildingRace(t *testing.T) {
 	}
 	eng.ExpectForkchoiceUpdate(postFc, nil, postFcRes, nil)
 
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Now complete the job, as external user of the engine
 	_, _, err = eq.ConfirmPayload(context.Background())
 	require.NoError(t, err)
@@ -1106,6 +1108,7 @@ func TestResetLoop(t *testing.T) {
 	eq.engineSyncTarget = refA2
 	eq.safeHead = refA1
 	eq.finalized = refA0
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 
 	// Qeueue up the safe attributes
 	require.Nil(t, eq.safeAttributes)
@@ -1124,6 +1127,7 @@ func TestResetLoop(t *testing.T) {
 	eng.ExpectForkchoiceUpdate(preFc, nil, nil, nil)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Crux of the test. Should be in a valid state after the reset.
 	require.ErrorIs(t, eq.Step(context.Background()), NotEnoughData, "Should be able to step after a reset")
 
