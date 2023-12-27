@@ -705,16 +705,19 @@ func TestVerifyNewL1Origin(t *testing.T) {
 		newOrigin           eth.L1BlockRef
 		expectReset         bool
 		expectedFetchBlocks map[uint64]eth.L1BlockRef
+		verifyPass          bool
 	}{
 		{
 			name:        "L1OriginBeforeUnsafeOrigin",
 			newOrigin:   refD,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name:        "Matching",
 			newOrigin:   refF,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name: "BlockNumberEqualDifferentHash",
@@ -725,11 +728,13 @@ func TestVerifyNewL1Origin(t *testing.T) {
 				Time:       refF.Time,
 			},
 			expectReset: true,
+			verifyPass:  false,
 		},
 		{
 			name:        "UnsafeIsParent",
 			newOrigin:   refG,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name: "UnsafeIsParentNumberDifferentHash",
@@ -740,6 +745,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 				Time:       refG.Time,
 			},
 			expectReset: true,
+			verifyPass:  false,
 		},
 		{
 			name:        "UnsafeIsOlderCanonical",
@@ -748,6 +754,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			expectedFetchBlocks: map[uint64]eth.L1BlockRef{
 				refF.Number: refF,
 			},
+			verifyPass: true,
 		},
 		{
 			name: "UnsafeIsOlderNonCanonical",
@@ -767,6 +774,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 					Time:       refF.Time,
 				},
 			},
+			verifyPass: false,
 		},
 	}
 	for _, test := range tests {
@@ -841,6 +849,9 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			// L1 chain reorgs so new origin is at same slot as refF but on a different fork
 			prev.origin = test.newOrigin
 			eq.UnsafeL2Head()
+			if test.verifyPass {
+				l1F.ExpectClearReceiptsCacheBefore(refB.Number)
+			}
 			err = eq.Step(context.Background())
 			if test.expectReset {
 				require.ErrorIs(t, err, ErrReset, "should reset pipeline due to mismatched origin")
