@@ -174,27 +174,32 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 						go func(ctx context.Context, blockNumber uint64) {
 							defer wg.Done()
 							for {
-								if _, ok := s.receiptsCache.Get(blockNumber); ok {
+								select {
+								case <-s.done:
 									return
+								default:
+									if _, ok := s.receiptsCache.Get(blockNumber); ok {
+										return
+									}
+									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
+									if err != nil {
+										s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
+										time.Sleep(1 * time.Second)
+										continue
+									}
+									isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
+									if err != nil {
+										s.log.Warn("failed to pre-fetch receipts", "err", err)
+										return
+									}
+									if !isSuccess {
+										s.log.Debug("pre fetch receipts fail without error,need retry", "blockHash", blockInfo.Hash, "blockNumber", blockNumber)
+										time.Sleep(1 * time.Second)
+										continue
+									}
+									s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number)
+									break
 								}
-								blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
-								if err != nil {
-									s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
-									time.Sleep(1 * time.Second)
-									continue
-								}
-								isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
-								if err != nil {
-									s.log.Warn("failed to pre-fetch receipts", "err", err)
-									return
-								}
-								if !isSuccess {
-									s.log.Debug("pre fetch receipts fail without error,need retry", "blockHash", blockInfo.Hash, "blockNumber", blockNumber)
-									time.Sleep(1 * time.Second)
-									continue
-								}
-								s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number)
-								break
 							}
 						}(ctx, currentL1Block)
 						currentL1Block = currentL1Block + 1
