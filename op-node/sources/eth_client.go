@@ -370,13 +370,10 @@ func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Has
 	// that if just one of many calls fail, we only retry the failed call rather than all of the calls.
 	// The underlying fetcher uses the receipts hash to verify receipt integrity.
 	var job *receiptsFetchingJob
-	var v any
-	var ok bool
 	var isFull bool
-	v, ok = s.receiptsCache.Get(info.NumberU64())
-	pair, pairOk := v.(*receiptsFetchingJobPair)
-	if ok && pairOk && pair.blockHash == blockHash {
-		job = pair.job
+	v, ok := s.receiptsCache.Get(info.NumberU64())
+	if ok && v.blockHash == blockHash {
+		job = v.job
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
