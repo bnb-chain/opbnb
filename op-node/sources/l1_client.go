@@ -162,8 +162,9 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 					}
 
 					var taskCount int
-					if blockRef.Number-currentL1Block >= uint64(s.maxConcurrentRequests) {
-						taskCount = s.maxConcurrentRequests
+					maxConcurrent := s.maxConcurrentRequests / 2
+					if blockRef.Number-currentL1Block >= uint64(maxConcurrent) {
+						taskCount = maxConcurrent
 					} else {
 						taskCount = int(blockRef.Number-currentL1Block) + 1
 					}
