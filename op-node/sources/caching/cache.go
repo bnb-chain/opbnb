@@ -1,8 +1,6 @@
 package caching
 
-import (
-	lru "github.com/hashicorp/golang-lru"
-)
+import lru "github.com/hashicorp/golang-lru"
 
 type Metrics interface {
 	CacheAdd(label string, cacheSize int, evicted bool)
