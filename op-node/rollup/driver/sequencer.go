@@ -46,6 +46,9 @@ type Sequencer struct {
 	timeNow func() time.Time
 
 	nextAction time.Time
+
+	// if accEmptyBlocks>10, will delay nextAction 600ms for full block building
+	accEmptyBlocks int
 }
 
 func NewSequencer(log log.Logger, cfg *rollup.Config, engine derive.ResettableEngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
@@ -228,6 +231,9 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			return nil, nil
 		} else {
 			d.attrBuilder.CachePayloadByHash(payload)
+			if len(payload.Transactions) == 1 {
+				d.accEmptyBlocks += 1
+			}
 			d.log.Info("sequencer successfully built a new block", "block", payload.ID(), "time", uint64(payload.Timestamp), "txs", len(payload.Transactions))
 			return payload, nil
 		}
@@ -250,6 +256,11 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			}
 		} else {
 			parent, buildingID, _ := d.engine.BuildingPayload() // we should have a new payload ID now that we're building a block
+			if d.accEmptyBlocks > 10 {
+				d.nextAction = d.timeNow().Add(600 * time.Millisecond)
+				d.accEmptyBlocks = 0
+				d.log.Info("sequencer delay next action 600ms and reset accEmptyBlocks")
+			}
 			d.log.Info("sequencer started building new block", "payload_id", buildingID, "l2_parent_block", parent, "l2_parent_block_time", parent.Time)
 		}
 		return nil, nil
