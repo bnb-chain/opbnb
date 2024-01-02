@@ -402,6 +402,7 @@ func (eq *EngineQueue) postProcessSafeL2() {
 			eq.log.Debug("updated finality-data", "last_l1", last.L1Block, "last_l2", last.L2Block)
 		}
 	}
+	eq.l1Fetcher.ClearReceiptsCacheBefore(eq.safeHead.L1Origin.Number)
 }
 
 func (eq *EngineQueue) logSyncProgress(reason string) {

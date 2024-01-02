@@ -105,8 +105,8 @@ type EthClient struct {
 
 	// cache receipts in bundles per block hash
 	// We cache the receipts fetching job to not lose progress when we have to retry the `Fetch` call
-	// common.Hash -> *receiptsFetchingJob
-	receiptsCache *caching.LRUCache
+	// common.Hash -> *receiptsFetchingJobPair
+	receiptsCache *caching.PreFetchCache[*receiptsFetchingJobPair]
 
 	// cache transactions in bundles per block hash
 	// common.Hash -> types.Transactions
@@ -172,7 +172,7 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		mustBePostMerge:         config.MustBePostMerge,
 		provKind:                config.RPCProviderKind,
 		log:                     log,
-		receiptsCache:           caching.NewLRUCache(metrics, "receipts", config.ReceiptsCacheSize),
+		receiptsCache:           caching.NewPreFetchCache[*receiptsFetchingJobPair](metrics, "receipts", config.ReceiptsCacheSize),
 		transactionsCache:       caching.NewLRUCache(metrics, "txs", config.TransactionsCacheSize),
 		headersCache:            caching.NewLRUCache(metrics, "headers", config.HeadersCacheSize),
 		payloadsCache:           caching.NewLRUCache(metrics, "payloads", config.PayloadsCacheSize),
@@ -357,27 +357,51 @@ func (s *EthClient) PayloadByLabel(ctx context.Context, label eth.BlockLabel) (*
 // It verifies the receipt hash in the block header against the receipt hash of the fetched receipts
 // to ensure that the execution engine did not fail to return any receipts.
 func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error) {
+	blockInfo, receipts, err, _ := s.fetchReceiptsInner(ctx, blockHash, false)
+	return blockInfo, receipts, err
+}
+
+func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Hash, isForPreFetch bool) (eth.BlockInfo, types.Receipts, error, bool) {
 	info, txs, err := s.InfoAndTxsByHash(ctx, blockHash)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, false
 	}
 	// Try to reuse the receipts fetcher because is caches the results of intermediate calls. This means
 	// that if just one of many calls fail, we only retry the failed call rather than all of the calls.
 	// The underlying fetcher uses the receipts hash to verify receipt integrity.
 	var job *receiptsFetchingJob
-	if v, ok := s.receiptsCache.Get(blockHash); ok {
-		job = v.(*receiptsFetchingJob)
+	var isFull bool
+	v, ok := s.receiptsCache.Get(info.NumberU64())
+	if ok && v.blockHash == blockHash {
+		job = v.job
 	} else {
 		txHashes := eth.TransactionsToHashes(txs)
 		job = NewReceiptsFetchingJob(s, s.client, s.maxBatchSize, eth.ToBlockID(info), info.ReceiptHash(), txHashes)
-		s.receiptsCache.Add(blockHash, job)
+		_, isFull = s.receiptsCache.AddIfNotFull(info.NumberU64(), &receiptsFetchingJobPair{
+			blockHash: blockHash,
+			job:       job,
+		})
+		if isForPreFetch && isFull {
+			return nil, nil, nil, true
+		}
 	}
 	receipts, err := job.Fetch(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, isFull
 	}
 
-	return info, receipts, nil
+	return info, receipts, nil, isFull
+}
+
+func (s *EthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
+	_, _, err, isFull := s.fetchReceiptsInner(ctx, blockHash, true)
+	if err != nil {
+		return false, err
+	}
+	if isFull {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GetProof returns an account proof result, with any optional requested storage proofs.

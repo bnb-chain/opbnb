@@ -18,6 +18,7 @@ import (
 type Downloader interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
+	PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error)
 }
 
 type L1OriginSelectorIface interface {

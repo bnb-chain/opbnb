@@ -359,6 +359,11 @@ type rpcClient interface {
 	BatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 }
 
+type receiptsFetchingJobPair struct {
+	blockHash common.Hash
+	job       *receiptsFetchingJob
+}
+
 // receiptsFetchingJob runs the receipt fetching for a specific block,
 // and can re-run and adapt based on the fetching method preferences and errors communicated with the requester.
 type receiptsFetchingJob struct {
