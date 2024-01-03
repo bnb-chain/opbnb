@@ -14,6 +14,7 @@ This is a minor release and upgrading is optional.
 - #89: feat(op-node): add opBNB bootnodes
 - #94: fix(op-node/op-batcher): fallbackClient should ignore ethereum.NotFound error
 - #100: feature(op-node): pre-fetch receipts concurrently
+- #101: optimize(op-node): continue optimizing sequencer step schedule
 - #104: feat(op-node): pre-fetch receipts concurrently round 2
 - #106: optimize: extended expire time for sequencer block broadcasting
 
