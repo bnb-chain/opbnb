@@ -15,6 +15,12 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 )
 
+// When block produce is interrupted by high L1 latency, sequencer will build a full block periodically to avoid chain stuck
+const buildFullBlockInterval = 20
+
+// When block produce is lagging exceed lagTimeWindow, sequencer will set attrs.NoTxPool to true to quickly catch up
+const lagTimeWindow = 2 * time.Minute
+
 type Downloader interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
@@ -47,7 +53,7 @@ type Sequencer struct {
 
 	nextAction time.Time
 
-	// if accEmptyBlocks>10, will delay nextAction 600ms for full block building
+	// if accEmptyBlocks > buildFullBlockInterval, will delay nextAction 600ms for full block building
 	accEmptyBlocks int
 }
 
@@ -93,7 +99,19 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
 	// setting NoTxPool to true, which will cause the Sequencer to not include any transactions
 	// from the transaction pool.
-	attrs.NoTxPool = uint64(attrs.Timestamp) > l1Origin.Time+d.config.MaxSequencerDrift
+	if uint64(attrs.Timestamp) > l1Origin.Time+d.config.MaxSequencerDrift {
+		attrs.NoTxPool = true
+	} else {
+		// This is short term solution to increase sequencer catching up speed.
+		// Long term solution should optimize op-geth payload building work flow.
+		attrsTime := time.Unix(int64(attrs.Timestamp), 0)
+		isCatchingUp := time.Since(attrsTime) > lagTimeWindow
+		if isCatchingUp && (d.accEmptyBlocks < buildFullBlockInterval) {
+			attrs.NoTxPool = true
+		} else {
+			attrs.NoTxPool = false
+		}
+	}
 
 	d.log.Debug("prepared attributes for new block",
 		"num", l2Head.Number+1, "time", uint64(attrs.Timestamp),
@@ -256,7 +274,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			}
 		} else {
 			parent, buildingID, _ := d.engine.BuildingPayload() // we should have a new payload ID now that we're building a block
-			if d.accEmptyBlocks > 10 {
+			if d.accEmptyBlocks >= buildFullBlockInterval {
 				d.nextAction = d.timeNow().Add(600 * time.Millisecond)
 				d.accEmptyBlocks = 0
 				d.log.Info("sequencer delay next action 600ms and reset accEmptyBlocks")
