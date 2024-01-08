@@ -21,7 +21,7 @@ type Metricer interface {
 }
 
 // NewInstrumentedClient creates a new instrumented client. It takes
-// a concrete *rpc.Client to prevent people from passing in an already
+// a concrete EthClient to prevent people from passing in an already
 // instrumented client.
 func NewInstrumentedClient(c EthClient, m Metricer) EthClient {
 	return &InstrumentedClient{
