@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-service/client"
 
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli"
 
@@ -25,7 +24,7 @@ type Config struct {
 	log        log.Logger
 	metr       metrics.Metricer
 	L1Client   client.EthClient
-	L2Client   *ethclient.Client
+	L2Client   client.EthClient
 	RollupNode *sources.RollupClient
 	TxManager  txmgr.TxManager
 

@@ -4,11 +4,12 @@ import "github.com/ethereum/go-ethereum/core/types"
 
 type NoopTxMetrics struct{}
 
-func (*NoopTxMetrics) RecordNonce(uint64)                {}
-func (*NoopTxMetrics) RecordPendingTx(int64)             {}
-func (*NoopTxMetrics) RecordGasBumpCount(int)            {}
-func (*NoopTxMetrics) RecordTxConfirmationLatency(int64) {}
-func (*NoopTxMetrics) TxConfirmed(*types.Receipt)        {}
-func (*NoopTxMetrics) TxPublished(string)                {}
-func (*NoopTxMetrics) RPCError()                         {}
-func (m *NoopTxMetrics) RecordL1UrlSwitchEvt(url string) {}
+func (*NoopTxMetrics) RecordNonce(uint64)                                     {}
+func (*NoopTxMetrics) RecordPendingTx(int64)                                  {}
+func (*NoopTxMetrics) RecordGasBumpCount(int)                                 {}
+func (*NoopTxMetrics) RecordTxConfirmationLatency(int64)                      {}
+func (*NoopTxMetrics) TxConfirmed(*types.Receipt)                             {}
+func (*NoopTxMetrics) TxPublished(string)                                     {}
+func (*NoopTxMetrics) RPCError()                                              {}
+func (m *NoopTxMetrics) RecordL1UrlSwitchEvt(url string)                      {}
+func (m *NoopTxMetrics) RecordRPCClientRequest(method string) func(err error) { return nil }

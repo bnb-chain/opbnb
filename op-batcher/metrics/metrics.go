@@ -2,8 +2,12 @@ package metrics
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,6 +21,7 @@ import (
 )
 
 const Namespace = "op_batcher"
+const RPCClientSubsystem = "rpc_client"
 
 type Metricer interface {
 	RecordInfo(version string)
@@ -43,6 +48,7 @@ type Metricer interface {
 	RecordBatchTxFailed()
 
 	Document() []opmetrics.DocumentedMetric
+	client.Metricer
 }
 
 type Metrics struct {
@@ -74,6 +80,10 @@ type Metrics struct {
 	channelOutputBytesTotal prometheus.Counter
 
 	batcherTxEvs opmetrics.EventVec
+
+	RPCClientRequestsTotal          *prometheus.CounterVec
+	RPCClientRequestDurationSeconds *prometheus.HistogramVec
+	RPCClientResponsesTotal         *prometheus.CounterVec
 }
 
 var _ Metricer = (*Metrics)(nil)
@@ -174,6 +184,33 @@ func NewMetrics(procName string) *Metrics {
 		}),
 
 		batcherTxEvs: opmetrics.NewEventVec(factory, ns, "", "batcher_tx", "BatcherTx", []string{"stage"}),
+
+		RPCClientRequestsTotal: factory.NewCounterVec(prometheus.CounterOpts{
+			Namespace: ns,
+			Subsystem: RPCClientSubsystem,
+			Name:      "requests_total",
+			Help:      "Total RPC requests initiated by the op-batcher's RPC client",
+		}, []string{
+			"method",
+		}),
+		RPCClientRequestDurationSeconds: factory.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: ns,
+			Subsystem: RPCClientSubsystem,
+			Name:      "request_duration_seconds",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
+			Help:      "Histogram of RPC client request durations",
+		}, []string{
+			"method",
+		}),
+		RPCClientResponsesTotal: factory.NewCounterVec(prometheus.CounterOpts{
+			Namespace: ns,
+			Subsystem: RPCClientSubsystem,
+			Name:      "responses_total",
+			Help:      "Total RPC request responses received by the op-batcher's RPC client",
+		}, []string{
+			"method",
+			"error",
+		}),
 	}
 }
 
@@ -294,6 +331,39 @@ func (m *Metrics) RecordBatchTxSuccess() {
 
 func (m *Metrics) RecordBatchTxFailed() {
 	m.batcherTxEvs.Record(TxStageFailed)
+}
+
+func (m *Metrics) RecordRPCClientRequest(method string) func(err error) {
+	m.RPCClientRequestsTotal.WithLabelValues(method).Inc()
+	timer := prometheus.NewTimer(m.RPCClientRequestDurationSeconds.WithLabelValues(method))
+	return func(err error) {
+		m.RecordRPCClientResponse(method, err)
+		timer.ObserveDuration()
+	}
+}
+
+// RecordRPCClientResponse records an RPC response. It will
+// convert the passed-in error into something metrics friendly.
+// Nil errors get converted into <nil>, RPC errors are converted
+// into rpc_<error code>, HTTP errors are converted into
+// http_<status code>, and everything else is converted into
+// <unknown>.
+func (m *Metrics) RecordRPCClientResponse(method string, err error) {
+	var errStr string
+	var rpcErr rpc.Error
+	var httpErr rpc.HTTPError
+	if err == nil {
+		errStr = "<nil>"
+	} else if errors.As(err, &rpcErr) {
+		errStr = fmt.Sprintf("rpc_%d", rpcErr.ErrorCode())
+	} else if errors.As(err, &httpErr) {
+		errStr = fmt.Sprintf("http_%d", httpErr.StatusCode)
+	} else if errors.Is(err, ethereum.NotFound) {
+		errStr = "<not found>"
+	} else {
+		errStr = "<unknown>"
+	}
+	m.RPCClientResponsesTotal.WithLabelValues(method, errStr).Inc()
 }
 
 // estimateBatchSize estimates the size of the batch

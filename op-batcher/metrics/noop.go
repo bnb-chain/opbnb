@@ -38,3 +38,7 @@ func (*noopMetrics) RecordBatchTxFailed()    {}
 
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
 }
+
+func (m *noopMetrics) RecordRPCClientRequest(method string) func(err error) {
+	return nil
+}

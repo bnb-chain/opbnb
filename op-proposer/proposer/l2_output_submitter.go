@@ -162,6 +162,7 @@ func NewL2OutputSubmitterConfigFromCLIConfig(cfg CLIConfig, l log.Logger, m metr
 	if err != nil {
 		return nil, err
 	}
+	l1Client = opclient.NewInstrumentedClient(l1Client, m)
 
 	rollupClient, err := opclient.DialRollupClientWithTimeout(ctx, cfg.RollupRpc, opclient.DefaultDialTimeout)
 	if err != nil {
