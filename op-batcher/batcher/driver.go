@@ -57,11 +57,13 @@ func NewBatchSubmitterFromCLIConfig(cfg CLIConfig, l log.Logger, m metrics.Metri
 	if err != nil {
 		return nil, err
 	}
+	l1Client = opclient.NewInstrumentedClient(l1Client, m)
 
 	l2Client, err := opclient.DialEthClientWithTimeout(ctx, cfg.L2EthRpc, opclient.DefaultDialTimeout)
 	if err != nil {
 		return nil, err
 	}
+	l2Client = opclient.NewInstrumentedClient(l2Client, m)
 
 	rollupClient, err := opclient.DialRollupClientWithTimeout(ctx, cfg.RollupRpc, opclient.DefaultDialTimeout)
 	if err != nil {

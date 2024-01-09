@@ -152,6 +152,14 @@ func (l *FallbackClient) CallContract(ctx context.Context, call ethereum.CallMsg
 	return contract, err
 }
 
+func (l *FallbackClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	block, err := (*l.currentClient.Load()).BlockByNumber(ctx, number)
+	if err != nil {
+		l.handleErr(err, "BlockByNumber")
+	}
+	return block, err
+}
+
 func (l *FallbackClient) Close() {
 	l.mx.Lock()
 	defer l.mx.Unlock()
