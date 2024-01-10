@@ -138,6 +138,10 @@ type EthClient struct {
 
 	// [OPTIONAL] The reth DB path to fetch receipts from
 	rethDbPath string
+
+	// isReadOrderly Indicates whether the client often reads data in order of block height.
+	// If so, the process of reading the cache will be different to ensure a high cache hit rate.
+	isReadOrderly bool
 }
 
 func (s *EthClient) PickReceiptsMethod(txCount uint64) ReceiptsFetchingMethod {
@@ -166,7 +170,7 @@ func (s *EthClient) OnReceiptsMethodErr(m ReceiptsFetchingMethod, err error) {
 
 // NewEthClient returns an [EthClient], wrapping an RPC with bindings to fetch ethereum data with added error logging,
 // metric tracking, and caching. The [EthClient] uses a [LimitRPC] wrapper to limit the number of concurrent RPC requests.
-func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, config *EthClientConfig) (*EthClient, error) {
+func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, config *EthClientConfig, isReadOrderly bool) (*EthClient, error) {
 	if err := config.Check(); err != nil {
 		return nil, fmt.Errorf("bad config, cannot create L1 source: %w", err)
 	}
@@ -186,6 +190,7 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		lastMethodsReset:        time.Now(),
 		methodResetDuration:     config.MethodResetDuration,
 		rethDbPath:              config.RethDBPath,
+		isReadOrderly:           isReadOrderly,
 	}, nil
 }
 
@@ -298,7 +303,7 @@ func (s *EthClient) ChainID(ctx context.Context) (*big.Int, error) {
 }
 
 func (s *EthClient) InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error) {
-	if header, ok := s.headersCache.Get(hash); ok {
+	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly); ok {
 		return header, nil
 	}
 	return s.headerCall(ctx, "eth_getBlockByHash", hashID(hash))
@@ -323,8 +328,8 @@ func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (e
 }
 
 func (s *EthClient) InfoAndTxsByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, types.Transactions, error) {
-	if header, ok := s.headersCache.Get(hash); ok {
-		if txs, ok := s.transactionsCache.Get(hash); ok {
+	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly); ok {
+		if txs, ok := s.transactionsCache.GetOrPeek(hash, s.isReadOrderly); ok {
 			return header, txs, nil
 		}
 	}

@@ -22,6 +22,18 @@ func (c *LRUCache[K, V]) Get(key K) (value V, ok bool) {
 	return value, ok
 }
 
+func (c *LRUCache[K,V]) GetOrPeek(key K, usePeek bool) (value V, ok bool) {
+	if usePeek {
+		value, ok = c.inner.Peek(key)
+	} else {
+		value, ok = c.inner.Get(key)
+	}
+	if c.m != nil {
+		c.m.CacheGet(c.label, ok)
+	}
+	return value, ok
+}
+
 func (c *LRUCache[K, V]) Add(key K, value V) (evicted bool) {
 	evicted = c.inner.Add(key, value)
 	if c.m != nil {

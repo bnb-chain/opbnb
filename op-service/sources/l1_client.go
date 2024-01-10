@@ -73,7 +73,7 @@ type L1Client struct {
 
 // NewL1Client wraps a RPC with bindings to fetch L1 data, while logging errors, tracking metrics (optional), and caching.
 func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, config *L1ClientConfig) (*L1Client, error) {
-	ethClient, err := NewEthClient(client, log, metrics, &config.EthClientConfig)
+	ethClient, err := NewEthClient(client, log, metrics, &config.EthClientConfig, true)
 	if err != nil {
 		return nil, err
 	}
