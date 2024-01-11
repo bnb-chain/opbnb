@@ -187,7 +187,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 								case <-s.done:
 									return
 								default:
-									pair, ok := s.receiptsCache.Get(blockNumber)
+									pair, ok := s.receiptsCache.Get(blockNumber,false)
 									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
 									if err != nil {
 										s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)

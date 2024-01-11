@@ -22,13 +22,13 @@ func (c *LRUCache[K, V]) Get(key K) (value V, ok bool) {
 	return value, ok
 }
 
-func (c *LRUCache[K,V]) GetOrPeek(key K, usePeek bool) (value V, ok bool) {
+func (c *LRUCache[K,V]) GetOrPeek(key K, usePeek bool, recordMetrics bool) (value V, ok bool) {
 	if usePeek {
 		value, ok = c.inner.Peek(key)
 	} else {
 		value, ok = c.inner.Get(key)
 	}
-	if c.m != nil {
+	if c.m != nil && recordMetrics {
 		c.m.CacheGet(c.label, ok)
 	}
 	return value, ok

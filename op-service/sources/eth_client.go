@@ -303,7 +303,7 @@ func (s *EthClient) ChainID(ctx context.Context) (*big.Int, error) {
 }
 
 func (s *EthClient) InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error) {
-	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly); ok {
+	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly, true); ok {
 		return header, nil
 	}
 	return s.headerCall(ctx, "eth_getBlockByHash", hashID(hash))
@@ -328,8 +328,12 @@ func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (e
 }
 
 func (s *EthClient) InfoAndTxsByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, types.Transactions, error) {
-	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly); ok {
-		if txs, ok := s.transactionsCache.GetOrPeek(hash, s.isReadOrderly); ok {
+	return s.infoAndTxsByHash(ctx, hash, true)
+}
+
+func (s *EthClient) infoAndTxsByHash(ctx context.Context, hash common.Hash, recordMetrics bool) (eth.BlockInfo, types.Transactions, error) {
+	if header, ok := s.headersCache.GetOrPeek(hash, s.isReadOrderly, recordMetrics); ok {
+		if txs, ok := s.transactionsCache.GetOrPeek(hash, s.isReadOrderly, recordMetrics); ok {
 			return header, txs, nil
 		}
 	}
@@ -385,7 +389,7 @@ func (s *EthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash)
 }
 
 func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Hash, isForPreFetch bool) (eth.BlockInfo, types.Receipts, error, bool) {
-	info, txs, err := s.InfoAndTxsByHash(ctx, blockHash)
+	info, txs, err := s.infoAndTxsByHash(ctx, blockHash, !isForPreFetch)
 	if err != nil {
 		return nil, nil, err, false
 	}
@@ -394,7 +398,7 @@ func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Has
 	// The underlying fetcher uses the receipts hash to verify receipt integrity.
 	var job *receiptsFetchingJob
 	var isFull bool
-	v, ok := s.receiptsCache.Get(info.NumberU64())
+	v, ok := s.receiptsCache.Get(info.NumberU64(), !isForPreFetch)
 	if ok && v.blockHash == blockHash {
 		job = v.job
 	} else {
