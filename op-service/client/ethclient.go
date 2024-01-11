@@ -2,12 +2,13 @@ package client
 
 import (
 	"context"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -15,7 +16,7 @@ import (
 // DialEthClientWithTimeout attempts to dial the L1 provider using the provided
 // URL. If the dial doesn't complete within defaultDialTimeout seconds, this
 // method will return an error.
-func DialEthClientWithTimeout(ctx context.Context, url string, timeout time.Duration) (*ethclient.Client, error) {
+func DialEthClientWithTimeout(ctx context.Context, url string, timeout time.Duration) (EthClient, error) {
 	ctxt, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -66,5 +67,6 @@ type EthClient interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
 	CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 	Close()
 }
