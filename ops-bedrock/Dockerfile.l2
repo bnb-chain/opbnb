@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ghcr.io/bnb-chain/op-geth:latest
+FROM --platform=linux/amd64 ghcr.io/bnb-chain/op-geth:develop
 
 RUN apk add --no-cache jq
 
