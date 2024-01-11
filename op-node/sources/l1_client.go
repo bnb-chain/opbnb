@@ -179,7 +179,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 								case <-s.done:
 									return
 								default:
-									if _, ok := s.receiptsCache.Get(blockNumber); ok {
+									if _, ok := s.receiptsCache.Get(blockNumber, false); ok {
 										return
 									}
 									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
