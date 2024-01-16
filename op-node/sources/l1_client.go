@@ -214,6 +214,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 }
 
 func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
+	s.log.Debug("clear receipts cache before", "blockNumber", blockNumber)
 	s.receiptsCache.RemoveLessThan(blockNumber)
 }
 
