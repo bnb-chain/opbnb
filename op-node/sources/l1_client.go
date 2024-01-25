@@ -48,6 +48,8 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 	}
 }
 
+const sequencerConfDepth = 15
+
 // L1Client provides typed bindings to retrieve L1 data from an RPC source,
 // with optimized batch requests, cached results, and flag to not trust the RPC
 // (i.e. to verify all returned contents against corresponding block hashes).
@@ -139,6 +141,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		go func() {
 			var currentL1Block uint64
+			var parentHash *common.Hash
 			for {
 				select {
 				case <-s.done:
@@ -147,6 +150,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
 					s.receiptsCache.RemoveAll()
+					parentHash = nil
 				default:
 					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
 					if err != nil {
@@ -169,6 +173,9 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 						taskCount = int(blockRef.Number-currentL1Block) + 1
 					}
 
+					blockInfoChan := make(chan eth.L1BlockRef, taskCount)
+					oldestFetchBlockNumber := currentL1Block
+
 					var wg sync.WaitGroup
 					for i := 0; i < taskCount; i++ {
 						wg.Add(1)
@@ -179,15 +186,17 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 								case <-s.done:
 									return
 								default:
-									if _, ok := s.receiptsCache.Get(blockNumber); ok {
-										return
-									}
+									pair, ok := s.receiptsCache.Get(blockNumber)
 									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
 									if err != nil {
 										s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
 										time.Sleep(1 * time.Second)
 										continue
 									}
+									if ok && pair.blockHash == blockInfo.Hash {
+										return
+									}
+
 									isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
 									if err != nil {
 										s.log.Warn("failed to pre-fetch receipts", "err", err)
@@ -198,14 +207,39 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 										time.Sleep(1 * time.Second)
 										continue
 									}
-									s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number)
-									break
+									s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number, "hash", blockInfo.Hash)
+									blockInfoChan <- blockInfo
+									return
 								}
 							}
 						}(ctx, currentL1Block)
 						currentL1Block = currentL1Block + 1
 					}
 					wg.Wait()
+					close(blockInfoChan)
+
+					//try to find out l1 reOrg and return to an earlier block height for re-prefetching
+					var latestBlockHash common.Hash
+					latestBlockNumber := uint64(0)
+					var oldestBlockParentHash common.Hash
+					for l1BlockInfo := range blockInfoChan {
+						if l1BlockInfo.Number > latestBlockNumber {
+							latestBlockHash = l1BlockInfo.Hash
+							latestBlockNumber = l1BlockInfo.Number
+						}
+						if l1BlockInfo.Number == oldestFetchBlockNumber {
+							oldestBlockParentHash = l1BlockInfo.ParentHash
+						}
+					}
+
+					s.log.Debug("pre-fetching receipts hash", "latestBlockHash", latestBlockHash, "latestBlockNumber", latestBlockNumber, "oldestBlockNumber", oldestFetchBlockNumber, "oldestBlockParentHash", oldestBlockParentHash)
+					if parentHash != nil && oldestBlockParentHash != (common.Hash{}) && oldestBlockParentHash != *parentHash && currentL1Block >= sequencerConfDepth+uint64(taskCount) {
+						currentL1Block = currentL1Block - sequencerConfDepth - uint64(taskCount)
+						s.log.Warn("pre-fetching receipts found l1 reOrg, return to an earlier block height for re-prefetching", "recordParentHash", *parentHash, "unsafeParentHash", oldestBlockParentHash, "number", oldestFetchBlockNumber, "backToNumber", currentL1Block)
+						parentHash = nil
+						continue
+					}
+					parentHash = &latestBlockHash
 				}
 			}
 		}()
