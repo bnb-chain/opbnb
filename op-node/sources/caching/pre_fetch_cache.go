@@ -43,7 +43,8 @@ func (v *PreFetchCache[V]) AddIfNotFull(key uint64, value V) (success bool, isFu
 	defer v.lock.Unlock()
 	v.lock.Lock()
 	if _, ok := v.inner[key]; ok {
-		return false, false
+		v.inner[key] = value
+		return true, false
 	}
 	if v.queue.Size() >= v.maxSize {
 		return false, true

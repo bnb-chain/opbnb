@@ -114,6 +114,7 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 			}).Return([]error{nil})
 		}
 		var lastParentHeader common.Hash
+		var real100Hash common.Hash
 		for i := 76; i <= 100; i++ {
 			currentHead := &rpcHeader{
 				ParentHash:      lastParentHeader,
@@ -135,6 +136,9 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 				WithdrawalsRoot: nil,
 				Hash:            randHash(),
 			}
+			if i == 100 {
+				real100Hash = currentHead.Hash
+			}
 			lastParentHeader = currentHead.Hash
 			m.On("CallContext", ctx, new(*rpcHeader),
 				"eth_getBlockByNumber", []any{numberID(i).Arg(), false}).Once().Run(func(args mock.Arguments) {
@@ -154,8 +158,9 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 		err2 := s.GoOrUpdatePreFetchReceipts(ctx, 81)
 		require.NoError(t, err2)
 		time.Sleep(1 * time.Second)
-		_, ok := s.receiptsCache.Get(100)
+		pair, ok := s.receiptsCache.Get(100)
 		require.True(t, ok, "100 cache miss")
+		require.Equal(t, real100Hash, pair.blockHash, "block 100 hash is different,want:%s,but:%s", real100Hash, pair.blockHash)
 		_, ok2 := s.receiptsCache.Get(76)
 		require.True(t, ok2, "76 cache miss")
 	})
