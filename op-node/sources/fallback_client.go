@@ -157,6 +157,12 @@ func (l *FallbackClient) switchCurrentRpc() {
 }
 
 func (l *FallbackClient) switchCurrentRpcLogic() error {
+	defer func() {
+		if !l.isInFallbackState {
+			l.isInFallbackState = true
+			l.recoverIfFirstRpcHealth()
+		}
+	}()
 	url := l.urlList[l.currentIndex]
 	newRpc, err := l.rpcInitFunc(url)
 	if err != nil {
@@ -179,10 +185,6 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 		}
 	}
 	l.log.Info("switched current rpc to new url", "url", url)
-	if !l.isInFallbackState {
-		l.isInFallbackState = true
-		l.recoverIfFirstRpcHealth()
-	}
 	return nil
 }
 
