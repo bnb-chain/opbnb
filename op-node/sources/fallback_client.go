@@ -223,7 +223,9 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		}
 		lastRpc := *l.currentRpc.Load()
 		l.currentRpc.Store(&l.firstRpc)
-		lastRpc.Close()
+		if lastRpc != l.firstRpc {
+			lastRpc.Close()
+		}
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
