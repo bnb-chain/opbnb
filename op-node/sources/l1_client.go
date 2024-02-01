@@ -141,7 +141,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		go func() {
 			var currentL1Block uint64
-			var parentHash *common.Hash
+			var parentHash common.Hash
 			for {
 				select {
 				case <-s.done:
@@ -150,7 +150,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
 					s.receiptsCache.RemoveAll()
-					parentHash = nil
+					parentHash = common.Hash{}
 				default:
 					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
 					if err != nil {
@@ -194,13 +194,15 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 										continue
 									}
 									if ok && pair.blockHash == blockInfo.Hash {
+										blockInfoChan <- blockInfo
 										return
 									}
 
 									isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
 									if err != nil {
 										s.log.Warn("failed to pre-fetch receipts", "err", err)
-										return
+										time.Sleep(1 * time.Second)
+										continue
 									}
 									if !isSuccess {
 										s.log.Debug("pre fetch receipts fail without error,need retry", "blockHash", blockInfo.Hash, "blockNumber", blockNumber)
@@ -233,13 +235,13 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 					}
 
 					s.log.Debug("pre-fetching receipts hash", "latestBlockHash", latestBlockHash, "latestBlockNumber", latestBlockNumber, "oldestBlockNumber", oldestFetchBlockNumber, "oldestBlockParentHash", oldestBlockParentHash)
-					if parentHash != nil && oldestBlockParentHash != (common.Hash{}) && oldestBlockParentHash != *parentHash && currentL1Block >= sequencerConfDepth+uint64(taskCount) {
+					if parentHash != (common.Hash{}) && oldestBlockParentHash != (common.Hash{}) && oldestBlockParentHash != parentHash && currentL1Block >= sequencerConfDepth+uint64(taskCount) {
 						currentL1Block = currentL1Block - sequencerConfDepth - uint64(taskCount)
-						s.log.Warn("pre-fetching receipts found l1 reOrg, return to an earlier block height for re-prefetching", "recordParentHash", *parentHash, "unsafeParentHash", oldestBlockParentHash, "number", oldestFetchBlockNumber, "backToNumber", currentL1Block)
-						parentHash = nil
+						s.log.Warn("pre-fetching receipts found l1 reOrg, return to an earlier block height for re-prefetching", "recordParentHash", parentHash, "unsafeParentHash", oldestBlockParentHash, "number", oldestFetchBlockNumber, "backToNumber", currentL1Block)
+						parentHash = common.Hash{}
 						continue
 					}
-					parentHash = &latestBlockHash
+					parentHash = latestBlockHash
 				}
 			}
 		}()
