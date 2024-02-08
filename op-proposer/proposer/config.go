@@ -25,7 +25,7 @@ type Config struct {
 	PollInterval       time.Duration
 	NetworkTimeout     time.Duration
 	TxManager          txmgr.TxManager
-	L1Client           client.ETHClient
+	L1Client           client.Client
 	RollupClient       *sources.RollupClient
 	AllowNonFinalized  bool
 }
