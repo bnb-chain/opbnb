@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
@@ -39,8 +38,8 @@ type BatcherConfig struct {
 type BatcherService struct {
 	Log        log.Logger
 	Metrics    metrics.Metricer
-	L1Client   client.ETHClient
-	L2Client   *ethclient.Client
+	L1Client   client.Client
+	L2Client   client.Client
 	RollupNode *sources.RollupClient
 	TxManager  txmgr.TxManager
 
@@ -122,13 +121,13 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	bs.L1Client = l1Client
+	bs.L1Client = client.NewInstrumentedClientWithClient(l1Client, bs.Metrics)
 
 	l2Client, err := dial.DialEthClientWithTimeout(ctx, dial.DefaultDialTimeout, bs.Log, cfg.L2EthRpc)
 	if err != nil {
 		return fmt.Errorf("failed to dial L2 engine RPC: %w", err)
 	}
-	bs.L2Client = l2Client
+	bs.L2Client = client.NewInstrumentedClientWithClient(l2Client, bs.Metrics)
 
 	rollupClient, err := dial.DialRollupClientWithTimeout(ctx, dial.DefaultDialTimeout, bs.Log, cfg.RollupRpc)
 	if err != nil {

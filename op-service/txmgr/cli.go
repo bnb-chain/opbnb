@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 
 	opservice "github.com/ethereum-optimism/optimism/op-service"
@@ -255,6 +256,7 @@ func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, err
 	if err != nil {
 		return Config{}, fmt.Errorf("could not dial eth client: %w", err)
 	}
+	l1 = client.NewInstrumentedClientWithClient(l1, m)
 
 	ctx, cancel = context.WithTimeout(context.Background(), cfg.NetworkTimeout)
 	defer cancel()

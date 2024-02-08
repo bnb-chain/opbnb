@@ -13,6 +13,13 @@ This is a minor release and upgrading is optional.
 - #87: optimize(op-node): make block produce stable when L1 latency unstable
 - #89: feat(op-node): add opBNB bootnodes
 - #94: fix(op-node/op-batcher): fallbackClient should ignore ethereum.NotFound error
+- #100: feature(op-node): pre-fetch receipts concurrently
+- #101: optimize(op-node): continue optimizing sequencer step schedule
+- #104: feat(op-node): pre-fetch receipts concurrently round 2
+- #106: optimize: extended expire time for sequencer block broadcasting
+- #108: optimize(op-node): increase catching up speed when sequencer lagging
+- #109: feat(op-batcher/op-proposer): add InstrumentedClient
+- #111: fix(op-node): remove 3s stepCtx for sequencer
 
 ### Docker Images
 

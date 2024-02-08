@@ -378,5 +378,6 @@ func TestSequencerChaosMonkey(t *testing.T) {
 	require.Less(t, l2Head.Time-l1Times[l2Head.L1Origin], uint64(100), "The L1 origin time is close to the L2 time")
 	require.Less(t, clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 2*time.Second, "L2 time is accurate, within 2 seconds of wallclock")
 	require.Greater(t, engControl.avgBuildingTime(), time.Second, "With 2 second block time and 1 second error backoff and healthy-on-average errors, building time should at least be a second")
-	require.Greater(t, engControl.avgTxsPerBlock(), 3.0, "We expect at least 1 system tx per block, but with a mocked 0-10 txs we expect an higher avg")
+	// sequencer catching up optimization will reduce the avgTxs per block, but still should be greater than 1
+	require.Greater(t, engControl.avgTxsPerBlock(), 1.0, "We expect at least 1 system tx per block, but with a mocked 0-10 txs we expect an higher avg")
 }

@@ -23,6 +23,7 @@ type L1Source interface {
 	InfoByHash(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, error)
 	InfoAndTxsByHash(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Transactions, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
+	PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error)
 }
 
 type L2Source interface {

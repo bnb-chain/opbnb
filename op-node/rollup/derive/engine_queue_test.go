@@ -260,12 +260,14 @@ func TestEngineQueue_Finalize(t *testing.T) {
 	eq.origin = refD
 	prev.origin = refD
 	eq.safeHead = refC1
+	l1F.ExpectClearReceiptsCacheBefore(refC1.L1Origin.Number)
 	eq.postProcessSafeL2()
 
 	// now say D0 was included in E and became the new safe head
 	eq.origin = refE
 	prev.origin = refE
 	eq.safeHead = refD0
+	l1F.ExpectClearReceiptsCacheBefore(refD0.L1Origin.Number)
 	eq.postProcessSafeL2()
 
 	// let's finalize D (current L1), from which we fully derived C1 (it was safe head), but not D0 (included in E)
@@ -703,16 +705,19 @@ func TestVerifyNewL1Origin(t *testing.T) {
 		newOrigin           eth.L1BlockRef
 		expectReset         bool
 		expectedFetchBlocks map[uint64]eth.L1BlockRef
+		verifyPass          bool
 	}{
 		{
 			name:        "L1OriginBeforeUnsafeOrigin",
 			newOrigin:   refD,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name:        "Matching",
 			newOrigin:   refF,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name: "BlockNumberEqualDifferentHash",
@@ -723,11 +728,13 @@ func TestVerifyNewL1Origin(t *testing.T) {
 				Time:       refF.Time,
 			},
 			expectReset: true,
+			verifyPass:  false,
 		},
 		{
 			name:        "UnsafeIsParent",
 			newOrigin:   refG,
 			expectReset: false,
+			verifyPass:  true,
 		},
 		{
 			name: "UnsafeIsParentNumberDifferentHash",
@@ -738,6 +745,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 				Time:       refG.Time,
 			},
 			expectReset: true,
+			verifyPass:  false,
 		},
 		{
 			name:        "UnsafeIsOlderCanonical",
@@ -746,6 +754,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			expectedFetchBlocks: map[uint64]eth.L1BlockRef{
 				refF.Number: refF,
 			},
+			verifyPass: true,
 		},
 		{
 			name: "UnsafeIsOlderNonCanonical",
@@ -765,6 +774,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 					Time:       refF.Time,
 				},
 			},
+			verifyPass: false,
 		},
 	}
 	for _, test := range tests {
@@ -839,6 +849,9 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			// L1 chain reorgs so new origin is at same slot as refF but on a different fork
 			prev.origin = test.newOrigin
 			eq.UnsafeL2Head()
+			if test.verifyPass {
+				l1F.ExpectClearReceiptsCacheBefore(refB.Number)
+			}
 			err = eq.Step(context.Background())
 			if test.expectReset {
 				require.ErrorIs(t, err, ErrReset, "should reset pipeline due to mismatched origin")
@@ -938,6 +951,7 @@ func TestBlockBuildingRace(t *testing.T) {
 
 	// Expect initial forkchoice update
 	eng.ExpectForkchoiceUpdate(preFc, nil, preFcRes, nil)
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
 	// Expect initial building update, to process the attributes we queued up
@@ -1005,6 +1019,7 @@ func TestBlockBuildingRace(t *testing.T) {
 	}
 	eng.ExpectForkchoiceUpdate(postFc, nil, postFcRes, nil)
 
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Now complete the job, as external user of the engine
 	_, _, err = eq.ConfirmPayload(context.Background())
 	require.NoError(t, err)
@@ -1093,6 +1108,7 @@ func TestResetLoop(t *testing.T) {
 	eq.engineSyncTarget = refA2
 	eq.safeHead = refA1
 	eq.finalized = refA0
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 
 	// Qeueue up the safe attributes
 	require.Nil(t, eq.safeAttributes)
@@ -1111,6 +1127,7 @@ func TestResetLoop(t *testing.T) {
 	eng.ExpectForkchoiceUpdate(preFc, nil, nil, nil)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Crux of the test. Should be in a valid state after the reset.
 	require.ErrorIs(t, eq.Step(context.Background()), NotEnoughData, "Should be able to step after a reset")
 

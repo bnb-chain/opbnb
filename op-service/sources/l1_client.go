@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
 )
 
+const sequencerConfDepth = 15
+
 type L1ClientConfig struct {
 	EthClientConfig
 
@@ -38,7 +40,7 @@ func L1ClientDefaultConfig(config *rollup.Config, trustRPC bool, kind RPCProvide
 			HeadersCacheSize:      span,
 			PayloadsCacheSize:     span,
 			MaxRequestsPerBatch:   20, // TODO: tune batch param
-			MaxConcurrentRequests: 10,
+			MaxConcurrentRequests: 20,
 			TrustRPC:              trustRPC,
 			MustBePostMerge:       false,
 			RPCProviderKind:       kind,
@@ -63,6 +65,8 @@ type L1Client struct {
 	preFetchReceiptsOnce sync.Once
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
+	//max concurrent requests
+	maxConcurrentRequests int
 	//done chan
 	done chan struct{}
 }
@@ -79,6 +83,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache[common.Hash, eth.L1BlockRef](metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		maxConcurrentRequests:          config.MaxConcurrentRequests,
 		done:                           make(chan struct{}),
 	}, nil
 }
@@ -137,6 +142,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
 		go func() {
 			var currentL1Block uint64
+			var parentHash common.Hash
 			for {
 				select {
 				case <-s.done:
@@ -144,26 +150,108 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
+					s.receiptsCache.RemoveAll()
+					parentHash = common.Hash{}
 				default:
-					blockInfo, err := s.L1BlockRefByNumber(ctx, currentL1Block)
+					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
 					if err != nil {
-						s.log.Debug("failed to fetch next block info", "err", err)
+						s.log.Debug("failed to fetch latest block ref", "err", err)
 						time.Sleep(3 * time.Second)
 						continue
 					}
-					_, _, err = s.FetchReceipts(ctx, blockInfo.Hash)
-					if err != nil {
-						s.log.Warn("failed to pre-fetch receipts", "err", err)
-						time.Sleep(200 * time.Millisecond)
+
+					if currentL1Block > blockRef.Number {
+						s.log.Debug("current block height exceeds the latest block height of l1, will wait for a while.", "currentL1Block", currentL1Block, "l1Latest", blockRef.Number)
+						time.Sleep(3 * time.Second)
 						continue
 					}
-					s.log.Debug("pre-fetching receipts", "block", currentL1Block)
-					currentL1Block = currentL1Block + 1
+
+					var taskCount int
+					maxConcurrent := s.maxConcurrentRequests / 2
+					if blockRef.Number-currentL1Block >= uint64(maxConcurrent) {
+						taskCount = maxConcurrent
+					} else {
+						taskCount = int(blockRef.Number-currentL1Block) + 1
+					}
+
+					blockInfoChan := make(chan eth.L1BlockRef, taskCount)
+					oldestFetchBlockNumber := currentL1Block
+
+					var wg sync.WaitGroup
+					for i := 0; i < taskCount; i++ {
+						wg.Add(1)
+						go func(ctx context.Context, blockNumber uint64) {
+							defer wg.Done()
+							for {
+								select {
+								case <-s.done:
+									return
+								default:
+									pair, ok := s.receiptsCache.Get(blockNumber)
+									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
+									if err != nil {
+										s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
+										time.Sleep(1 * time.Second)
+										continue
+									}
+									if ok && pair.blockHash == blockInfo.Hash {
+										blockInfoChan <- blockInfo
+										return
+									}
+
+									isSuccess, err := s.PreFetchReceipts(ctx, blockInfo.Hash)
+									if err != nil {
+										s.log.Warn("failed to pre-fetch receipts", "err", err)
+										time.Sleep(1 * time.Second)
+										continue
+									}
+									if !isSuccess {
+										s.log.Debug("pre fetch receipts fail without error,need retry", "blockHash", blockInfo.Hash, "blockNumber", blockNumber)
+										time.Sleep(1 * time.Second)
+										continue
+									}
+									s.log.Debug("pre-fetching receipts done", "block", blockInfo.Number, "hash", blockInfo.Hash)
+									blockInfoChan <- blockInfo
+									return
+								}
+							}
+						}(ctx, currentL1Block)
+						currentL1Block = currentL1Block + 1
+					}
+					wg.Wait()
+					close(blockInfoChan)
+
+					//try to find out l1 reOrg and return to an earlier block height for re-prefetching
+					var latestBlockHash common.Hash
+					latestBlockNumber := uint64(0)
+					var oldestBlockParentHash common.Hash
+					for l1BlockInfo := range blockInfoChan {
+						if l1BlockInfo.Number > latestBlockNumber {
+							latestBlockHash = l1BlockInfo.Hash
+							latestBlockNumber = l1BlockInfo.Number
+						}
+						if l1BlockInfo.Number == oldestFetchBlockNumber {
+							oldestBlockParentHash = l1BlockInfo.ParentHash
+						}
+					}
+
+					s.log.Debug("pre-fetching receipts hash", "latestBlockHash", latestBlockHash, "latestBlockNumber", latestBlockNumber, "oldestBlockNumber", oldestFetchBlockNumber, "oldestBlockParentHash", oldestBlockParentHash)
+					if parentHash != (common.Hash{}) && oldestBlockParentHash != (common.Hash{}) && oldestBlockParentHash != parentHash && currentL1Block >= sequencerConfDepth+uint64(taskCount) {
+						currentL1Block = currentL1Block - sequencerConfDepth - uint64(taskCount)
+						s.log.Warn("pre-fetching receipts found l1 reOrg, return to an earlier block height for re-prefetching", "recordParentHash", parentHash, "unsafeParentHash", oldestBlockParentHash, "number", oldestFetchBlockNumber, "backToNumber", currentL1Block)
+						parentHash = common.Hash{}
+						continue
+					}
+					parentHash = latestBlockHash
 				}
 			}
 		}()
 	})
 	return nil
+}
+
+func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
+	s.receiptsCache.RemoveLessThan(blockNumber)
 }
 
 func (s *L1Client) Close() {

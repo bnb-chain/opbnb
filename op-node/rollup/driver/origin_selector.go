@@ -81,6 +81,7 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	_, _, err = los.l1.FetchReceipts(receiptsCtx, nextOrigin.Hash)
 	if err != nil {
 		receiptsCached = false
+		log.Warn("Fetch receipts cache missed when sequencer building block")
 	}
 
 	// If the next L2 block time is greater than the next origin block's time, we can choose to

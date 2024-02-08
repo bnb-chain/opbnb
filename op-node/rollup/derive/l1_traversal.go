@@ -20,6 +20,7 @@ import (
 type L1BlockRefByNumberFetcher interface {
 	L1BlockRefByNumber(context.Context, uint64) (eth.L1BlockRef, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
+	PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error)
 }
 
 type L1Traversal struct {
