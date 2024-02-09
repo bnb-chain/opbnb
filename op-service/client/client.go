@@ -4,12 +4,9 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type Client interface {
@@ -60,17 +57,7 @@ type Metricer interface {
 	RecordRPCClientRequest(method string) func(err error)
 }
 
-// NewInstrumentedClient creates a new instrumented client. It takes
-// a concrete *rpc.Client to prevent people from passing in an already
-// instrumented client.
-func NewInstrumentedClient(c *rpc.Client, m *metrics.Metrics) *InstrumentedClient {
-	return &InstrumentedClient{
-		c: ethclient.NewClient(c),
-		m: m,
-	}
-}
-
-func NewInstrumentedClientWithClient(c Client, m Metricer) *InstrumentedClient {
+func NewInstrumentedClient(c Client, m Metricer) *InstrumentedClient {
 	return &InstrumentedClient{
 		c: c,
 		m: m,

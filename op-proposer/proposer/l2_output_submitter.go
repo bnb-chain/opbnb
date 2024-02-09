@@ -177,7 +177,7 @@ func NewL2OutputSubmitterConfigFromCLIConfig(cfg CLIConfig, l log.Logger, m metr
 	if err != nil {
 		return nil, err
 	}
-	l1Client = client.NewInstrumentedClientWithClient(l1Client, m)
+	l1Client = client.NewInstrumentedClient(l1Client, m)
 
 	rollupClient, err := dial.DialRollupClientWithTimeout(context.Background(), dial.DefaultDialTimeout, l, cfg.RollupRpc)
 	if err != nil {

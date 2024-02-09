@@ -121,13 +121,13 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	bs.L1Client = client.NewInstrumentedClientWithClient(l1Client, bs.Metrics)
+	bs.L1Client = client.NewInstrumentedClient(l1Client, bs.Metrics)
 
 	l2Client, err := dial.DialEthClientWithTimeout(ctx, dial.DefaultDialTimeout, bs.Log, cfg.L2EthRpc)
 	if err != nil {
 		return fmt.Errorf("failed to dial L2 engine RPC: %w", err)
 	}
-	bs.L2Client = client.NewInstrumentedClientWithClient(l2Client, bs.Metrics)
+	bs.L2Client = client.NewInstrumentedClient(l2Client, bs.Metrics)
 
 	rollupClient, err := dial.DialRollupClientWithTimeout(ctx, dial.DefaultDialTimeout, bs.Log, cfg.RollupRpc)
 	if err != nil {
