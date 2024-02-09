@@ -10,7 +10,6 @@ COPY ./op-batcher /app/op-batcher
 COPY ./op-bindings /app/op-bindings
 COPY ./op-node /app/op-node
 COPY ./op-service /app/op-service
-COPY ./op-signer /app/op-signer
 COPY ./op-aws-sdk /app/op-aws-sdk
 COPY ./go.mod /app/go.mod
 COPY ./go.sum /app/go.sum
