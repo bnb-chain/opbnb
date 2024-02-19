@@ -27,17 +27,14 @@ services:
       dockerfile: Dockerfile.l1
     ports:
       - "8545:8545"
-      - "8546:8546"
       - "7060:6060"
     env_file:
       - ./l1.env
     user: root
     volumes:
       - "l1_data:/db"
-      - "${PWD}/../.devnet/genesis-l1.json:/genesis.json"
-      - "${PWD}/test-jwt-secret.txt:/config/test-jwt-secret.txt"
-    environment:
-      GETH_MINER_RECOMMIT: 100ms
+      - "./l1-entrypoint.sh:/l1-entrypoint.sh"
+    entrypoint: /l1-entrypoint.sh
 
   l2:
     build:
@@ -171,6 +168,9 @@ services:
       OP_BATCHER_METRICS_ENABLED: "true"
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
       OP_BATCHER_BATCH_TYPE: 0
+      OP_BATCHER_LOG_TERMINAL: "true"
+      OP_BATCHER_SUB_SAFETY_MARGIN: 30 # SWS is 15, ChannelTimeout is 40
+      OP_BATCHER_MAX_PENDING_TX: 100
 
   artifact-server:
     depends_on:

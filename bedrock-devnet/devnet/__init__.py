@@ -16,7 +16,6 @@ from collections import namedtuple
 
 
 import devnet.log_setup
-from devnet.genesis import GENESIS_TMPL
 from dotenv import dotenv_values
 
 pjoin = os.path.join
@@ -122,18 +121,22 @@ def main():
 
 def deploy_contracts(paths):
     wait_up(8545)
-    wait_for_rpc_server('127.0.0.1:8545')
-    res = eth_accounts('127.0.0.1:8545')
+    wait_for_rpc_server('http://127.0.0.1:8545')
+#     log.info('Wait for L1 for a period of time to avoid submitting transactions in the first few block heights.')
+#     time.sleep(10)
 
-    response = json.loads(res)
-    account = response['result'][0]
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    account = l1_init_holder
     log.info(f'Deploying with {account}')
 
     # send some ether to the create2 deployer account
     run_command([
-        'cast', 'send', '--from', account,
-        '--rpc-url', 'http://127.0.0.1:8545',
-        '--unlocked', '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362'
+        'cast', 'send', '--private-key', l1_init_holder_prv,
+        '--rpc-url', 'http://127.0.0.1:8545', '--gas-price', '10000000000', '--legacy',
+        '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362'
     ], env={}, cwd=paths.contracts_bedrock_dir)
 
     # deploy the create2 deployer
@@ -144,9 +147,8 @@ def deploy_contracts(paths):
 
     fqn = 'scripts/Deploy.s.sol:Deploy'
     run_command([
-        'forge', 'script', fqn, '--sender', account,
+        'forge', 'script', fqn, '--private-key', l1_init_holder_prv, '--with-gas-price', '10000000000', '--legacy',
         '--rpc-url', 'http://127.0.0.1:8545', '--broadcast',
-        '--unlocked'
     ], env={}, cwd=paths.contracts_bedrock_dir)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
@@ -164,62 +166,31 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
     write_json(paths.devnet_config_path, deploy_config)
 
 def devnet_l1_genesis(paths):
-    log.info('Generating L1 genesis state')
+    log.info('Starting L1.')
     init_devnet_l1_deploy_config(paths)
 
-    geth = subprocess.Popen([
-        'geth', '--dev', '--http', '--http.api', 'eth,debug',
-        '--verbosity', '4', '--gcmode', 'archive', '--dev.gaslimit', '30000000',
-        '--rpc.allow-unprotected-txs'
-    ])
+    run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir
+    })
 
-    try:
-        forge = ChildProcess(deploy_contracts, paths)
-        forge.start()
-        forge.join()
-        err = forge.get_error()
-        if err:
-            raise Exception(f"Exception occurred in child process: {err}")
+    forge = ChildProcess(deploy_contracts, paths)
+    forge.start()
+    forge.join()
+    err = forge.get_error()
+    if err:
+        raise Exception(f"Exception occurred in child process: {err}")
 
-        res = debug_dumpBlock('127.0.0.1:8545')
-        response = json.loads(res)
-        allocs = response['result']
-
-        write_json(paths.allocs_path, allocs)
-    finally:
-        geth.terminate()
+    log.info('Start and Deploy L1 success.')
 
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths):
-    if os.path.exists(paths.genesis_l1_path):
+    if os.path.exists(paths.addresses_json_path):
         log.info('L1 genesis already generated.')
     else:
         log.info('Generating L1 genesis.')
         if os.path.exists(paths.allocs_path) == False:
             devnet_l1_genesis(paths)
-
-        # It's odd that we want to regenerate the devnetL1.json file with
-        # an updated timestamp different than the one used in the devnet_l1_genesis
-        # function.  But, without it, CI flakes on this test rather consistently.
-        # If someone reads this comment and understands why this is being done, please
-        # update this comment to explain.
-        init_devnet_l1_deploy_config(paths, update_timestamp=True)
-        outfile_l1 = pjoin(paths.devnet_dir, 'genesis-l1.json')
-        run_command([
-            'go', 'run', 'cmd/main.go', 'genesis', 'l1',
-            '--deploy-config', paths.devnet_config_path,
-            '--l1-allocs', paths.allocs_path,
-            '--l1-deployments', paths.addresses_json_path,
-            '--outfile.l1', outfile_l1,
-        ], cwd=paths.op_node_dir)
-
-    log.info('Starting L1.')
-    run_command(['docker', 'compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir
-    })
-    msg="wait L1 up...Since the bsc chain needs to be initialized, the first execution will take a long time. Please check the log of the l1 container to confirm the detailed progress."
-    wait_up_url("http://127.0.0.1:8545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}', msg)
 
     l1env = dotenv_values('./ops-bedrock/l1.env')
     log.info(l1env)
@@ -246,40 +217,8 @@ def devnet_deploy(paths):
     deploy_config['proxyAdminOwner'] = l1_init_holder
     deploy_config['finalSystemOwner'] = l1_init_holder
     deploy_config['portalGuardian'] = l1_init_holder
-    deploy_config['controller'] = l1_init_holder
     deploy_config['governanceTokenOwner'] = l1_init_holder
     write_json(devnet_cfg_orig, deploy_config)
-
-    if os.path.exists(paths.addresses_json_path):
-        log.info('Contracts already deployed.')
-        addresses = read_json(paths.addresses_json_path)
-    else:
-        log.info('Deploying contracts.')
-        run_command(['yarn', 'hardhat', '--network', 'devnetL1', 'deploy', '--tags', 'l1'], env={
-            'CHAIN_ID': bscChainId,
-            'L1_RPC': 'http://localhost:8545',
-            'PRIVATE_KEY_DEPLOYER': l1_init_holder_prv
-        }, cwd=paths.contracts_bedrock_dir)
-        contracts = os.listdir(paths.deployment_dir)
-        addresses = {}
-        for c in contracts:
-            if not c.endswith('.json'):
-                continue
-            data = read_json(pjoin(paths.deployment_dir, c))
-            addresses[c.replace('.json', '')] = data['address']
-        sdk_addresses = {}
-        sdk_addresses.update({
-            'AddressManager': '0x0000000000000000000000000000000000000000',
-            'StateCommitmentChain': '0x0000000000000000000000000000000000000000',
-            'CanonicalTransactionChain': '0x0000000000000000000000000000000000000000',
-            'BondManager': '0x0000000000000000000000000000000000000000',
-        })
-        sdk_addresses['L1CrossDomainMessenger'] = addresses['Proxy__OVM_L1CrossDomainMessenger']
-        sdk_addresses['L1StandardBridge'] = addresses['Proxy__OVM_L1StandardBridge']
-        sdk_addresses['OptimismPortal'] = addresses['OptimismPortalProxy']
-        sdk_addresses['L2OutputOracle'] = addresses['L2OutputOracleProxy']
-        write_json(paths.addresses_json_path, addresses)
-        write_json(paths.sdk_addresses_json_path, sdk_addresses)
 
     if os.path.exists(paths.genesis_l2_path):
         log.info('L2 genesis and rollup configs already generated.')
@@ -295,6 +234,10 @@ def devnet_deploy(paths):
             '--outfile.rollup', pjoin(paths.devnet_dir, 'rollup.json')
         ], cwd=paths.op_node_dir)
 
+    if os.path.exists(devnet_cfg_backup):
+        shutil.move(devnet_cfg_backup, devnet_cfg_orig)
+
+
     rollup_config = read_json(paths.rollup_config_path)
     addresses = read_json(paths.addresses_json_path)
 
@@ -302,7 +245,7 @@ def devnet_deploy(paths):
     run_command(['docker', 'compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
     })
-    wait_up_url("http://127.0.0.1:9545/",'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":74}',"wait L2 geth up...")
+    wait_for_rpc_server("http://127.0.0.1:9545")
 
     log.info('Bringing up everything else.')
     run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=paths.ops_bedrock_dir, env={
@@ -342,22 +285,22 @@ def debug_dumpBlock(url):
 
 def wait_for_rpc_server(url):
     log.info(f'Waiting for RPC server at {url}')
-
-    conn = http.client.HTTPConnection(url)
-    headers = {'Content-type': 'application/json'}
     body = '{"id":1, "jsonrpc":"2.0", "method": "eth_chainId", "params":[]}'
-
-    while True:
+    status = True
+    while status:
         try:
-            conn.request('POST', '/', body, headers)
-            response = conn.getresponse()
-            conn.close()
-            if response.status < 300:
-                log.info(f'RPC server at {url} ready')
-                return
-        except Exception as e:
-            log.info(f'Waiting for RPC server at {url}')
-            time.sleep(1)
+            headers = {
+                "Content-Type": "application/json"
+            }
+
+            response = requests.post(url, headers=headers, data=body)
+            if response.status_code != 200:
+                time.sleep(5)
+            else:
+                log.info("Status code is 200, continue next step")
+                status = False
+        except requests.exceptions.ConnectionError:
+                time.sleep(5)
 
 
 CommandPreset = namedtuple('Command', ['name', 'args', 'cwd', 'timeout'])
@@ -450,24 +393,6 @@ def wait_up(port, retries=10, wait_secs=1):
             time.sleep(wait_secs)
 
     raise Exception(f'Timed out waiting for port {port}.')
-
-def wait_up_url(url,body,wait_msg):
-    status = True
-    log.info(wait_msg)
-    while status:
-        try:
-            headers = {
-                "Content-Type": "application/json"
-            }
-
-            response = requests.post(url, headers=headers, data=body)
-            if response.status_code != 200:
-                time.sleep(5)
-            else:
-                log.info("Status code is 200, continue next step")
-                status = False
-        except requests.exceptions.ConnectionError:
-                time.sleep(5)
 
 def l1BlockTagGet():
     headers = {
