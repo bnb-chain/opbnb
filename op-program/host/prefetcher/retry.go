@@ -106,6 +106,10 @@ func (s *RetryingL2Source) OutputByRoot(ctx context.Context, root common.Hash) (
 	})
 }
 
+func (s *RetryingL1Source) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
+	return false, nil
+}
+
 func NewRetryingL2Source(logger log.Logger, source L2Source) *RetryingL2Source {
 	return &RetryingL2Source{
 		logger:   logger,

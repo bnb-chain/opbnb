@@ -17,7 +17,6 @@ import (
 type noopMetrics struct {
 	opmetrics.NoopRefMetrics
 	txmetrics.NoopTxMetrics
-	opmetrics.NoopRPCMetrics
 }
 
 var NoopMetrics Metricer = new(noopMetrics)
@@ -46,9 +45,4 @@ func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, c
 	return nil
 }
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
-}
-
-func (m *noopMetrics) RecordRPCClientRequest(method string) func(err error) {
-	return func(err error) {
-	}
 }

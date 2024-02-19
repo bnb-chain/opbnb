@@ -17,3 +17,4 @@
 !/op-wheel
 !/go.mod
 !/go.sum
+!/op-aws-sdk

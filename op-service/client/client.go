@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -50,14 +51,10 @@ type Client interface {
 // Prometheus metrics for each call.
 type InstrumentedClient struct {
 	c Client
-	m Metricer
+	m metrics.RPCMetricer
 }
 
-type Metricer interface {
-	RecordRPCClientRequest(method string) func(err error)
-}
-
-func NewInstrumentedClient(c Client, m Metricer) *InstrumentedClient {
+func NewInstrumentedClient(c Client, m metrics.RPCMetricer) *InstrumentedClient {
 	return &InstrumentedClient{
 		c: c,
 		m: m,
@@ -261,14 +258,14 @@ func (ic *InstrumentedClient) SendTransaction(ctx context.Context, tx *types.Tra
 	})
 }
 
-func instrument1(m Metricer, name string, cb func() error) error {
+func instrument1(m metrics.RPCMetricer, name string, cb func() error) error {
 	record := m.RecordRPCClientRequest(name)
 	err := cb()
 	record(err)
 	return err
 }
 
-func instrument2[O any](m Metricer, name string, cb func() (O, error)) (O, error) {
+func instrument2[O any](m metrics.RPCMetricer, name string, cb func() (O, error)) (O, error) {
 	record := m.RecordRPCClientRequest(name)
 	res, err := cb()
 	record(err)
