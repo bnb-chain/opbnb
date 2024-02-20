@@ -129,6 +129,7 @@ def deploy_contracts(paths):
     log.info(l1env)
     l1_init_holder = l1env['INIT_HOLDER']
     l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    proposer_address = l1env['PROPOSER_ADDRESS']
     account = l1_init_holder
     log.info(f'Deploying with {account}')
 
@@ -137,6 +138,13 @@ def deploy_contracts(paths):
         'cast', 'send', '--private-key', l1_init_holder_prv,
         '--rpc-url', 'http://127.0.0.1:8545', '--gas-price', '10000000000', '--legacy',
         '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362'
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    # send some ether to proposer address
+    run_command([
+        'cast', 'send', '--private-key', l1_init_holder_prv,
+        '--rpc-url', 'http://127.0.0.1:8545', '--gas-price', '10000000000', '--legacy',
+        '--value', '10000ether', proposer_address
     ], env={}, cwd=paths.contracts_bedrock_dir)
 
     # deploy the create2 deployer
@@ -187,6 +195,14 @@ def devnet_l1_genesis(paths):
 def devnet_deploy(paths):
     if os.path.exists(paths.addresses_json_path):
         log.info('L1 genesis already generated.')
+        log.info('Starting L1.')
+        init_devnet_l1_deploy_config(paths)
+
+        run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
+            'PWD': paths.ops_bedrock_dir
+        })
+        wait_up(8545)
+        wait_for_rpc_server('http://127.0.0.1:8545')
     else:
         log.info('Generating L1 genesis.')
         if os.path.exists(paths.allocs_path) == False:
@@ -197,6 +213,7 @@ def devnet_deploy(paths):
     bscChainId = l1env['BSC_CHAIN_ID']
     l1_init_holder = l1env['INIT_HOLDER']
     l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    proposer_address_prv = l1env['PROPOSER_ADDRESS_PRV']
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
@@ -253,7 +270,8 @@ def devnet_deploy(paths):
         'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
         'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
         'OP_BATCHER_SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
-        'INIT_HOLDER_PRV': l1_init_holder_prv
+        'INIT_HOLDER_PRV': l1_init_holder_prv,
+        'PROPOSER_ADDRESS_PRV': proposer_address_prv
     })
 
     log.info('Devnet ready.')
