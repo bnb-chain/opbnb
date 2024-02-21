@@ -19,6 +19,10 @@ type RetryingL1Source struct {
 	strategy retry.Strategy
 }
 
+func (s *RetryingL1Source) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
+	return false, nil
+}
+
 func NewRetryingL1Source(logger log.Logger, source L1Source) *RetryingL1Source {
 	return &RetryingL1Source{
 		logger:   logger,
