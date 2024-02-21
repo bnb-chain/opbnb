@@ -25,7 +25,7 @@ const TxmgrFallbackThreshold int64 = 3
 // DialEthClientWithTimeout attempts to dial the L1 provider using the provided
 // URL. If the dial doesn't complete within defaultDialTimeout seconds, this
 // method will return an error.
-func DialEthClientWithTimeout(ctx context.Context, timeout time.Duration, log log.Logger, url string) (client.Client, error) {
+func DialEthClientWithTimeout(ctx context.Context, timeout time.Duration, log log.Logger, url string) (*ethclient.Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
