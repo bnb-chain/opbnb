@@ -3,8 +3,8 @@ package metrics
 import (
 	"context"
 
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -127,12 +127,7 @@ func (m *Metrics) Start(host string, port int) (*httputil.HTTPServer, error) {
 	return opmetrics.StartServer(m.registry, host, port)
 }
 
-func (m *Metrics) StartBalanceMetrics(
-	ctx context.Context,
-	l log.Logger,
-	client *ethclient.Client,
-	account common.Address,
-) {
+func (m *Metrics) StartBalanceMetrics(ctx context.Context, l log.Logger, client client.Client, account common.Address) {
 	// TODO(7684): util was refactored to close, but ctx is still being used by caller for shutdown
 	balanceMetric := opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
 	go func() {

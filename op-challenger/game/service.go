@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	oppprof "github.com/ethereum-optimism/optimism/op-service/pprof"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -105,7 +106,7 @@ func NewService(ctx context.Context, logger log.Logger, cfg *config.Config) (*Se
 		cfg.MaxConcurrency,
 		gameTypeRegistry.CreatePlayer)
 
-	pollClient, err := opClient.NewRPCWithClient(ctx, logger, cfg.L1EthRpc, opClient.NewBaseRPCClient(l1Client.Client()), cfg.PollInterval)
+	pollClient, err := opClient.NewRPCWithClient(ctx, logger, cfg.L1EthRpc, opClient.NewBaseRPCClient(l1Client.(*ethclient.Client).Client()), cfg.PollInterval)
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("failed to create RPC client: %w", err), s.Stop(ctx))
 	}

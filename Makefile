@@ -115,15 +115,14 @@ pre-devnet:
 .PHONY: pre-devnet
 
 devnet-up: pre-devnet
-	./ops/scripts/newer-file.sh .devnet/allocs-l1.json ./packages/contracts-bedrock \
+	pip3 install python-dotenv requests
+	./ops/scripts/newer-file.sh .devnet/addresses.json ./packages/contracts-bedrock \
 		|| make devnet-allocs
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
-devnet-up-deploy:
-	pip3 install python-dotenv requests
-	PYTHONPATH=./bedrock-devnet python3 ./bedrock-devnet/main.py --monorepo-dir=. --deploy
-.PHONY: devnet-up-deploy
+# alias for devnet-up
+devnet-up-deploy: devnet-up
 
 devnet-test: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --test

@@ -86,5 +86,5 @@ func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeou
 		return fallbackClient, nil
 	}
 
-	return DialEthClientWithTimeout(ctx, timeout, l, urlList[0])
+	return DialEthClientWithTimeout(ctx, timeout, l, url)
 }

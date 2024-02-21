@@ -20,8 +20,3 @@ func (*noopMetrics) RecordL2BlocksProposed(l2ref eth.L2BlockRef) {}
 
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
 }
-
-func (m *noopMetrics) RecordRPCClientRequest(method string) func(err error) {
-	return func(err error) {
-	}
-}

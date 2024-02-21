@@ -13,4 +13,5 @@ library Chains {
     uint256 internal constant OPLocalDevnet = 901;
     uint256 internal constant GethDevnet = 1337;
     uint256 internal constant Hardhat = 31337;
+    uint256 internal constant BscDevnet = 714;
 }
