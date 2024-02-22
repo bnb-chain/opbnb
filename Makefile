@@ -116,8 +116,6 @@ pre-devnet:
 
 devnet-up: pre-devnet
 	pip3 install python-dotenv requests
-	./ops/scripts/newer-file.sh .devnet/addresses.json ./packages/contracts-bedrock \
-		|| make devnet-allocs
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
