@@ -734,6 +734,13 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 	//	return storage, errors.New("block base fee not set")
 	//}
 
+	var baseFee *big.Int
+	if config.Fermat != nil && config.Fermat.Cmp(big.NewInt(0)) <= 0 {
+		baseFee = bsc.BaseFeeByNetworks(big.NewInt(int64(config.L2ChainID)))
+	} else {
+		baseFee = bsc.BaseFeeByTransactions(block.Transactions())
+	}
+
 	storage["L2ToL1MessagePasser"] = state.StorageValues{
 		"msgNonce": 0,
 	}
@@ -751,7 +758,7 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 	storage["L1Block"] = state.StorageValues{
 		"number":         block.Number(),
 		"timestamp":      block.Time(),
-		"basefee":        bsc.BaseFeeByTransactions(block.Transactions()),
+		"basefee":        baseFee,
 		"hash":           block.Hash(),
 		"sequenceNumber": 0,
 		"batcherHash":    eth.AddressAsLeftPaddedHash(config.BatchSenderAddress),
