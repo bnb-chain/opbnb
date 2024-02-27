@@ -190,7 +190,6 @@ def devnet_l1_genesis(paths):
 
 def deployL1ContractsForDeploy(paths):
     log.info('Starting L1.')
-    init_devnet_l1_deploy_config(paths)
 
     run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
@@ -244,10 +243,43 @@ def deployL1ContractsForDeploy(paths):
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths):
+    init_devnet_l1_deploy_config(paths)
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    bscChainId = l1env['BSC_CHAIN_ID']
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    proposer_address = l1env['PROPOSER_ADDRESS']
+    proposer_address_prv = l1env['PROPOSER_ADDRESS_PRV']
+    log.info('Generating network config.')
+    devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
+    devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
+    shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
+    deploy_config = read_json(devnet_cfg_orig)
+    deploy_config['l1ChainID'] = int(bscChainId,10)
+    deploy_config['l2BlockTime'] = 1
+    deploy_config['sequencerWindowSize'] = 14400
+    deploy_config['channelTimeout'] = 1200
+    deploy_config['l2OutputOracleSubmissionInterval'] = 240
+    deploy_config['finalizationPeriodSeconds'] = 3
+    deploy_config['enableGovernance'] = False
+    deploy_config['eip1559Denominator'] = 8
+    deploy_config['eip1559DenominatorCanyon'] = 8
+    deploy_config['eip1559Elasticity'] = 2
+    deploy_config['batchSenderAddress'] = l1_init_holder
+    deploy_config['l2OutputOracleProposer'] = proposer_address
+    deploy_config['baseFeeVaultRecipient'] = l1_init_holder
+    deploy_config['l1FeeVaultRecipient'] = l1_init_holder
+    deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
+    deploy_config['proxyAdminOwner'] = l1_init_holder
+    deploy_config['finalSystemOwner'] = l1_init_holder
+    deploy_config['portalGuardian'] = l1_init_holder
+    deploy_config['governanceTokenOwner'] = l1_init_holder
+    write_json(devnet_cfg_orig, deploy_config)
+
     if os.path.exists(paths.addresses_json_path):
         log.info('L1 contracts already deployed.')
         log.info('Starting L1.')
-        init_devnet_l1_deploy_config(paths)
 
         run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
             'PWD': paths.ops_bedrock_dir
@@ -258,33 +290,12 @@ def devnet_deploy(paths):
         log.info('Deploying L1 contracts.')
         deployL1ContractsForDeploy(paths)
 
-    l1env = dotenv_values('./ops-bedrock/l1.env')
-    log.info(l1env)
-    bscChainId = l1env['BSC_CHAIN_ID']
-    l1_init_holder = l1env['INIT_HOLDER']
-    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
-    proposer_address_prv = l1env['PROPOSER_ADDRESS_PRV']
-    log.info('Generating network config.')
-    devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
-    devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
-    shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
-    deploy_config = read_json(devnet_cfg_orig)
     l1BlockTag = l1BlockTagGet()["result"]
     log.info(l1BlockTag)
     l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
     log.info(l1BlockTimestamp)
     deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
     deploy_config['l1StartingBlockTag'] = l1BlockTag
-    deploy_config['l1ChainID'] = int(bscChainId,10)
-    deploy_config['batchSenderAddress'] = l1_init_holder
-    deploy_config['l2OutputOracleProposer'] = l1_init_holder
-    deploy_config['baseFeeVaultRecipient'] = l1_init_holder
-    deploy_config['l1FeeVaultRecipient'] = l1_init_holder
-    deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
-    deploy_config['proxyAdminOwner'] = l1_init_holder
-    deploy_config['finalSystemOwner'] = l1_init_holder
-    deploy_config['portalGuardian'] = l1_init_holder
-    deploy_config['governanceTokenOwner'] = l1_init_holder
     write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.genesis_l2_path):
