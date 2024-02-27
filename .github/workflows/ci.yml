@@ -191,6 +191,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       - name: Build dependencies
         run: pnpm build
 
