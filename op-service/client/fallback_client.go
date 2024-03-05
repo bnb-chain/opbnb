@@ -240,6 +240,7 @@ func (l *FallbackClient) switchCurrentClient() {
 	if l.lastMinuteFail.Load() <= l.fallbackThreshold {
 		return
 	}
+	//Use defer to ensure that recoverIfFirstRpcHealth will always be executed regardless of the circumstances.
 	defer func() {
 		if !l.isInFallbackState {
 			l.isInFallbackState = true

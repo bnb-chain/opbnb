@@ -157,6 +157,7 @@ func (l *FallbackClient) switchCurrentRpc() {
 }
 
 func (l *FallbackClient) switchCurrentRpcLogic() error {
+	//Use defer to ensure that recoverIfFirstRpcHealth will always be executed regardless of the circumstances.
 	defer func() {
 		if !l.isInFallbackState {
 			l.isInFallbackState = true
