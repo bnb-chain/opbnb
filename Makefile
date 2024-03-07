@@ -112,10 +112,10 @@ pre-devnet:
 	@if [ ! -e op-program/bin ]; then \
 		make cannon-prestate; \
 	fi
+	pip3 install python-dotenv requests
 .PHONY: pre-devnet
 
 devnet-up: pre-devnet
-	pip3 install python-dotenv requests
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
