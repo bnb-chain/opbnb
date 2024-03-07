@@ -1,6 +1,10 @@
 package actions
 
 import (
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-node/client"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
@@ -12,9 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func setupFallbackClientTest(t Testing, sd *e2eutils.SetupData, log log.Logger, l1Url string) (*L1Miner, *L1Replica, *L1Replica, *L2Engine, *L2Sequencer, *sources.FallbackClient) {

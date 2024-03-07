@@ -157,6 +157,13 @@ func (l *FallbackClient) switchCurrentRpc() {
 }
 
 func (l *FallbackClient) switchCurrentRpcLogic() error {
+	//Use defer to ensure that recoverIfFirstRpcHealth will always be executed regardless of the circumstances.
+	defer func() {
+		if !l.isInFallbackState {
+			l.isInFallbackState = true
+			l.recoverIfFirstRpcHealth()
+		}
+	}()
 	url := l.urlList[l.currentIndex]
 	newRpc, err := l.rpcInitFunc(url)
 	if err != nil {
@@ -179,10 +186,6 @@ func (l *FallbackClient) switchCurrentRpcLogic() error {
 		}
 	}
 	l.log.Info("switched current rpc to new url", "url", url)
-	if !l.isInFallbackState {
-		l.isInFallbackState = true
-		l.recoverIfFirstRpcHealth()
-	}
 	return nil
 }
 
@@ -221,7 +224,9 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		}
 		lastRpc := *l.currentRpc.Load()
 		l.currentRpc.Store(&l.firstRpc)
-		lastRpc.Close()
+		if lastRpc != l.firstRpc {
+			lastRpc.Close()
+		}
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
