@@ -35,7 +35,7 @@
     "@eth-optimism/contracts-ts": "workspace:^",
     "@swc/core": "^1.3.95",
     "@vitest/coverage-istanbul": "^0.34.6",
-    "tsup": "^7.2.0",
+    "tsup": "^8.0.2",
     "typescript": "^5.2.2",
     "viem": "^1.18.0",
     "vite": "^4.5.0",
