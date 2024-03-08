@@ -247,7 +247,7 @@ require (
 )
 
 // TODO replace to bnb-chain/op-geth
-replace github.com/ethereum/go-ethereum => github.com/bnoieh/op-geth v1.4.4
+replace github.com/ethereum/go-ethereum => github.com/bnb-chain/op-geth v0.3.0-alpha
 
 replace github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v1.0.0
 

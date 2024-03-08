@@ -1421,8 +1421,8 @@ github.com/blizzy78/varnamelen v0.8.0/go.mod h1:V9TzQZ4fLJ1DSrjVDfl89H7aMnTvKkAp
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869/go.mod h1:Ekp36dRnpXw/yCqJaO+ZrUyxD+3VXMFFr56k5XYrpB4=
 github.com/bnb-chain/greenfield-cometbft v1.0.0 h1:0r6hOJWD/+es0gxP/exKuN/krgXAr3LCn5/XlcgDWr8=
 github.com/bnb-chain/greenfield-cometbft v1.0.0/go.mod h1:f35mk/r5ab6yvzlqEWZt68LfUje68sYgMpVlt2CUYMk=
-github.com/bnoieh/op-geth v1.4.4 h1:mQcWqMiKuPLr/jMHzMEqiHbcVIhnV1gzcCnl3y0XRwI=
-github.com/bnoieh/op-geth v1.4.4/go.mod h1:GgNSaFvHsvsF+9YBwnQAbMrmEdtUJs5qJuB6H+x1Lho=
+github.com/bnb-chain/op-geth v0.3.0-alpha h1:4bxV3Z6iDrWWUkErl9eRUmZ/f2SFdy8dPwARTbQebVw=
+github.com/bnb-chain/op-geth v0.3.0-alpha/go.mod h1:GgNSaFvHsvsF+9YBwnQAbMrmEdtUJs5qJuB6H+x1Lho=
 github.com/bombsimon/wsl/v2 v2.0.0/go.mod h1:mf25kr/SqFEPhhcxW1+7pxzGlW+hIl/hYTKY95VwV8U=
 github.com/bombsimon/wsl/v2 v2.2.0/go.mod h1:Azh8c3XGEJl9LyX0/sFC+CKMc7Ssgua0g+6abzXN4Pg=
 github.com/bombsimon/wsl/v3 v3.0.0/go.mod h1:st10JtZYLE4D5sC7b8xV4zTKZwAQjCH/Hy2Pm1FNZIc=
