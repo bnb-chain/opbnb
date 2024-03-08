@@ -113,7 +113,7 @@ func TestMultipleGameTypes(t *testing.T) {
 }
 
 func TestChallengerCompleteDisputeGame(t *testing.T) {
-	InitParallel(t, UseExecutor(1))
+	InitParallel(t, UseExecutor(1), UsesCannon)
 
 	tests := []struct {
 		name              string
@@ -182,7 +182,7 @@ func TestChallengerCompleteDisputeGame(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			InitParallel(t, UseExecutor(1))
+			InitParallel(t, UseExecutor(1), UsesCannon)
 
 			ctx := context.Background()
 			sys, l1Client := startFaultDisputeSystem(t)
@@ -219,7 +219,7 @@ func TestChallengerCompleteDisputeGame(t *testing.T) {
 }
 
 func TestChallengerCompleteExhaustiveDisputeGame(t *testing.T) {
-	InitParallel(t, UseExecutor(1))
+	InitParallel(t, UseExecutor(1), UsesCannon)
 
 	testCase := func(t *testing.T, isRootCorrect bool) {
 		ctx := context.Background()
@@ -267,11 +267,11 @@ func TestChallengerCompleteExhaustiveDisputeGame(t *testing.T) {
 	}
 
 	t.Run("RootCorrect", func(t *testing.T) {
-		InitParallel(t, UseExecutor(1))
+		InitParallel(t, UseExecutor(1), UsesCannon)
 		testCase(t, true)
 	})
 	t.Run("RootIncorrect", func(t *testing.T) {
-		InitParallel(t, UseExecutor(1))
+		InitParallel(t, UseExecutor(1), UsesCannon)
 		testCase(t, false)
 	})
 }
@@ -290,7 +290,7 @@ func TestCannonDisputeGame(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			InitParallel(t, UseExecutor(1))
+			InitParallel(t, UseExecutor(1), UsesCannon)
 
 			ctx := context.Background()
 			sys, l1Client := startFaultDisputeSystem(t)

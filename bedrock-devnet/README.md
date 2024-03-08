@@ -6,7 +6,7 @@ It allows us to quickly start the devnet locally (with L1 network as BSC network
 
 # requirement
 
-docker, nodejs 16+, yarn, foundry, python2, python3
+docker, nodejs 16+, yarn, foundry, python2, python3, pnpm
 
 Tips:
 
@@ -46,10 +46,9 @@ make devnet-logs
 ```
 
 # Notes
-1. If you encounter a ValueError: invalid mode: 'rU' while trying to load binding.gyp error when executing `pnpm install`, this may be caused by python3 installed on your computer but Npm requires python 2.7. You need to install python 2.7 and configure the environment variable to specify the python version to use: `export npm_config_python=/path/to/executable/python`.
-2. When executing for the first time, please be patient if you see the message "Waiting for RPC server at...", as the BSC network takes time to initialize.
-3. If you encounter an error during the "Deploying contracts" step, please try again as it usually recovers.
-4. L1 is accessible at http://localhost:8545, and L2 is accessible at http://localhost:9545
+1. When executing for the first time, please be patient if you see the message "Waiting for RPC server at...", as the BSC network takes time to initialize.
+2. If you encounter an error during the "Deploying contracts" step, please try again as it usually recovers.
+3. L1 is accessible at http://localhost:8545, and L2 is accessible at http://localhost:9545
 
 # Additional Information
 L1 chain ID is 714.
