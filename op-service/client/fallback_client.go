@@ -394,6 +394,13 @@ func (l *FallbackClient) switchCurrentClient() {
 	if l.lastMinuteFail.Load() <= l.fallbackThreshold {
 		return
 	}
+	//Use defer to ensure that recoverIfFirstRpcHealth will always be executed regardless of the circumstances.
+	defer func() {
+		if !l.isInFallbackState {
+			l.isInFallbackState = true
+			l.recoverIfFirstRpcHealth()
+		}
+	}()
 	l.currentIndex++
 	if l.currentIndex >= len(l.urlList) {
 		l.log.Error("the fallback client has tried all urls")
@@ -413,10 +420,6 @@ func (l *FallbackClient) switchCurrentClient() {
 	}
 	l.lastMinuteFail.Store(0)
 	l.log.Info("switched current rpc to new url", "url", url)
-	if !l.isInFallbackState {
-		l.isInFallbackState = true
-		l.recoverIfFirstRpcHealth()
-	}
 }
 
 func (l *FallbackClient) recoverIfFirstRpcHealth() {
@@ -441,7 +444,9 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 		}
 		lastClient := *l.currentClient.Load()
 		l.currentClient.Store(&l.firstClient)
-		lastClient.Close()
+		if lastClient != l.firstClient {
+			lastClient.Close()
+		}
 		l.lastMinuteFail.Store(0)
 		l.currentIndex = 0
 		l.isInFallbackState = false
