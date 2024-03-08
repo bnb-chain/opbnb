@@ -88,8 +88,8 @@ contract Deploy is Deployer {
         initializeOptimismPortal();
         initializeProtocolVersions();
 
-        setAlphabetFaultGameImplementation();
-        setCannonFaultGameImplementation();
+//        setAlphabetFaultGameImplementation();
+//        setCannonFaultGameImplementation();
 
         transferDisputeGameFactoryOwnership();
     }

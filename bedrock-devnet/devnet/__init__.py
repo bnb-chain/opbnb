@@ -122,8 +122,81 @@ def main():
 def deploy_contracts(paths):
     wait_up(8545)
     wait_for_rpc_server('http://127.0.0.1:8545')
-#     log.info('Wait for L1 for a period of time to avoid submitting transactions in the first few block heights.')
-#     time.sleep(10)
+    res = eth_accounts('127.0.0.1:8545')
+
+    response = json.loads(res)
+    account = response['result'][0]
+    log.info(f'Deploying with {account}')
+
+    # send some ether to the create2 deployer account
+    run_command([
+        'cast', 'send', '--from', account,
+        '--rpc-url', 'http://127.0.0.1:8545',
+        '--unlocked', '--value', '1ether', '0x3fAB184622Dc19b6109349B94811493BF2a45362'
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    # deploy the create2 deployer
+    run_command([
+      'cast', 'publish', '--rpc-url', 'http://127.0.0.1:8545',
+      '0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222'
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    fqn = 'scripts/Deploy.s.sol:Deploy'
+    run_command([
+        'forge', 'script', fqn, '--sender', account,
+        '--rpc-url', 'http://127.0.0.1:8545', '--broadcast',
+        '--unlocked'
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
+
+    log.info('Syncing contracts.')
+    run_command([
+        'forge', 'script', fqn, '--sig', 'sync()',
+        '--rpc-url', 'http://127.0.0.1:8545'
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+def init_devnet_l1_deploy_config(paths, update_timestamp=False):
+    deploy_config = read_json(paths.devnet_config_template_path)
+    if update_timestamp:
+        deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
+    write_json(paths.devnet_config_path, deploy_config)
+
+def devnet_l1_genesis(paths):
+    log.info('Generating L1 genesis state')
+    init_devnet_l1_deploy_config(paths)
+
+    geth = subprocess.Popen([
+        'geth', '--dev', '--http', '--http.api', 'eth,debug',
+        '--verbosity', '4', '--gcmode', 'archive', '--dev.gaslimit', '30000000',
+        '--rpc.allow-unprotected-txs'
+    ])
+
+    try:
+        forge = ChildProcess(deploy_contracts, paths)
+        forge.start()
+        forge.join()
+        err = forge.get_error()
+        if err:
+            raise Exception(f"Exception occurred in child process: {err}")
+
+        res = debug_dumpBlock('127.0.0.1:8545')
+        response = json.loads(res)
+        allocs = response['result']
+
+        write_json(paths.allocs_path, allocs)
+    finally:
+        geth.terminate()
+
+def deployL1ContractsForDeploy(paths):
+    log.info('Starting L1.')
+
+    run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
+        'PWD': paths.ops_bedrock_dir
+    })
+    wait_up(8545)
+    wait_for_rpc_server('http://127.0.0.1:8545')
+    time.sleep(3)
 
     l1env = dotenv_values('./ops-bedrock/l1.env')
     log.info(l1env)
@@ -166,68 +239,35 @@ def deploy_contracts(paths):
         'forge', 'script', fqn, '--sig', 'sync()',
         '--rpc-url', 'http://127.0.0.1:8545'
     ], env={}, cwd=paths.contracts_bedrock_dir)
-
-def init_devnet_l1_deploy_config(paths, update_timestamp=False):
-    deploy_config = read_json(paths.devnet_config_template_path)
-    if update_timestamp:
-        deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
-    write_json(paths.devnet_config_path, deploy_config)
-
-def devnet_l1_genesis(paths):
-    log.info('Starting L1.')
-    init_devnet_l1_deploy_config(paths)
-
-    run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir
-    })
-
-    forge = ChildProcess(deploy_contracts, paths)
-    forge.start()
-    forge.join()
-    err = forge.get_error()
-    if err:
-        raise Exception(f"Exception occurred in child process: {err}")
-
-    log.info('Start and Deploy L1 success.')
-
+    log.info('Deployed L1 contracts.')
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths):
-    if os.path.exists(paths.addresses_json_path):
-        log.info('L1 genesis already generated.')
-        log.info('Starting L1.')
-        init_devnet_l1_deploy_config(paths)
-
-        run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-            'PWD': paths.ops_bedrock_dir
-        })
-        wait_up(8545)
-        wait_for_rpc_server('http://127.0.0.1:8545')
-    else:
-        log.info('Generating L1 genesis.')
-        if os.path.exists(paths.allocs_path) == False:
-            devnet_l1_genesis(paths)
-
+    init_devnet_l1_deploy_config(paths)
     l1env = dotenv_values('./ops-bedrock/l1.env')
     log.info(l1env)
     bscChainId = l1env['BSC_CHAIN_ID']
     l1_init_holder = l1env['INIT_HOLDER']
     l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    proposer_address = l1env['PROPOSER_ADDRESS']
     proposer_address_prv = l1env['PROPOSER_ADDRESS_PRV']
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
     shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
     deploy_config = read_json(devnet_cfg_orig)
-    l1BlockTag = l1BlockTagGet()["result"]
-    log.info(l1BlockTag)
-    l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
-    log.info(l1BlockTimestamp)
-    deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
-    deploy_config['l1StartingBlockTag'] = l1BlockTag
     deploy_config['l1ChainID'] = int(bscChainId,10)
+    deploy_config['l2BlockTime'] = 1
+    deploy_config['sequencerWindowSize'] = 14400
+    deploy_config['channelTimeout'] = 1200
+    deploy_config['l2OutputOracleSubmissionInterval'] = 240
+    deploy_config['finalizationPeriodSeconds'] = 3
+    deploy_config['enableGovernance'] = False
+    deploy_config['eip1559Denominator'] = 8
+    deploy_config['eip1559DenominatorCanyon'] = 8
+    deploy_config['eip1559Elasticity'] = 2
     deploy_config['batchSenderAddress'] = l1_init_holder
-    deploy_config['l2OutputOracleProposer'] = l1_init_holder
+    deploy_config['l2OutputOracleProposer'] = proposer_address
     deploy_config['baseFeeVaultRecipient'] = l1_init_holder
     deploy_config['l1FeeVaultRecipient'] = l1_init_holder
     deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
@@ -235,6 +275,27 @@ def devnet_deploy(paths):
     deploy_config['finalSystemOwner'] = l1_init_holder
     deploy_config['portalGuardian'] = l1_init_holder
     deploy_config['governanceTokenOwner'] = l1_init_holder
+    write_json(devnet_cfg_orig, deploy_config)
+
+    if os.path.exists(paths.addresses_json_path):
+        log.info('L1 contracts already deployed.')
+        log.info('Starting L1.')
+
+        run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
+            'PWD': paths.ops_bedrock_dir
+        })
+        wait_up(8545)
+        wait_for_rpc_server('http://127.0.0.1:8545')
+    else:
+        log.info('Deploying L1 contracts.')
+        deployL1ContractsForDeploy(paths)
+
+    l1BlockTag = l1BlockTagGet()["result"]
+    log.info(l1BlockTag)
+    l1BlockTimestamp = l1BlockTimestampGet(l1BlockTag)["result"]["timestamp"]
+    log.info(l1BlockTimestamp)
+    deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
+    deploy_config['l1StartingBlockTag'] = l1BlockTag
     write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.genesis_l2_path):
