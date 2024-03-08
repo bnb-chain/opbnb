@@ -1,11 +1,11 @@
-FROM golang:1.19-alpine3.18 as build
+FROM golang:1.22-alpine3.18 as build
 RUN apk add --no-cache git make cmake gcc musl-dev linux-headers build-base libc-dev gcompat
 RUN git clone https://github.com/bnb-chain/bsc.git
 RUN cd bsc && git checkout v1.2.12 && make geth && go build -o ./build/bin/bootnode ./cmd/bootnode
 RUN git clone https://github.com/bnb-chain/node.git
 RUN cd node && git checkout v0.10.16 && make build
 
-FROM golang:1.19-alpine3.18
+FROM golang:1.22-alpine3.18
 
 RUN apk add --no-cache bash expect wget nodejs npm git jq make cmake gcc musl-dev linux-headers build-base libc-dev gcompat python3
 
