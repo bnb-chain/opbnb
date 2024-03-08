@@ -6,13 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	//nolint:all
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+
 	"github.com/ethereum-optimism/optimism/op-service/clock"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/log"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,6 +45,88 @@ func TestUpdateGossipScore(t *testing.T) {
 	setScoreRequired(t, store, id, &GossipScores{Total: score})
 
 	assertPeerScores(t, store, id, PeerScores{Gossip: GossipScores{Total: score}})
+}
+
+func TestIncrementValidResponses(t *testing.T) {
+	id := peer.ID("aaaa")
+	store := createMemoryStore(t)
+	inc := IncrementValidResponses{Cap: 2.1}
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ValidResponses: 1}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ValidResponses: 2}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ValidResponses: 2.1}})
+}
+
+func TestIncrementErrorResponses(t *testing.T) {
+	id := peer.ID("aaaa")
+	store := createMemoryStore(t)
+	inc := IncrementErrorResponses{Cap: 2.1}
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ErrorResponses: 1}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ErrorResponses: 2}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{ErrorResponses: 2.1}})
+}
+
+func TestIncrementRejectedPayloads(t *testing.T) {
+	id := peer.ID("aaaa")
+	store := createMemoryStore(t)
+	inc := IncrementRejectedPayloads{Cap: 2.1}
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{RejectedPayloads: 1}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{RejectedPayloads: 2}})
+
+	setScoreRequired(t, store, id, inc)
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{RejectedPayloads: 2.1}})
+}
+
+func TestDecayApplicationScores(t *testing.T) {
+	id := peer.ID("aaaa")
+	store := createMemoryStore(t)
+	for i := 0; i < 10; i++ {
+		setScoreRequired(t, store, id, IncrementValidResponses{Cap: 100})
+		setScoreRequired(t, store, id, IncrementErrorResponses{Cap: 100})
+		setScoreRequired(t, store, id, IncrementRejectedPayloads{Cap: 100})
+	}
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{
+		ValidResponses:   10,
+		ErrorResponses:   10,
+		RejectedPayloads: 10,
+	}})
+
+	setScoreRequired(t, store, id, &DecayApplicationScores{
+		ValidResponseDecay:   0.8,
+		ErrorResponseDecay:   0.4,
+		RejectedPayloadDecay: 0.5,
+		DecayToZero:          0.1,
+	})
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{
+		ValidResponses:   10 * 0.8,
+		ErrorResponses:   10 * 0.4,
+		RejectedPayloads: 10 * 0.5,
+	}})
+
+	// Should be set to exactly zero when below DecayToZero
+	setScoreRequired(t, store, id, &DecayApplicationScores{
+		ValidResponseDecay:   0.8,
+		ErrorResponseDecay:   0.4,
+		RejectedPayloadDecay: 0.5,
+		DecayToZero:          5,
+	})
+	assertPeerScores(t, store, id, PeerScores{ReqResp: ReqRespScores{
+		ValidResponses:   10 * 0.8 * 0.8, // Not yet below 5 so preserved
+		ErrorResponses:   0,
+		RejectedPayloads: 0,
+	}})
 }
 
 func TestStoreScoresForMultiplePeers(t *testing.T) {
@@ -215,7 +299,7 @@ func createPeerstoreWithBacking(t *testing.T, store *sync.MutexDatastore) Extend
 	return eps
 }
 
-func setScoreRequired(t *testing.T, store ScoreDatastore, id peer.ID, diff *GossipScores) {
+func setScoreRequired(t *testing.T, store ScoreDatastore, id peer.ID, diff ScoreDiff) {
 	_, err := store.SetScore(id, diff)
 	require.NoError(t, err)
 }

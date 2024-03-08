@@ -1,9 +1,10 @@
 package test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -51,4 +52,9 @@ func (o StubOracle) ReceiptsByBlockHash(blockHash common.Hash) (eth.BlockInfo, t
 		o.t.Fatalf("unknown rcpts %s", blockHash)
 	}
 	return o.HeaderByBlockHash(blockHash), rcpts
+}
+
+func (o StubOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
+	// do nothing
+	return nil
 }

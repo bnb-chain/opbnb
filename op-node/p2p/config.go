@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -25,11 +26,8 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 )
 
-var DefaultBootnodes = []*enode.Node{
-	enode.MustParse("enode://869d07b5932f17e8490990f75a3f94195e9504ddb6b85f7189e5a9c0a8fff8b00aecf6f3ac450ecba6cdabdb5858788a94bde2b613e0f2d82e9b395355f76d1a@34.65.67.101:0?discport=30305"),
-	enode.MustParse("enode://2d4e7e9d48f4dd4efe9342706dd1b0024681bd4c3300d021f86fc75eab7865d4e0cbec6fbc883f011cfd6a57423e7e2f6e104baad2b744c3cafaec6bc7dc92c1@34.65.43.171:0?discport=30305"),
-	enode.MustParse("enode://9d7a3efefe442351217e73b3a593bcb8efffb55b4807699972145324eab5e6b382152f8d24f6301baebbfb5ecd4127bd3faab2842c04cd432bdf50ba092f6645@34.65.109.126:0?discport=30305"),
-}
+// TODO add values
+var DefaultBootnodes = []*enode.Node{}
 
 var OpBNBTestnet = big.NewInt(5611)
 
@@ -72,7 +70,8 @@ type SetupP2P interface {
 
 // ScoringParams defines the various types of peer scoring parameters.
 type ScoringParams struct {
-	PeerScoring pubsub.PeerScoreParams
+	PeerScoring        pubsub.PeerScoreParams
+	ApplicationScoring ApplicationScoreParams
 }
 
 // Config sets up a p2p host and discv5 service from configuration.
@@ -82,9 +81,6 @@ type Config struct {
 
 	DisableP2P  bool
 	NoDiscovery bool
-
-	// Enable P2P-based alt-syncing method (req-resp protocol, not gossip)
-	AltSync bool
 
 	ScoringParams *ScoringParams
 
@@ -105,6 +101,7 @@ type Config struct {
 	AdvertiseUDPPort uint16
 	Bootnodes        []*enode.Node
 	DiscoveryDB      *enode.DB
+	NetRestrict      *netutil.Netlist
 
 	StaticPeers []core.Multiaddr
 
@@ -156,11 +153,11 @@ func (conf *Config) Disabled() bool {
 	return conf.DisableP2P
 }
 
-func (conf *Config) PeerScoringParams() *pubsub.PeerScoreParams {
+func (conf *Config) PeerScoringParams() *ScoringParams {
 	if conf.ScoringParams == nil {
 		return nil
 	}
-	return &conf.ScoringParams.PeerScoring
+	return conf.ScoringParams
 }
 
 func (conf *Config) BanPeers() bool {

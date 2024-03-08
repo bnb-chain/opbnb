@@ -1,129 +1,178 @@
 package indexer
 
 import (
+	"context"
 	"fmt"
-	"os"
+	"math/big"
+	"net"
+	"runtime/debug"
+	"strconv"
+	"sync"
 
-	"github.com/ethereum-optimism/optimism/indexer/database"
-	"github.com/ethereum-optimism/optimism/indexer/flags"
-	"github.com/ethereum-optimism/optimism/indexer/node"
-	"github.com/ethereum-optimism/optimism/indexer/processor"
-
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/urfave/cli"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/ethereum-optimism/optimism/indexer/config"
+	"github.com/ethereum-optimism/optimism/indexer/database"
+	"github.com/ethereum-optimism/optimism/indexer/etl"
+	"github.com/ethereum-optimism/optimism/indexer/node"
+	"github.com/ethereum-optimism/optimism/indexer/processors"
+	"github.com/ethereum-optimism/optimism/indexer/processors/bridge"
+	"github.com/ethereum-optimism/optimism/op-service/httputil"
+	"github.com/ethereum-optimism/optimism/op-service/metrics"
 )
 
-// Main is the entrypoint into the indexer service. This method returns
-// a closure that executes the service and blocks until the service exits. The
-// use of a closure allows the parameters bound to the top-level main package,
-// e.g. GitVersion, to be captured and used once the function is executed.
-func Main(gitVersion string) func(ctx *cli.Context) error {
-	return func(ctx *cli.Context) error {
-		log.Info("initializing indexer")
-		indexer, err := NewIndexer(ctx)
-		if err != nil {
-			log.Error("unable to initialize indexer", "err", err)
-			return err
-		}
-
-		log.Info("starting indexer")
-		if err := indexer.Start(); err != nil {
-			log.Error("unable to start indexer", "err", err)
-		}
-
-		defer indexer.Stop()
-		log.Info("indexer started")
-
-		// Never terminate
-		<-(chan struct{})(nil)
-		return nil
-	}
-}
-
-// Indexer is a service that configures the necessary resources for
-// running the Sync and BlockHandler sub-services.
+// Indexer contains the necessary resources for
+// indexing the configured L1 and L2 chains
 type Indexer struct {
-	db *database.DB
+	log log.Logger
+	db  *database.DB
 
-	l1Processor *processor.L1Processor
-	l2Processor *processor.L2Processor
+	httpConfig      config.ServerConfig
+	metricsConfig   config.ServerConfig
+	metricsRegistry *prometheus.Registry
+
+	L1ETL           *etl.L1ETL
+	L2ETL           *etl.L2ETL
+	BridgeProcessor *processors.BridgeProcessor
 }
 
-// NewIndexer initializes the Indexer, gathering any resources
-// that will be needed by the TxIndexer and StateIndexer
-// sub-services.
-func NewIndexer(ctx *cli.Context) (*Indexer, error) {
-	// TODO https://linear.app/optimism/issue/DX-55/api-implement-rest-api-with-mocked-data
-	// do json format too
-	// TODO https://linear.app/optimism/issue/DX-55/api-implement-rest-api-with-mocked-data
+// NewIndexer initializes an instance of the Indexer
+func NewIndexer(
+	log log.Logger,
+	db *database.DB,
+	chainConfig config.ChainConfig,
+	rpcsConfig config.RPCsConfig,
+	httpConfig config.ServerConfig,
+	metricsConfig config.ServerConfig,
+) (*Indexer, error) {
+	metricsRegistry := metrics.NewRegistry()
 
-	logLevel, err := log.LvlFromString(ctx.GlobalString(flags.LogLevelFlag.Name))
+	// L1
+	l1EthClient, err := node.DialEthClient(rpcsConfig.L1RPC, node.NewMetrics(metricsRegistry, "l1"))
+	if err != nil {
+		return nil, err
+	}
+	l1Cfg := etl.Config{
+		LoopIntervalMsec:  chainConfig.L1PollingInterval,
+		HeaderBufferSize:  chainConfig.L1HeaderBufferSize,
+		ConfirmationDepth: big.NewInt(int64(chainConfig.L1ConfirmationDepth)),
+		StartHeight:       big.NewInt(int64(chainConfig.L1StartingHeight)),
+	}
+	l1Etl, err := etl.NewL1ETL(l1Cfg, log, db, etl.NewMetrics(metricsRegistry, "l1"), l1EthClient, chainConfig.L1Contracts)
 	if err != nil {
 		return nil, err
 	}
 
-	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	log.Root().SetHandler(log.LvlFilterHandler(logLevel, logHandler))
-
-	dsn := fmt.Sprintf("database=%s", ctx.GlobalString(flags.DBNameFlag.Name))
-	db, err := database.NewDB(dsn)
+	// L2 (defaults to predeploy contracts)
+	l2EthClient, err := node.DialEthClient(rpcsConfig.L2RPC, node.NewMetrics(metricsRegistry, "l2"))
+	if err != nil {
+		return nil, err
+	}
+	l2Cfg := etl.Config{
+		LoopIntervalMsec:  chainConfig.L2PollingInterval,
+		HeaderBufferSize:  chainConfig.L2HeaderBufferSize,
+		ConfirmationDepth: big.NewInt(int64(chainConfig.L2ConfirmationDepth)),
+	}
+	l2Etl, err := etl.NewL2ETL(l2Cfg, log, db, etl.NewMetrics(metricsRegistry, "l2"), l2EthClient, chainConfig.L2Contracts)
 	if err != nil {
 		return nil, err
 	}
 
-	// L1 Processor (hardhat devnet contracts). Make this configurable
-	l1Contracts := processor.L1Contracts{
-		OptimismPortal:         common.HexToAddress("0x6900000000000000000000000000000000000000"),
-		L2OutputOracle:         common.HexToAddress("0x6900000000000000000000000000000000000001"),
-		L1CrossDomainMessenger: common.HexToAddress("0x6900000000000000000000000000000000000002"),
-		L1StandardBridge:       common.HexToAddress("0x6900000000000000000000000000000000000003"),
-		L1ERC721Bridge:         common.HexToAddress("0x6900000000000000000000000000000000000004"),
-	}
-	l1EthClient, err := node.NewEthClient(ctx.GlobalString(flags.L1EthRPCFlag.Name))
-	if err != nil {
-		return nil, err
-	}
-	l1Processor, err := processor.NewL1Processor(l1EthClient, db, l1Contracts)
-	if err != nil {
-		return nil, err
-	}
-
-	// L2Processor
-	l2Contracts := processor.L2ContractPredeploys() // Make this configurable
-	l2EthClient, err := node.NewEthClient(ctx.GlobalString(flags.L2EthRPCFlag.Name))
-	if err != nil {
-		return nil, err
-	}
-	l2Processor, err := processor.NewL2Processor(l2EthClient, db, l2Contracts)
+	// Bridge
+	bridgeProcessor, err := processors.NewBridgeProcessor(log, db, bridge.NewMetrics(metricsRegistry), l1Etl, chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	indexer := &Indexer{
-		db:          db,
-		l1Processor: l1Processor,
-		l2Processor: l2Processor,
+		log: log,
+		db:  db,
+
+		httpConfig:      httpConfig,
+		metricsConfig:   metricsConfig,
+		metricsRegistry: metricsRegistry,
+
+		L1ETL:           l1Etl,
+		L2ETL:           l2Etl,
+		BridgeProcessor: bridgeProcessor,
 	}
 
 	return indexer, nil
 }
 
-// Serve spins up a REST API server at the given hostname and port.
-func (b *Indexer) Serve() error {
-	return nil
+func (i *Indexer) startHttpServer(ctx context.Context) error {
+	i.log.Debug("starting http server...", "port", i.httpConfig.Host)
+
+	r := chi.NewRouter()
+	r.Use(middleware.Heartbeat("/healthz"))
+
+	addr := net.JoinHostPort(i.httpConfig.Host, strconv.Itoa(i.httpConfig.Port))
+	srv, err := httputil.StartHTTPServer(addr, r)
+	if err != nil {
+		return fmt.Errorf("http server failed to start: %w", err)
+	}
+	i.log.Info("http server started", "addr", srv.Addr())
+	<-ctx.Done()
+	defer i.log.Info("http server stopped")
+	return srv.Stop(context.Background())
 }
 
-// Start starts the starts the indexing service on L1 and L2 chains and also
-// starts the REST server.
-func (b *Indexer) Start() error {
-	go b.l1Processor.Start()
-	go b.l2Processor.Start()
-
-	return nil
+func (i *Indexer) startMetricsServer(ctx context.Context) error {
+	i.log.Debug("starting metrics server...", "port", i.metricsConfig.Port)
+	srv, err := metrics.StartServer(i.metricsRegistry, i.metricsConfig.Host, i.metricsConfig.Port)
+	if err != nil {
+		return fmt.Errorf("metrics server failed to start: %w", err)
+	}
+	i.log.Info("metrics server started", "addr", srv.Addr())
+	<-ctx.Done()
+	defer i.log.Info("metrics server stopped")
+	return srv.Stop(context.Background())
 }
 
-// Stop stops the indexing service on L1 and L2 chains.
-func (b *Indexer) Stop() {
+// Start starts the indexing service on L1 and L2 chains
+func (i *Indexer) Run(ctx context.Context) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, 5)
+
+	// if any goroutine halts, we stop the entire indexer
+	processCtx, processCancel := context.WithCancel(ctx)
+	runProcess := func(start func(ctx context.Context) error) {
+		wg.Add(1)
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					i.log.Error("halting indexer on panic", "err", err)
+					debug.PrintStack()
+					errCh <- fmt.Errorf("panic: %v", err)
+				}
+
+				processCancel()
+				wg.Done()
+			}()
+
+			errCh <- start(processCtx)
+		}()
+	}
+
+	// Kick off all the dependent routines
+	runProcess(i.L1ETL.Start)
+	runProcess(i.L2ETL.Start)
+	runProcess(i.BridgeProcessor.Start)
+	runProcess(i.startMetricsServer)
+	runProcess(i.startHttpServer)
+	wg.Wait()
+
+	err := <-errCh
+	if err != nil {
+		i.log.Error("indexer stopped", "err", err)
+	} else {
+		i.log.Info("indexer stopped")
+	}
+
+	return err
 }

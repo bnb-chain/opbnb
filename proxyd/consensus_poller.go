@@ -23,6 +23,7 @@ type OnConsensusBroken func()
 // resolves the highest common block for multiple nodes, and reconciles the consensus
 // in case of block hash divergence to minimize re-orgs
 type ConsensusPoller struct {
+	ctx        context.Context
 	cancelFunc context.CancelFunc
 	listeners  []OnConsensusBroken
 
@@ -38,6 +39,7 @@ type ConsensusPoller struct {
 	banPeriod          time.Duration
 	maxUpdateThreshold time.Duration
 	maxBlockLag        uint64
+	maxBlockRange      uint64
 }
 
 type backendState struct {
@@ -201,6 +203,12 @@ func WithMaxBlockLag(maxBlockLag uint64) ConsensusOpt {
 	}
 }
 
+func WithMaxBlockRange(maxBlockRange uint64) ConsensusOpt {
+	return func(cp *ConsensusPoller) {
+		cp.maxBlockRange = maxBlockRange
+	}
+}
+
 func WithMinPeerCount(minPeerCount uint64) ConsensusOpt {
 	return func(cp *ConsensusPoller) {
 		cp.minPeerCount = minPeerCount
@@ -213,6 +221,7 @@ func NewConsensusPoller(bg *BackendGroup, opts ...ConsensusOpt) *ConsensusPoller
 	state := make(map[*Backend]*backendState, len(bg.Backends))
 
 	cp := &ConsensusPoller{
+		ctx:          ctx,
 		cancelFunc:   cancelFunc,
 		backendGroup: bg,
 		backendState: state,
@@ -252,7 +261,7 @@ func (cp *ConsensusPoller) UpdateBackend(ctx context.Context, be *Backend) {
 	}
 
 	// if backend is not healthy state we'll only resume checking it after ban
-	if !be.IsHealthy() {
+	if !be.IsHealthy() && !be.forcedCandidate {
 		log.Warn("backend banned - not healthy", "backend", be.Name)
 		cp.Ban(be)
 		return
@@ -318,7 +327,7 @@ func (cp *ConsensusPoller) UpdateBackend(ctx context.Context, be *Backend) {
 
 	RecordBackendUnexpectedBlockTags(be, !expectedBlockTags)
 
-	if !expectedBlockTags {
+	if !expectedBlockTags && !be.forcedCandidate {
 		log.Warn("backend banned - unexpected block tags",
 			"backend", be.Name,
 			"oldFinalized", bs.finalizedBlockNumber,
@@ -481,6 +490,10 @@ func (cp *ConsensusPoller) IsBanned(be *Backend) bool {
 
 // Ban bans a specific backend
 func (cp *ConsensusPoller) Ban(be *Backend) {
+	if be.forcedCandidate {
+		return
+	}
+
 	bs := cp.backendState[be]
 	defer bs.backendStateMux.Unlock()
 	bs.backendStateMux.Lock()
@@ -621,6 +634,10 @@ func (cp *ConsensusPoller) getConsensusCandidates() map[*Backend]*backendState {
 
 	for _, be := range cp.backendGroup.Backends {
 		bs := cp.getBackendState(be)
+		if be.forcedCandidate {
+			candidates[be] = bs
+			continue
+		}
 		if bs.IsBanned() {
 			continue
 		}

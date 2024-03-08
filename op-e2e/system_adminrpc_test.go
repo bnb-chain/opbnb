@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-node/client"
+	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/wait"
 	"github.com/ethereum-optimism/optimism/op-node/node"
-	"github.com/ethereum-optimism/optimism/op-node/sources"
+	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/sources"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ func TestStopStartSequencer(t *testing.T) {
 	InitParallel(t)
 
 	cfg := DefaultSystemConfig(t)
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.Nil(t, err, "Error starting up system")
 	defer sys.Close()
 
@@ -34,10 +35,11 @@ func TestStopStartSequencer(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, active, "sequencer should be active")
 
-	blockBefore := latestBlock(t, l2Seq)
-	time.Sleep(time.Duration(cfg.DeployConfig.L2BlockTime+1) * time.Second)
-	blockAfter := latestBlock(t, l2Seq)
-	require.Greaterf(t, blockAfter, blockBefore, "Chain did not advance")
+	require.NoError(
+		t,
+		wait.ForNextBlock(ctx, l2Seq),
+		"Chain did not advance after starting sequencer",
+	)
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -50,9 +52,9 @@ func TestStopStartSequencer(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, active, "sequencer should be inactive")
 
-	blockBefore = latestBlock(t, l2Seq)
+	blockBefore := latestBlock(t, l2Seq)
 	time.Sleep(time.Duration(cfg.DeployConfig.L2BlockTime+1) * time.Second)
-	blockAfter = latestBlock(t, l2Seq)
+	blockAfter := latestBlock(t, l2Seq)
 	require.Equal(t, blockAfter, blockBefore, "Chain advanced after stopping sequencer")
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -66,10 +68,11 @@ func TestStopStartSequencer(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, active, "sequencer should be active again")
 
-	blockBefore = latestBlock(t, l2Seq)
-	time.Sleep(time.Duration(cfg.DeployConfig.L2BlockTime+1) * time.Second)
-	blockAfter = latestBlock(t, l2Seq)
-	require.Greater(t, blockAfter, blockBefore, "Chain did not advance after starting sequencer")
+	require.NoError(
+		t,
+		wait.ForNextBlock(ctx, l2Seq),
+		"Chain did not advance after starting sequencer",
+	)
 }
 
 func TestPersistSequencerStateWhenChanged(t *testing.T) {
@@ -83,7 +86,7 @@ func TestPersistSequencerStateWhenChanged(t *testing.T) {
 	delete(cfg.Nodes, "verifier")
 	cfg.Nodes["sequencer"].ConfigPersistence = node.NewConfigPersistence(stateFile)
 
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.NoError(t, err)
 	defer sys.Close()
 
@@ -118,7 +121,7 @@ func TestLoadSequencerStateOnStarted_Stopped(t *testing.T) {
 	seqCfg := cfg.Nodes["sequencer"]
 	seqCfg.ConfigPersistence = node.NewConfigPersistence(stateFile)
 
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.NoError(t, err)
 	defer sys.Close()
 
@@ -152,7 +155,7 @@ func TestLoadSequencerStateOnStarted_Started(t *testing.T) {
 	seqCfg.Driver.SequencerStopped = true
 	seqCfg.ConfigPersistence = node.NewConfigPersistence(stateFile)
 
-	sys, err := cfg.Start()
+	sys, err := cfg.Start(t)
 	require.NoError(t, err)
 	defer sys.Close()
 

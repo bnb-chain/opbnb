@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 var (
@@ -75,6 +75,16 @@ type Config struct {
 	// Active if RegolithTime != nil && L2 block timestamp >= *RegolithTime, inactive otherwise.
 	RegolithTime *uint64 `json:"regolith_time,omitempty"`
 
+	// CanyonTime  sets the activation time of the next network upgrade.
+	// Active if CanyonTime != nil && L2 block timestamp >= *CanyonTime, inactive otherwise.
+	CanyonTime *uint64 `json:"canyon_time,omitempty"`
+
+	SpanBatchTime *uint64 `json:"span_batch_time,omitempty"`
+
+	// OPBNB hard fork L2 block number
+	// Fermat switch block (nil = no fork, 0 = already on Fermat)
+	Fermat *big.Int `json:"fermat,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -85,9 +95,8 @@ type Config struct {
 	// L1 System Config Address
 	L1SystemConfigAddress common.Address `json:"l1_system_config_address"`
 
-	// OPBNB hard fork
-	// Fermat switch block (nil = no fork, 0 = already on Fermat)
-	Fermat *big.Int `json:"fermat,omitempty"`
+	// L1 address that declares the protocol versions, optional (Beta feature)
+	ProtocolVersionsAddress common.Address `json:"protocol_versions_address,omitempty"`
 }
 
 // ValidateL1Config checks L1 config variables for errors.
@@ -120,6 +129,10 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client) error 
 	return nil
 }
 
+func (cfg *Config) TimestampForBlock(blockNumber uint64) uint64 {
+	return cfg.Genesis.L2Time + ((blockNumber - cfg.Genesis.L2.Number) * cfg.BlockTime)
+}
+
 func (cfg *Config) TargetBlockNumber(timestamp uint64) (num uint64, err error) {
 	// subtract genesis time from timestamp to get the time elapsed since genesis, and then divide that
 	// difference by the block time to get the expected L2 block number at the current time. If the
@@ -143,7 +156,7 @@ type L1Client interface {
 func (cfg *Config) CheckL1ChainID(ctx context.Context, client L1Client) error {
 	id, err := client.ChainID(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get L1 chain ID: %w", err)
 	}
 	if cfg.L1ChainID.Cmp(id) != 0 {
 		return fmt.Errorf("incorrect L1 RPC chain id %d, expected %d", id, cfg.L1ChainID)
@@ -155,7 +168,7 @@ func (cfg *Config) CheckL1ChainID(ctx context.Context, client L1Client) error {
 func (cfg *Config) CheckL1GenesisBlockHash(ctx context.Context, client L1Client) error {
 	l1GenesisBlockRef, err := client.L1BlockRefByNumber(ctx, cfg.Genesis.L1.Number)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get L1 genesis blockhash: %w", err)
 	}
 	if l1GenesisBlockRef.Hash != cfg.Genesis.L1.Hash {
 		return fmt.Errorf("incorrect L1 genesis block hash %s, expected %s", l1GenesisBlockRef.Hash, cfg.Genesis.L1.Hash)
@@ -172,7 +185,7 @@ type L2Client interface {
 func (cfg *Config) CheckL2ChainID(ctx context.Context, client L2Client) error {
 	id, err := client.ChainID(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get L2 chain ID: %w", err)
 	}
 	if cfg.L2ChainID.Cmp(id) != 0 {
 		return fmt.Errorf("incorrect L2 RPC chain id %d, expected %d", id, cfg.L2ChainID)
@@ -184,7 +197,7 @@ func (cfg *Config) CheckL2ChainID(ctx context.Context, client L2Client) error {
 func (cfg *Config) CheckL2GenesisBlockHash(ctx context.Context, client L2Client) error {
 	l2GenesisBlockRef, err := client.L2BlockRefByNumber(ctx, cfg.Genesis.L2.Number)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get L2 genesis blockhash: %w", err)
 	}
 	if l2GenesisBlockRef.Hash != cfg.Genesis.L2.Hash {
 		return fmt.Errorf("incorrect L2 genesis block hash %s, expected %s", l2GenesisBlockRef.Hash, cfg.Genesis.L2.Hash)
@@ -260,6 +273,15 @@ func (c *Config) IsRegolith(timestamp uint64) bool {
 	return c.RegolithTime != nil && timestamp >= *c.RegolithTime
 }
 
+// IsCanyon returns true if the Canyon hardfork is active at or past the given timestamp.
+func (c *Config) IsCanyon(timestamp uint64) bool {
+	return c.CanyonTime != nil && timestamp >= *c.CanyonTime
+}
+
+func (c *Config) IsSpanBatch(timestamp uint64) bool {
+	return c.SpanBatchTime != nil && timestamp >= *c.SpanBatchTime
+}
+
 // IsFermat returns true if the Fermat hardfork is active at or past the given block.
 func (c *Config) IsFermat(num *big.Int) bool {
 	return isBlockForked(c.Fermat, num)
@@ -302,12 +324,16 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	// Report the upgrade configuration
 	banner += "Post-Bedrock Network Upgrades (timestamp based):\n"
 	banner += fmt.Sprintf("  - Regolith: %s\n", fmtForkTimeOrUnset(c.RegolithTime))
+	banner += fmt.Sprintf("  - Canyon: %s\n", fmtForkTimeOrUnset(c.CanyonTime))
+	banner += fmt.Sprintf("  - SpanBatch: %s\n", fmtForkTimeOrUnset(c.SpanBatchTime))
 	banner += "OPBNB hard forks (block based):\n"
 	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
+	// Report the protocol version
+	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	return banner
 }
 
-// Description outputs a banner describing the important parts of rollup configuration in a log format.
+// LogDescription outputs a banner describing the important parts of rollup configuration in a log format.
 // Optionally provide a mapping of L2 chain IDs to network names to label the L2 chain with if not unknown.
 // The config should be config.Check()-ed before creating a description.
 func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
@@ -326,7 +352,11 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 	log.Info("Rollup Config", "l2_chain_id", c.L2ChainID, "l2_network", networkL2, "l1_chain_id", c.L1ChainID,
 		"l1_network", networkL1, "l2_start_time", c.Genesis.L2Time, "l2_block_hash", c.Genesis.L2.Hash.String(),
 		"l2_block_number", c.Genesis.L2.Number, "l1_block_hash", c.Genesis.L1.Hash.String(),
-		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime), "Fermat", c.Fermat)
+		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime),
+		"canyon_time", fmtForkTimeOrUnset(c.CanyonTime),
+		"span_batch_time", fmtForkTimeOrUnset(c.SpanBatchTime),
+		"Fermat", c.Fermat,
+	)
 }
 
 func fmtForkTimeOrUnset(v *uint64) string {

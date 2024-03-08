@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/immutables"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/state"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 // BuildL2DeveloperGenesis will build the L2 genesis block.
@@ -21,9 +22,11 @@ func BuildL2Genesis(config *DeployConfig, l1StartBlock *types.Block) (*core.Gene
 
 	db := state.NewMemoryStateDB(genspec)
 	if config.FundDevAccounts {
+		log.Info("Funding developer accounts in L2 genesis")
 		FundDevAccounts(db)
-		SetPrecompileBalances(db)
 	}
+
+	SetPrecompileBalances(db)
 
 	storage, err := NewL2StorageConfig(config, l1StartBlock)
 	if err != nil {
@@ -36,7 +39,7 @@ func BuildL2Genesis(config *DeployConfig, l1StartBlock *types.Block) (*core.Gene
 	}
 
 	// Set up the proxies
-	err = setProxies(db, predeploys.ProxyAdminAddr, bigL2PredeployNamespace, 2048)
+	err = setProxies(db, predeploys.ProxyAdminAddr, BigL2PredeployNamespace, 2048)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +63,8 @@ func BuildL2Genesis(config *DeployConfig, l1StartBlock *types.Block) (*core.Gene
 				return nil, fmt.Errorf("error converting to code namespace: %w", err)
 			}
 			db.CreateAccount(codeAddr)
-			db.SetState(addr, ImplementationSlot, codeAddr.Hash())
+			db.SetState(addr, ImplementationSlot, eth.AddressAsLeftPaddedHash(codeAddr))
+			log.Info("Set proxy", "name", name, "address", addr, "implementation", codeAddr)
 		} else {
 			db.DeleteState(addr, AdminSlot)
 		}

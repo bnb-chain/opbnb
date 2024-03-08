@@ -1,37 +1,34 @@
 package node
 
 import (
-	"math/big"
+	"fmt"
+	"net"
+	"strings"
+	"testing"
 
-	"github.com/stretchr/testify/mock"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/require"
 )
 
-var _ EthClient = &MockEthClient{}
+func TestDialEthClientUnavailable(t *testing.T) {
+	listener, err := net.Listen("tcp4", ":0")
+	require.NoError(t, err)
+	defer listener.Close()
 
-type MockEthClient struct {
-	mock.Mock
-}
+	a := listener.Addr().String()
+	parts := strings.Split(a, ":")
+	addr := fmt.Sprintf("http://localhost:%s", parts[1])
 
-func (m *MockEthClient) FinalizedBlockHeight() (*big.Int, error) {
-	args := m.Called()
-	return args.Get(0).(*big.Int), args.Error(1)
-}
+	metrics := &clientMetrics{}
 
-func (m *MockEthClient) BlockHeadersByRange(from, to *big.Int) ([]*types.Header, error) {
-	args := m.Called(from, to)
-	return args.Get(0).([]*types.Header), args.Error(1)
-}
+	// available
+	_, err = DialEthClient(addr, metrics)
+	require.NoError(t, err)
 
-func (m *MockEthClient) BlockHeaderByHash(hash common.Hash) (*types.Header, error) {
-	args := m.Called(hash)
-	return args.Get(0).(*types.Header), args.Error(1)
-}
+	// :0 requests a new unbound port
+	_, err = DialEthClient("http://localhost:0", metrics)
+	require.Error(t, err)
 
-func (m *MockEthClient) RawRpcClient() *rpc.Client {
-	args := m.Called()
-	return args.Get(0).(*rpc.Client)
+	// Fail open if we don't recognize the scheme
+	_, err = DialEthClient("mailto://example.com", metrics)
+	require.Error(t, err)
 }

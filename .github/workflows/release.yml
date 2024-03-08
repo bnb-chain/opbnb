@@ -1,9 +1,10 @@
-name: Release
+name: Release and version
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - master
+      - develop
 
 # Always wait for previous release to finish before releasing again
 concurrency: ${{ github.workflow }}-${{ github.ref }}
@@ -12,47 +13,38 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    if: github.repository == 'ethereum-optimism/optimism'
     # map the step outputs to job outputs
     outputs:
-      fault-detector: ${{ steps.packages.outputs.fault-detector }}
+      fault-mon: ${{ steps.packages.outputs.fault-mon }}
       balance-mon: ${{ steps.packages.outputs.drippie-mon }}
       drippie-mon: ${{ steps.packages.outputs.drippie-mon }}
       wd-mon: ${{ steps.packages.outputs.wd-mon }}
-      replica-healthcheck: ${{ steps.packages.outputs.replica-healthcheck }}
+      replica-mon: ${{ steps.packages.outputs.replica-mon }}
       op-exporter: ${{ steps.packages.outputs.op-exporter }}
       endpoint-monitor: ${{ steps.packages.outputs.endpoint-monitor }}
-
+    # Permissions necessary for Changesets to push a new branch and open PRs
+    # (for automated Version Packages PRs), and request the JWT for provenance.
+    # More info: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
         with:
           # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
           fetch-depth: 0
+          ref: "develop"
 
-      - name: Setup Node.js 16.x
-        uses: actions/setup-node@master
-        with:
-          node-version: 16.x
+      - name: Setup
+        uses: ./.github/actions/setup
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-
-      - uses: actions/cache@v2
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install Dependencies
-        run: yarn --frozen-lockfile
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+      - name: Set deployment token
+        run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Makes a pr to publish the changesets that when
       # merged will publish to npm
@@ -62,7 +54,8 @@ jobs:
         id: changesets
         with:
           createGithubReleases: false
-          publish: yarn release
+          publish: pnpm release:publish
+          version: pnpm release:version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -83,12 +76,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -112,20 +105,20 @@ jobs:
             GITCOMMIT=${{ steps.build_args.outputs.GITCOMMIT }}
             GITVERSION=${{ steps.build_args.outputs.GITVERSION }}
 
-  fault-detector:
-    name: Publish Fault Detector Version ${{ needs.release.outputs.fault-detector }}
+  fault-mon:
+    name: Publish fault-mon Version ${{ needs.release.outputs.fault-mon }}
     needs: release
-    if: needs.release.outputs.fault-detector != ''
+    if: needs.release.outputs.fault-mon != ''
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -135,9 +128,9 @@ jobs:
         with:
           context: .
           file: ./ops/docker/Dockerfile.packages
-          target: fault-detector
+          target: fault-mon
           push: true
-          tags: ethereumoptimism/fault-detector:${{ needs.release.outputs.fault-detector }},ethereumoptimism/fault-detector:latest
+          tags: ethereumoptimism/fault-mon:${{ needs.release.outputs.fault-mon }},ethereumoptimism/fault-mon:latest
 
   wd-mon:
     name: Publish Withdrawal Monitor Version ${{ needs.release.outputs.wd-mon }}
@@ -147,12 +140,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -174,12 +167,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -201,12 +194,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -220,20 +213,20 @@ jobs:
           push: true
           tags: ethereumoptimism/drippie-mon:${{ needs.release.outputs.drippie-mon }},ethereumoptimism/drippie-mon:latest
 
-  replica-healthcheck:
-    name: Publish Replica Healthcheck Version ${{ needs.release.outputs.replica-healthcheck }}
+  replica-mon:
+    name: Publish Replica Healthcheck Version ${{ needs.release.outputs.replica-mon }}
     needs: release
-    if: needs.release.outputs.replica-healthcheck != ''
+    if: needs.release.outputs.replica-mon != ''
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}
@@ -243,9 +236,9 @@ jobs:
         with:
           context: .
           file: ./ops/docker/Dockerfile.packages
-          target: replica-healthcheck
+          target: replica-mon
           push: true
-          tags: ethereumoptimism/replica-healthcheck:${{ needs.release.outputs.replica-healthcheck }},ethereumoptimism/replica-healthcheck:latest
+          tags: ethereumoptimism/replica-mon:${{ needs.release.outputs.replica-mon }},ethereumoptimism/replica-mon:latest
 
   endpoint-monitor:
     name: Publish endpoint-monitor Version ${{ needs.release.outputs.endpoint-monitor}}
@@ -255,12 +248,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN_SECRET }}

@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 )
@@ -19,9 +19,4 @@ func (*noopMetrics) RecordUp()                 {}
 func (*noopMetrics) RecordL2BlocksProposed(l2ref eth.L2BlockRef) {}
 
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
-}
-
-func (m *noopMetrics) RecordRPCClientRequest(method string) func(err error) {
-	return func(err error) {
-	}
 }

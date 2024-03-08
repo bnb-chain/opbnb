@@ -23,8 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 // StreamCtxFn provides a new context to use when handling stream requests
@@ -111,6 +111,12 @@ type SyncClientMetrics interface {
 	PayloadsQuarantineSize(n int)
 }
 
+type SyncPeerScorer interface {
+	onValidResponse(id peer.ID)
+	onResponseError(id peer.ID)
+	onRejectedPayload(id peer.ID)
+}
+
 // SyncClient implements a reverse chain sync with a minimal interface:
 // signal the desired range, and receive blocks within this range back.
 // Through parent-hash verification, received blocks are all ensured to be part of the canonical chain at one point,
@@ -180,7 +186,8 @@ type SyncClient struct {
 
 	cfg *rollup.Config
 
-	metrics SyncClientMetrics
+	metrics   SyncClientMetrics
+	appScorer SyncPeerScorer
 
 	newStreamFn     newStreamFn
 	payloadByNumber protocol.ID
@@ -227,13 +234,14 @@ type SyncClient struct {
 	closingPeers bool
 }
 
-func NewSyncClient(log log.Logger, cfg *rollup.Config, newStream newStreamFn, rcv receivePayloadFn, metrics SyncClientMetrics) *SyncClient {
+func NewSyncClient(log log.Logger, cfg *rollup.Config, newStream newStreamFn, rcv receivePayloadFn, metrics SyncClientMetrics, appScorer SyncPeerScorer) *SyncClient {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &SyncClient{
 		log:             log,
 		cfg:             cfg,
 		metrics:         metrics,
+		appScorer:       appScorer,
 		newStreamFn:     newStream,
 		payloadByNumber: PayloadByNumberProtocolID(cfg.L2ChainID),
 		peers:           make(map[peer.ID]context.CancelFunc),
@@ -268,11 +276,11 @@ func (s *SyncClient) Start() {
 func (s *SyncClient) AddPeer(id peer.ID) {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
-	if _, ok := s.peers[id]; ok {
-		s.log.Warn("cannot register peer for sync duties, peer was already registered", "peer", id)
+	if s.closingPeers {
 		return
 	}
-	if s.closingPeers {
+	if _, ok := s.peers[id]; ok {
+		s.log.Warn("cannot register peer for sync duties, peer was already registered", "peer", id)
 		return
 	}
 	s.wg.Add(1)
@@ -424,7 +432,8 @@ func (s *SyncClient) onQuarantineEvict(key common.Hash, value syncResult) {
 	s.metrics.PayloadsQuarantineSize(s.quarantine.Len())
 	if !s.trusted.Contains(key) {
 		s.log.Debug("evicting untrusted payload from quarantine", "id", value.payload.ID(), "peer", value.peer)
-		// TODO(CLI-3732): downscore peer for having provided us a bad block that never turned out to be canonical
+		// Down-score peer for having provided us a bad block that never turned out to be canonical
+		s.appScorer.onRejectedPayload(value.peer)
 	} else {
 		s.log.Debug("evicting trusted payload from quarantine", "id", value.payload.ID(), "peer", value.peer)
 	}
@@ -492,9 +501,9 @@ func (s *SyncClient) peerLoop(ctx context.Context, id peer.ID) {
 	defer func() {
 		s.peersLock.Lock()
 		delete(s.peers, id) // clean up
+		s.log.Debug("stopped syncing loop of peer", "id", id)
 		s.wg.Done()
 		s.peersLock.Unlock()
-		s.log.Debug("stopped syncing loop of peer", "id", id)
 	}()
 
 	log := s.log.New("peer", id)
@@ -525,6 +534,7 @@ func (s *SyncClient) peerLoop(ctx context.Context, id peer.ID) {
 				// mark as complete if there's an error: we are not sending any result and can complete immediately.
 				pr.complete.Store(true)
 				log.Warn("failed p2p sync request", "num", pr.num, "err", err)
+				s.appScorer.onResponseError(id)
 				// If we hit an error, then count it as many requests.
 				// We'd like to avoid making more requests for a while, to back off.
 				if err := rl.WaitN(ctx, clientErrRateCost); err != nil {
@@ -532,11 +542,9 @@ func (s *SyncClient) peerLoop(ctx context.Context, id peer.ID) {
 				}
 			} else {
 				log.Debug("completed p2p sync request", "num", pr.num)
+				s.appScorer.onValidResponse(id)
 			}
 			took := time.Since(start)
-			// TODO(CLI-3732): update scores: depending on the speed of the result,
-			//  increase the p2p-sync part of the peer score
-			//  (don't allow the score to grow indefinitely only based on this factor though)
 
 			resultCode := byte(0)
 			if err != nil {
@@ -563,7 +571,7 @@ func (r requestResultErr) ResultCode() byte {
 	return byte(r)
 }
 
-func (s *SyncClient) doRequest(ctx context.Context, id peer.ID, n uint64) error {
+func (s *SyncClient) doRequest(ctx context.Context, id peer.ID, expectedBlockNum uint64) error {
 	// open stream to peer
 	reqCtx, reqCancel := context.WithTimeout(ctx, streamTimeout)
 	str, err := s.newStreamFn(reqCtx, id, s.payloadByNumber)
@@ -574,8 +582,8 @@ func (s *SyncClient) doRequest(ctx context.Context, id peer.ID, n uint64) error 
 	defer str.Close()
 	// set write timeout (if available)
 	_ = str.SetWriteDeadline(time.Now().Add(clientWriteRequestTimeout))
-	if err := binary.Write(str, binary.LittleEndian, n); err != nil {
-		return fmt.Errorf("failed to write request (%d): %w", n, err)
+	if err := binary.Write(str, binary.LittleEndian, expectedBlockNum); err != nil {
+		return fmt.Errorf("failed to write request (%d): %w", expectedBlockNum, err)
 	}
 	if err := str.CloseWrite(); err != nil {
 		return fmt.Errorf("failed to close writer side while making request: %w", err)
@@ -612,14 +620,22 @@ func (s *SyncClient) doRequest(ctx context.Context, id peer.ID, n uint64) error 
 	if err != nil {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
+
+	expectedBlockTime := s.cfg.TimestampForBlock(expectedBlockNum)
+
+	blockVersion := eth.BlockV1
+	if s.cfg.IsCanyon(expectedBlockTime) {
+		blockVersion = eth.BlockV2
+	}
 	var res eth.ExecutionPayload
-	if err := res.UnmarshalSSZ(uint32(len(data)), bytes.NewReader(data)); err != nil {
+	if err := res.UnmarshalSSZ(blockVersion, uint32(len(data)), bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
+
 	if err := str.CloseRead(); err != nil {
 		return fmt.Errorf("failed to close reading side")
 	}
-	if err := verifyBlock(&res, n); err != nil {
+	if err := verifyBlock(&res, expectedBlockNum); err != nil {
 		return fmt.Errorf("received execution payload is invalid: %w", err)
 	}
 	select {

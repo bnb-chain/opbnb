@@ -13,10 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/backoff"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/retry"
 )
 
 // Deprecated: use eth.SyncStatus instead.
@@ -178,7 +178,7 @@ func (s *Driver) eventLoop() {
 	var delayedStepReq <-chan time.Time
 
 	// keep track of consecutive failed attempts, to adjust the backoff time accordingly
-	bOffStrategy := backoff.Exponential()
+	bOffStrategy := retry.Exponential()
 	stepAttempts := 0
 
 	// step requests a derivation step to be taken. Won't deadlock if the channel is full.
@@ -439,6 +439,9 @@ func (s *Driver) eventLoop() {
 				}
 				s.log.Warn("Sequencer has been stopped")
 				s.driverConfig.SequencerStopped = true
+				// Cancel any inflight block building. If we don't cancel this, we can resume sequencing an old block
+				// even if we've received new unsafe heads in the interim, causing us to introduce a re-org.
+				s.sequencer.CancelBuildingBlock(ctx)
 				respCh <- hashAndError{hash: s.derivation.UnsafeL2Head().Hash}
 			}
 		case respCh := <-s.sequencerActive:

@@ -1,11 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 rm -rf artifacts forge-artifacts
 
 # See slither.config.json for slither settings
 if [[ -z "$TRIAGE_MODE" ]]; then
+  echo "Building contracts"
+  forge build --build-info --force
   echo "Running slither"
-  slither .
+  slither --ignore-compile .
 else
   echo "Running slither in triage mode"
   # Slither's triage mode will run an 'interview' in the terminal, allowing you to review each of

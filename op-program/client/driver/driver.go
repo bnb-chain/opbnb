@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -61,6 +61,11 @@ func (d *Driver) Step(ctx context.Context) error {
 			return io.EOF
 		}
 		d.logger.Debug("Data is lacking")
+		return nil
+	} else if errors.Is(err, derive.ErrTemporary) {
+		// While most temporary errors are due to requests for external data failing which can't happen,
+		// they may also be returned due to other events like channels timing out so need to be handled
+		d.logger.Warn("Temporary error in derivation", "err", err)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("pipeline err: %w", err)

@@ -156,7 +156,7 @@ export abstract class BaseServiceV2<
     }
 
     // Use commander as a way to communicate info about the service. We don't actually *use*
-    // commander for anything besides the ability to run `ts-node ./service.ts --help`.
+    // commander for anything besides the ability to run `tsx ./service.ts --help`.
     const program = new Command().allowUnknownOption(true)
     for (const [optionName, optionSpec] of Object.entries(params.optionsSpec)) {
       // Skip options that are not meant to be used by the user.
@@ -336,7 +336,8 @@ export abstract class BaseServiceV2<
       app.use(
         bodyParser.json({
           verify: (req, res, buf, encoding) => {
-            ;(req as any).rawBody = buf?.toString(encoding || 'utf8') || ''
+            ;(req as any).rawBody =
+              buf?.toString((encoding as BufferEncoding) || 'utf8') || ''
           },
           ...(this.params.bodyParserParams ?? {}),
         })

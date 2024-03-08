@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 type attributesWithParent struct {
@@ -35,6 +35,7 @@ type Engine interface {
 	PayloadByNumber(context.Context, uint64) (*eth.ExecutionPayload, error)
 	L2BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L2BlockRef, error)
 	L2BlockRefByHash(ctx context.Context, l2Hash common.Hash) (eth.L2BlockRef, error)
+	L2BlockRefByNumber(ctx context.Context, num uint64) (eth.L2BlockRef, error)
 	SystemConfigL2Fetcher
 }
 
@@ -182,6 +183,7 @@ func (eq *EngineQueue) AddUnsafePayload(payload *eth.ExecutionPayload) {
 		eq.log.Warn("cannot add nil unsafe payload")
 		return
 	}
+
 	if err := eq.unsafePayloads.Push(payload); err != nil {
 		eq.log.Warn("Could not add unsafe payload", "id", payload.ID(), "timestamp", uint64(payload.Timestamp), "err", err)
 		return
@@ -474,6 +476,11 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 		eq.unsafePayloads.Pop()
 		return nil
 	}
+	if uint64(first.BlockNumber) <= eq.unsafeHead.Number {
+		eq.log.Info("skipping unsafe payload, since it is older than unsafe head", "unsafe", eq.unsafeHead.ID(), "unsafe_payload", first.ID())
+		eq.unsafePayloads.Pop()
+		return nil
+	}
 
 	// Ensure that the unsafe payload builds upon the current unsafe head
 	if !eq.syncCfg.EngineSync && first.ParentHash != eq.unsafeHead.Hash {
@@ -747,7 +754,7 @@ func (eq *EngineQueue) resetBuildingState() {
 	eq.buildingSafe = false
 }
 
-// ResetStep Walks the L2 chain backwards until it finds an L2 block whose L1 origin is canonical.
+// Reset walks the L2 chain backwards until it finds an L2 block whose L1 origin is canonical.
 // The unsafe head is set to the head of the L2 chain, unless the existing safe head is not canonical.
 func (eq *EngineQueue) Reset(ctx context.Context, _ eth.L1BlockRef, _ eth.SystemConfig) error {
 	result, err := sync.FindL2Heads(ctx, eq.cfg, eq.l1Fetcher, eq.engine, eq.log, eq.syncCfg)

@@ -1,11 +1,17 @@
 package metrics
 
 import (
-	"github.com/ethereum-optimism/optimism/op-node/eth"
+	"io"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type noopMetrics struct {
@@ -35,11 +41,8 @@ func (*noopMetrics) RecordChannelTimedOut(derive.ChannelID)       {}
 func (*noopMetrics) RecordBatchTxSubmitted() {}
 func (*noopMetrics) RecordBatchTxSuccess()   {}
 func (*noopMetrics) RecordBatchTxFailed()    {}
-
-func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
+func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, common.Address) io.Closer {
+	return nil
 }
-
-func (m *noopMetrics) RecordRPCClientRequest(method string) func(err error) {
-	return func(err error) {
-	}
+func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
 }

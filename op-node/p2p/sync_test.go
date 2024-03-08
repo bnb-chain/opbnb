@@ -17,10 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/ethereum-optimism/optimism/op-node/eth"
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
-	"github.com/ethereum-optimism/optimism/op-node/testlog"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/testlog"
 )
 
 type mockPayloadFn func(n uint64) (*eth.ExecutionPayload, error)
@@ -137,7 +137,7 @@ func TestSinglePeerSync(t *testing.T) {
 	hostA.SetStreamHandler(PayloadByNumberProtocolID(cfg.L2ChainID), payloadByNumber)
 
 	// Setup host B as the client
-	cl := NewSyncClient(log.New("role", "client"), cfg, hostB.NewStream, receivePayload, metrics.NoopMetrics)
+	cl := NewSyncClient(log.New("role", "client"), cfg, hostB.NewStream, receivePayload, metrics.NoopMetrics, &NoopApplicationScorer{})
 
 	// Setup host B (client) to sync from its peer Host A (server)
 	cl.AddPeer(hostA.ID())
@@ -190,7 +190,7 @@ func TestMultiPeerSync(t *testing.T) {
 		payloadByNumber := MakeStreamHandler(ctx, log.New("serve", "payloads_by_number"), srv.HandleSyncRequest)
 		h.SetStreamHandler(PayloadByNumberProtocolID(cfg.L2ChainID), payloadByNumber)
 
-		cl := NewSyncClient(log.New("role", "client"), cfg, h.NewStream, receivePayload, metrics.NoopMetrics)
+		cl := NewSyncClient(log.New("role", "client"), cfg, h.NewStream, receivePayload, metrics.NoopMetrics, &NoopApplicationScorer{})
 		return cl, received
 	}
 
@@ -306,7 +306,7 @@ func TestNetworkNotifyAddPeerAndRemovePeer(t *testing.T) {
 
 	syncCl := NewSyncClient(log, cfg, hostA.NewStream, func(ctx context.Context, from peer.ID, payload *eth.ExecutionPayload) error {
 		return nil
-	}, metrics.NoopMetrics)
+	}, metrics.NoopMetrics, &NoopApplicationScorer{})
 
 	waitChan := make(chan struct{}, 1)
 	hostA.Network().Notify(&network.NotifyBundle{
