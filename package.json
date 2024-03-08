@@ -60,7 +60,7 @@
     "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-react": "^7.24.0",
     "eslint-plugin-unicorn": "^48.0.1",
-    "husky": "^8.0.3",
+    "husky": "^9.0.11",
     "lint-staged": "15.0.2",
     "markdownlint": "^0.31.0",
     "markdownlint-cli2": "0.4.0",
