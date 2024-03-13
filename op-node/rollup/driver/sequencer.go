@@ -34,6 +34,7 @@ type L1OriginSelectorIface interface {
 type SequencerMetrics interface {
 	RecordSequencerInconsistentL1Origin(from eth.BlockID, to eth.BlockID)
 	RecordSequencerReset()
+	RecordSequencerStepTime(step string, duration time.Duration)
 }
 
 // Sequencer implements the sequencing interface of the driver: it starts and completes block building jobs.
@@ -74,11 +75,13 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	l2Head := d.engine.UnsafeL2Head()
 
 	// Figure out which L1 origin block we're going to be building on top of.
+	start := time.Now()
 	l1Origin, err := d.l1OriginSelector.FindL1Origin(ctx, l2Head)
 	if err != nil {
 		d.log.Error("Error finding next L1 Origin", "err", err)
 		return err
 	}
+	d.metrics.RecordSequencerStepTime("findL1Origin", time.Since(start))
 
 	if !(l2Head.L1Origin.Hash == l1Origin.ParentHash || l2Head.L1Origin.Hash == l1Origin.Hash) {
 		d.metrics.RecordSequencerInconsistentL1Origin(l2Head.L1Origin, l1Origin.ID())
@@ -90,10 +93,12 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	fetchCtx, cancel := context.WithTimeout(ctx, time.Second*20)
 	defer cancel()
 
+	start = time.Now()
 	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID())
 	if err != nil {
 		return err
 	}
+	d.metrics.RecordSequencerStepTime("preparePayloadAttributes", time.Since(start))
 
 	// If our next L2 block timestamp is beyond the Sequencer drift threshold, then we must produce
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
@@ -256,6 +261,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 			return payload, nil
 		}
 	} else {
+		start := time.Now()
 		err := d.StartBuildingBlock(ctx)
 		if err != nil {
 			if errors.Is(err, derive.ErrCritical) {
@@ -280,6 +286,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context) (*eth.ExecutionP
 				d.log.Info("sequencer delay next action 600ms and reset accEmptyBlocks")
 			}
 			d.log.Info("sequencer started building new block", "payload_id", buildingID, "l2_parent_block", parent, "l2_parent_block_time", parent.Time)
+			d.metrics.RecordSequencerStepTime("startBuildBlock", time.Since(start))
 		}
 		return nil, nil
 	}

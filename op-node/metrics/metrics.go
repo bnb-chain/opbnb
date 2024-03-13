@@ -113,6 +113,8 @@ type Metrics struct {
 	SequencerSealingDurationSeconds prometheus.Histogram
 	SequencerSealingTotal           prometheus.Counter
 
+	SequencerStepDurationSeconds *prometheus.HistogramVec
+
 	UnsafePayloadsBufferLen     prometheus.Gauge
 	UnsafePayloadsBufferMemSize prometheus.Gauge
 
@@ -364,6 +366,13 @@ func NewMetrics(procName string) *Metrics {
 			Name:      "sequencer_sealing_total",
 			Help:      "Number of sequencer block sealing jobs",
 		}),
+		SequencerStepDurationSeconds: factory.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: ns,
+			Name:      "sequencer_step_seconds",
+			Buckets:   []float64{
+				.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
+			Help:      "Histogram of Sequencer main step duration time",
+		}, []string{"step"}),
 
 		ProtocolVersionDelta: factory.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns,
@@ -529,6 +538,11 @@ func (m *Metrics) RecordSequencerBuildingDiffTime(duration time.Duration) {
 func (m *Metrics) RecordSequencerSealingTime(duration time.Duration) {
 	m.SequencerSealingTotal.Inc()
 	m.SequencerSealingDurationSeconds.Observe(float64(duration) / float64(time.Second))
+}
+
+// RecordSequencerStepTime tracks the amount of time the sequencer took to finish several main steps of block produce.
+func (m *Metrics) RecordSequencerStepTime(step string, duration time.Duration) {
+	m.SequencerStepDurationSeconds.WithLabelValues(step).Observe(float64(duration) / float64(time.Second))
 }
 
 // StartServer starts the metrics server on the given hostname and port.
