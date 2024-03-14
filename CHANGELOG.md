@@ -23,6 +23,10 @@ This is a recommended release for op-node. This release brings in upstream updat
 - ghcr.io/bnb-chain/op-batcher:v0.3.0
 - ghcr.io/bnb-chain/op-proposer:v0.3.0
 
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.2.4...v0.3.0
+
 ## v0.2.4
 
 This is a minor release and upgrading is optional.
