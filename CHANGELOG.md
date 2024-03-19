@@ -6,8 +6,8 @@ This is a recommended release for op-node. This release brings in upstream updat
 
 ### User Facing Changes
 
-- The default address for the metrics, rpc, and pprof servers will be changing from 0.0.0.0 to 127.0.0.1, and pprof server will change to use 6060 port by default
-- op-node enable p2p score feature, and with --p2p.scoring=light, --p2p.ban.peers=true by default
+- The default address for the metrics, rpc, and pprof servers will be changing from 0.0.0.0 to 127.0.0.1, and pprof server will change to use 6060 port by default(you may encounter panic due to port conflict, if so you could change it to another value via `--pprof.port`).
+- op-node enable p2p score feature, and with `--p2p.scoring=light`, `--p2p.ban.peers=true` by default(to keep previous config, you could set `--p2p.scoring=none`, `--p2p.ban.peers=false`).
 
 ### Partial Changelog
 
