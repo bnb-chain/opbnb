@@ -57,11 +57,11 @@ func (v *PreFetchCache[V]) AddIfNotFull(key uint64, value V) (success bool, isFu
 	return true, false
 }
 
-func (v *PreFetchCache[V]) Get(key uint64) (V, bool) {
+func (v *PreFetchCache[V]) Get(key uint64, recordMetrics bool) (V, bool) {
 	defer v.lock.Unlock()
 	v.lock.Lock()
 	value, ok := v.inner[key]
-	if v.m != nil {
+	if v.m != nil && recordMetrics {
 		v.m.CacheGet(v.label, ok)
 	}
 	return value, ok
