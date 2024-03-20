@@ -26,7 +26,6 @@ type L1ReceiptsFetcher interface {
 	PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error)
 	GoOrUpdatePreFetchReceipts(ctx context.Context, l1StartBlock uint64) error
 	ClearReceiptsCacheBefore(blockNumber uint64)
-	InfoAndTxsByNumber(ctx context.Context, number uint64) (eth.BlockInfo, types.Transactions, error)
 }
 
 type SystemConfigL2Fetcher interface {
@@ -166,17 +165,18 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 			medianGasPriceQueue.PushBack(bsc.DefaultBaseFee)
 		}
 	}
+	block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+	if err != nil {
+		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+	}
 	for medianGasPriceQueue.Len() < bsc.CountBlockSize-1 {
-		_, transactions, err := ba.l1.InfoAndTxsByNumber(ctx, epoch.Number-bsc.CountBlockSize+uint64(medianGasPriceQueue.Len())+1)
+		newBlock, txs, err := ba.l1.InfoAndTxsByHash(ctx, block.ParentHash())
 		if err != nil {
 			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
 		}
-		medianGasPrice := bsc.MedianGasPrice(transactions)
-		medianGasPriceQueue.PushBack(medianGasPrice)
-	}
-	_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
-	if err != nil {
-		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+		medianGasPrice := bsc.MedianGasPrice(txs)
+		medianGasPriceQueue.PushFront(medianGasPrice)
+		block = newBlock
 	}
 	medianGasPrice := bsc.MedianGasPrice(transactions)
 	medianGasPriceQueue.PushBack(medianGasPrice)
