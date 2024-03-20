@@ -85,13 +85,13 @@ func GetRollupConfig(name string) (*rollup.Config, error) {
 var NetworksByName = map[string]rollup.Config{
 	"opBNBMainnet": OPBNBMainnet,
 	"opBNBTestnet": OPBNBTestnet,
-	"opBNBDevnet":  OPBNBDevnet,
+	"opBNBQANet":   OPBNBQANet,
 }
 
 var NetworksByChainId = map[string]rollup.Config{
 	"204":  OPBNBMainnet,
 	"5611": OPBNBTestnet,
-	"1320": OPBNBDevnet,
+	"1322": OPBNBQANet,
 }
 
 func GetRollupConfigByNetwork(name string) (rollup.Config, error) {
@@ -141,6 +141,8 @@ var OPBNBMainnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x7ac836148c14c74086d57f7828f2d065672db3b8"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(9397477), // Nov-28-2023 06 AM +UTC
+	// TODO update block number
+	Snow: nil,
 }
 
 var OPBNBTestnet = rollup.Config{
@@ -172,21 +174,23 @@ var OPBNBTestnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x406ac857817708eaf4ca3a82317ef4ae3d1ea23b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(12113000), // Nov-03-2023 06 AM +UTC
+	// TODO update block number
+	Snow: nil,
 }
 
-var OPBNBDevnet = rollup.Config{
+var OPBNBQANet = rollup.Config{
 	Genesis: rollup.Genesis{
 		L1: eth.BlockID{
-			Hash:   common.HexToHash("0x29aee50ab3edefa64219e5c9b9c07f7d1953a98f2f4003d2c6fd93abeee4b706"),
-			Number: 2890195,
+			Hash:   common.HexToHash("0x3db93722c9951fe1da25dd652c6e2367674a97161df2acea322e915cab0d58ba"),
+			Number: 742038,
 		},
 		L2: eth.BlockID{
-			Hash:   common.HexToHash("0x49d448b8dc98cc95e3968615ff3dbd904d9eec8252c5f52271f029896e6147ee"),
+			Hash:   common.HexToHash("0x1cba296441b55cf9b5b306b6aef43e68e9aeff2450d68c391dec448604cf3baf"),
 			Number: 0,
 		},
-		L2Time: 1694166483,
+		L2Time: 1704856150,
 		SystemConfig: eth.SystemConfig{
-			BatcherAddr: common.HexToAddress("0x425a3598cb5e2d37213936e187914ea2059957ba"),
+			BatcherAddr: common.HexToAddress("0xe309831c77d5fb5f189dd97c598e26e5c014f2d6"),
 			Overhead:    eth.Bytes32(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000834")),
 			Scalar:      eth.Bytes32(common.HexToHash("0x00000000000000000000000000000000000000000000000000000000000f4240")),
 			GasLimit:    100000000,
@@ -196,13 +200,15 @@ var OPBNBDevnet = rollup.Config{
 	MaxSequencerDrift:      600,
 	SeqWindowSize:          14400,
 	ChannelTimeout:         1200,
-	L1ChainID:              big.NewInt(797),
-	L2ChainID:              big.NewInt(1320),
-	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000000204"),
-	DepositContractAddress: common.HexToAddress("0xd93160096c5b65bb036b3269eb02328ddadb9856"),
-	L1SystemConfigAddress:  common.HexToAddress("0xf053067cec8d8990de2ba9e17ec2f16c63c7bec4"),
+	L1ChainID:              big.NewInt(714),
+	L2ChainID:              big.NewInt(1322),
+	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001322"),
+	DepositContractAddress: common.HexToAddress("0xb7cdbce0b1f153b4cb2acc36aeb4d9d2cdda1132"),
+	L1SystemConfigAddress:  common.HexToAddress("0x6a2607255801095b23256a341b24d31275fe2438"),
 	RegolithTime:           u64Ptr(0),
-	Fermat:                 big.NewInt(3615117),
+	// Fermat:                 big.NewInt(3615117),
+	// TODO update block number
+	Snow: nil,
 }
 
 func u64Ptr(v uint64) *uint64 {

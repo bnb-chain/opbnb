@@ -81,3 +81,8 @@ func (m *MeteredL1Fetcher) ClearReceiptsCacheBefore(blockNumber uint64) {
 	defer m.recordTime("ClearReceiptsCacheBefore")()
 	m.inner.ClearReceiptsCacheBefore(blockNumber)
 }
+
+func (m *MeteredL1Fetcher) InfoAndTxsByNumber(ctx context.Context, num uint64) (eth.BlockInfo, types.Transactions, error) {
+	defer m.recordTime("InfoAndTxsByNumber")()
+	return m.inner.InfoAndTxsByNumber(ctx, num)
+}
