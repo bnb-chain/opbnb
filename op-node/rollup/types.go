@@ -84,7 +84,7 @@ type Config struct {
 	// OPBNB hard fork L2 block number
 	// Fermat switch block (nil = no fork, 0 = already on Fermat)
 	Fermat *big.Int `json:"fermat,omitempty"`
-	// Snow switch block (nil = no fork, 0 = already on L1GasPriceOptimize)
+	// Snow switch block (nil = no fork, 0 = already on Snow)
 	Snow *big.Int `json:"snow,omitempty"`
 
 	// Note: below addresses are part of the block-derivation process,
