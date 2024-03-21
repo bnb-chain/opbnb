@@ -165,6 +165,7 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 			medianGasPriceQueue.PushBack(bsc.DefaultBaseFee)
 		}
 	}
+	// TODO handle L1 reorg / L2 reorg / L1 derive multi L2 blocks
 	block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
 	if err != nil {
 		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
