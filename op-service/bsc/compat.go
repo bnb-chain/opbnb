@@ -108,7 +108,6 @@ func FinalGasPrice(medianGasPriceQueue list.List) *big.Int {
 	}
 	sort.Sort(bigIntArray(allMedianGasPrice))
 	finalGasPrice := allMedianGasPrice[(len(allMedianGasPrice)-1)*percentile/100]
-	medianGasPriceQueue.Remove(medianGasPriceQueue.Front())
 	return finalGasPrice
 }
 

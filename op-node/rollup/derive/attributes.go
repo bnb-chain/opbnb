@@ -18,6 +18,12 @@ import (
 
 var medianGasPriceQueue list.List
 
+var (
+	latestBlockNumber uint64
+	latestBlockHash   common.Hash
+	latestL1GasPrice  *big.Int
+)
+
 // L1ReceiptsFetcher fetches L1 header info and receipts for the payload attributes derivation (the info tx and deposits)
 type L1ReceiptsFetcher interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
@@ -165,7 +171,19 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 			medianGasPriceQueue.PushBack(bsc.DefaultBaseFee)
 		}
 	}
-	// TODO handle L1 reorg / L2 reorg / L1 derive multi L2 blocks
+	if latestBlockNumber == epoch.Number {
+		if latestBlockHash != (common.Hash{}) && latestBlockHash == epoch.Hash {
+			return latestL1GasPrice, nil
+		} else {
+			// L1 reorg, clear medianGasPriceQueue
+			medianGasPriceQueue.Init()
+		}
+	} else {
+		if latestBlockNumber < epoch.Number {
+			// L2 or L1 reorg, clear medianGasPriceQueue
+			medianGasPriceQueue.Init()
+		}
+	}
 	block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
 	if err != nil {
 		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
@@ -173,6 +191,8 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 	for medianGasPriceQueue.Len() < bsc.CountBlockSize-1 {
 		newBlock, txs, err := ba.l1.InfoAndTxsByHash(ctx, block.ParentHash())
 		if err != nil {
+			// Requires CountBlockSize consecutive successes
+			medianGasPriceQueue.Init()
 			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
 		}
 		medianGasPrice := bsc.MedianGasPrice(txs)
@@ -182,5 +202,9 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 	medianGasPrice := bsc.MedianGasPrice(transactions)
 	medianGasPriceQueue.PushBack(medianGasPrice)
 	finalGasPrice := bsc.FinalGasPrice(medianGasPriceQueue)
+	medianGasPriceQueue.Remove(medianGasPriceQueue.Front())
+	latestBlockNumber = epoch.Number
+	latestBlockHash = epoch.Hash
+	latestL1GasPrice = finalGasPrice
 	return finalGasPrice, nil
 }
