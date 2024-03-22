@@ -179,7 +179,7 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 			medianGasPriceQueue.Init()
 		}
 	} else {
-		if latestBlockNumber < epoch.Number {
+		if latestBlockNumber > epoch.Number {
 			// L2 or L1 reorg, clear medianGasPriceQueue
 			medianGasPriceQueue.Init()
 		}
