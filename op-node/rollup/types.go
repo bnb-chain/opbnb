@@ -387,7 +387,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime),
 		"canyon_time", fmtForkTimeOrUnset(c.CanyonTime),
 		"span_batch_time", fmtForkTimeOrUnset(c.SpanBatchTime),
-		"Fermat", c.Fermat, "Snow", fmtForkTimeOrUnset(c.SnowTime),
+		"fermat", c.Fermat, "snow_time", fmtForkTimeOrUnset(c.SnowTime),
 	)
 }
 
