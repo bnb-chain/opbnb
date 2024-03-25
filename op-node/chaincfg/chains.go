@@ -141,8 +141,8 @@ var OPBNBMainnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x7ac836148c14c74086d57f7828f2d065672db3b8"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(9397477), // Nov-28-2023 06 AM +UTC
-	// TODO update block number
-	Snow: nil,
+	// TODO update timestamp
+	SnowTime: nil,
 }
 
 var OPBNBTestnet = rollup.Config{
@@ -174,8 +174,8 @@ var OPBNBTestnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x406ac857817708eaf4ca3a82317ef4ae3d1ea23b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(12113000), // Nov-03-2023 06 AM +UTC
-	// TODO update block number
-	Snow: nil,
+	// TODO update timestamp
+	SnowTime: nil,
 }
 
 var OPBNBQANet = rollup.Config{
@@ -206,9 +206,9 @@ var OPBNBQANet = rollup.Config{
 	DepositContractAddress: common.HexToAddress("0xb7cdbce0b1f153b4cb2acc36aeb4d9d2cdda1132"),
 	L1SystemConfigAddress:  common.HexToAddress("0x6a2607255801095b23256a341b24d31275fe2438"),
 	RegolithTime:           u64Ptr(0),
-	// Fermat:                 big.NewInt(3615117),
-	// TODO update block number
-	Snow: nil,
+	// Fermat:              big.NewInt(3615117),
+	// TODO update timestamp
+	SnowTime: nil,
 }
 
 func u64Ptr(v uint64) *uint64 {

@@ -92,8 +92,9 @@ type Config struct {
 	// OPBNB hard fork L2 block number
 	// Fermat switch block (nil = no fork, 0 = already on Fermat)
 	Fermat *big.Int `json:"fermat,omitempty"`
-	// Snow switch time (nil = no fork, 0 = already on Snow)
-	Snow *uint64 `json:"snow,omitempty"`
+	// SnowTime  sets the activation time of the next network upgrade.
+	// Active if SnowTime != nil && L2 block timestamp >= *SnowTime, inactive otherwise.
+	SnowTime *uint64 `json:"snow_time,omitempty"`
 
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
@@ -299,7 +300,7 @@ func (c *Config) IsFermat(num *big.Int) bool {
 
 // IsSnow returns whether the time is either equal to the Snow fork time or greater.
 func (c *Config) IsSnow(time uint64) bool {
-	return isTimestampForked(c.Snow, time)
+	return isTimestampForked(c.SnowTime, time)
 }
 
 // isBlockForked returns whether a fork scheduled at block s is active at the
@@ -358,7 +359,7 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += "OPBNB hard forks (block based):\n"
 	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
 	banner += "OPBNB hard forks (timestamp based):\n"
-	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.Snow))
+	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.SnowTime))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	return banner
@@ -386,7 +387,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime),
 		"canyon_time", fmtForkTimeOrUnset(c.CanyonTime),
 		"span_batch_time", fmtForkTimeOrUnset(c.SpanBatchTime),
-		"Fermat", c.Fermat, "Snow", fmtForkTimeOrUnset(c.Snow),
+		"Fermat", c.Fermat, "Snow", fmtForkTimeOrUnset(c.SnowTime),
 	)
 }
 

@@ -107,8 +107,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.cfg.IsSnow(l2Parent.Time + 1) {
-		l1BaseFee, err = calculateL1GasPrice(ctx, ba, epoch)
+	if ba.cfg.IsSnow(l2Parent.Time + ba.cfg.BlockTime) {
+		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPa
 	return ba.l2.CachePayloadByHash(payload)
 }
 
-func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epoch eth.BlockID) (*big.Int, error) {
+func SnowL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epoch eth.BlockID) (*big.Int, error) {
 	// Consider this situation. If start a new l2 chain, starting from the block height of l1 less than CountBlockSize,
 	// in fact, this situation is unlikely to happen.
 	if epoch.Number < bsc.CountBlockSize-1 {
@@ -175,7 +175,7 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 			allMedianGasPrice = append(allMedianGasPrice, blockInfo.MedianGasPrice)
 			blockHash = blockInfo.ParentHash
 		} else {
-			block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+			block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, blockHash)
 			if err != nil {
 				return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
 			}
@@ -186,8 +186,8 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 				ParentHash:     block.ParentHash(),
 				MedianGasPrice: medianGasPrice,
 			}
-			bsc.BlockInfoCache.Add(epoch.Hash, newBlockInfo)
-			blockHash = newBlockInfo.ParentHash
+			bsc.BlockInfoCache.Add(block.Hash(), newBlockInfo)
+			blockHash = block.ParentHash()
 		}
 	}
 	latestBlockHash = epoch.Hash
