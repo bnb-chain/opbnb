@@ -36,6 +36,14 @@ var (
 	ErrL2ChainIDNotPositive          = errors.New("L2 chain ID must be non-zero and positive")
 )
 
+// NetworkNames are user friendly names to use in the chain spec banner.
+var NetworkNames = map[string]string{
+	"56":   "bscMainnet",
+	"204":  "opBNBMainnet",
+	"97":   "bscTestnet",
+	"5611": "opBNBTestnet",
+}
+
 type Genesis struct {
 	// The L1 block that the rollup starts *after* (no derived transactions)
 	L1 eth.BlockID `json:"l1"`
@@ -84,8 +92,8 @@ type Config struct {
 	// OPBNB hard fork L2 block number
 	// Fermat switch block (nil = no fork, 0 = already on Fermat)
 	Fermat *big.Int `json:"fermat,omitempty"`
-	// Snow switch block (nil = no fork, 0 = already on Snow)
-	Snow *big.Int `json:"snow,omitempty"`
+	// Snow switch time (nil = no fork, 0 = already on Snow)
+	Snow *uint64 `json:"snow,omitempty"`
 
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
@@ -289,9 +297,9 @@ func (c *Config) IsFermat(num *big.Int) bool {
 	return isBlockForked(c.Fermat, num)
 }
 
-// IsSnow returns true if the Snow hardfork is active at or past the given block.
-func (c *Config) IsSnow(num *big.Int) bool {
-	return isBlockForked(c.Snow, num)
+// IsSnow returns whether the time is either equal to the Snow fork time or greater.
+func (c *Config) IsSnow(time uint64) bool {
+	return isTimestampForked(c.Snow, time)
 }
 
 // isBlockForked returns whether a fork scheduled at block s is active at the
@@ -304,6 +312,16 @@ func isBlockForked(s, head *big.Int) bool {
 	return s.Cmp(head) <= 0
 }
 
+// isTimestampForked returns whether a fork scheduled at timestamp s is active
+// at the given head timestamp. Whilst this method is the same as isBlockForked,
+// they are explicitly separate for clearer reading.
+func isTimestampForked(s *uint64, head uint64) bool {
+	if s == nil {
+		return false
+	}
+	return *s <= head
+}
+
 // Description outputs a banner describing the important parts of rollup configuration in a human-readable form.
 // Optionally provide a mapping of L2 chain IDs to network names to label the L2 chain with if not unknown.
 // The config should be config.Check()-ed before creating a description.
@@ -314,10 +332,14 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	if l2Chains != nil {
 		networkL2 = l2Chains[c.L2ChainID.String()]
 	}
+	// replace using opBNB networks
+	networkL2 = NetworkNames[c.L2ChainID.String()]
 	if networkL2 == "" {
 		networkL2 = "unknown L2"
 	}
 	networkL1 := params.NetworkNames[c.L1ChainID.String()]
+	// replace using bsc networks
+	networkL1 = NetworkNames[c.L1ChainID.String()]
 	if networkL1 == "" {
 		networkL1 = "unknown L1"
 	}
@@ -335,7 +357,8 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf("  - SpanBatch: %s\n", fmtForkTimeOrUnset(c.SpanBatchTime))
 	banner += "OPBNB hard forks (block based):\n"
 	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
-	banner += fmt.Sprintf(" - Snow: #%-8v\n", c.Snow)
+	banner += "OPBNB hard forks (timestamp based):\n"
+	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.Snow))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	return banner
@@ -363,7 +386,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"l1_block_number", c.Genesis.L1.Number, "regolith_time", fmtForkTimeOrUnset(c.RegolithTime),
 		"canyon_time", fmtForkTimeOrUnset(c.CanyonTime),
 		"span_batch_time", fmtForkTimeOrUnset(c.SpanBatchTime),
-		"Fermat", c.Fermat, "Snow", c.Snow,
+		"Fermat", c.Fermat, "Snow", fmtForkTimeOrUnset(c.Snow),
 	)
 }
 

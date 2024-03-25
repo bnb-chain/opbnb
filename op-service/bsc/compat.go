@@ -1,7 +1,7 @@
 package bsc
 
 import (
-	"container/list"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"math/big"
 	"sort"
 
@@ -19,7 +19,21 @@ var OPBNBTestnet = big.NewInt(5611)
 const (
 	percentile     = 50
 	CountBlockSize = 21
+	// BlockInfoCacheCap 21 validators in bsc, finalize block requires 15, 2 * (21+15) = 72 to buffer
+	BlockInfoCacheCap = 72
 )
+
+type BlockInfo struct {
+	BlockHash      common.Hash
+	ParentHash     common.Hash
+	MedianGasPrice *big.Int
+}
+
+var BlockInfoCache *lru.Cache[common.Hash, BlockInfo]
+
+func init() {
+	BlockInfoCache, _ = lru.New[common.Hash, BlockInfo](BlockInfoCacheCap)
+}
 
 type BlockInfoBSCWrapper struct {
 	eth.BlockInfo
@@ -101,11 +115,7 @@ func MedianGasPrice(transactions types.Transactions) *big.Int {
 	return medianGasPrice
 }
 
-func FinalGasPrice(medianGasPriceQueue list.List) *big.Int {
-	var allMedianGasPrice []*big.Int
-	for item := medianGasPriceQueue.Front(); item != nil; item = item.Next() {
-		allMedianGasPrice = append(allMedianGasPrice, item.Value.(*big.Int))
-	}
+func FinalGasPrice(allMedianGasPrice []*big.Int) *big.Int {
 	sort.Sort(bigIntArray(allMedianGasPrice))
 	finalGasPrice := allMedianGasPrice[(len(allMedianGasPrice)-1)*percentile/100]
 	return finalGasPrice

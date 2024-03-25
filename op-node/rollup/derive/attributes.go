@@ -1,7 +1,6 @@
 package derive
 
 import (
-	"container/list"
 	"context"
 	"fmt"
 	"math/big"
@@ -16,12 +15,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
-var medianGasPriceQueue list.List
-
 var (
-	latestBlockNumber uint64
-	latestBlockHash   common.Hash
-	latestL1GasPrice  *big.Int
+	latestBlockHash  common.Hash
+	latestL1GasPrice *big.Int
 )
 
 // L1ReceiptsFetcher fetches L1 header info and receipts for the payload attributes derivation (the info tx and deposits)
@@ -111,7 +107,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.cfg.IsSnow(big.NewInt(int64(l2Parent.Number + 1))) {
+	if ba.cfg.IsSnow(l2Parent.Time + 1) {
 		l1BaseFee, err = calculateL1GasPrice(ctx, ba, epoch)
 		if err != nil {
 			return nil, err
@@ -167,44 +163,34 @@ func calculateL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epo
 	// Consider this situation. If start a new l2 chain, starting from the block height of l1 less than CountBlockSize,
 	// in fact, this situation is unlikely to happen.
 	if epoch.Number < bsc.CountBlockSize-1 {
-		for i := 0; i < bsc.CountBlockSize-1; i++ {
-			medianGasPriceQueue.PushBack(bsc.DefaultBaseFee)
-		}
+		return bsc.DefaultBaseFee, nil
 	}
-	if latestBlockNumber == epoch.Number {
-		if latestBlockHash != (common.Hash{}) && latestBlockHash == epoch.Hash {
-			return latestL1GasPrice, nil
+	if latestBlockHash == epoch.Hash {
+		return latestL1GasPrice, nil
+	}
+	var allMedianGasPrice []*big.Int
+	blockHash := epoch.Hash
+	for len(allMedianGasPrice) < bsc.CountBlockSize {
+		if blockInfo, ok := bsc.BlockInfoCache.Get(blockHash); ok {
+			allMedianGasPrice = append(allMedianGasPrice, blockInfo.MedianGasPrice)
+			blockHash = blockInfo.ParentHash
 		} else {
-			// L1 reorg, clear medianGasPriceQueue
-			medianGasPriceQueue.Init()
-		}
-	} else {
-		if latestBlockNumber > epoch.Number {
-			// L2 or L1 reorg, clear medianGasPriceQueue
-			medianGasPriceQueue.Init()
+			block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+			if err != nil {
+				return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+			}
+			medianGasPrice := bsc.MedianGasPrice(transactions)
+			allMedianGasPrice = append(allMedianGasPrice, medianGasPrice)
+			newBlockInfo := bsc.BlockInfo{
+				BlockHash:      block.Hash(),
+				ParentHash:     block.ParentHash(),
+				MedianGasPrice: medianGasPrice,
+			}
+			bsc.BlockInfoCache.Add(epoch.Hash, newBlockInfo)
+			blockHash = newBlockInfo.ParentHash
 		}
 	}
-	block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
-	if err != nil {
-		return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
-	}
-	for medianGasPriceQueue.Len() < bsc.CountBlockSize-1 {
-		newBlock, txs, err := ba.l1.InfoAndTxsByHash(ctx, block.ParentHash())
-		if err != nil {
-			// Requires CountBlockSize consecutive successes
-			medianGasPriceQueue.Init()
-			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
-		}
-		medianGasPrice := bsc.MedianGasPrice(txs)
-		medianGasPriceQueue.PushFront(medianGasPrice)
-		block = newBlock
-	}
-	medianGasPrice := bsc.MedianGasPrice(transactions)
-	medianGasPriceQueue.PushBack(medianGasPrice)
-	finalGasPrice := bsc.FinalGasPrice(medianGasPriceQueue)
-	medianGasPriceQueue.Remove(medianGasPriceQueue.Front())
-	latestBlockNumber = epoch.Number
 	latestBlockHash = epoch.Hash
-	latestL1GasPrice = finalGasPrice
-	return finalGasPrice, nil
+	latestL1GasPrice = bsc.FinalGasPrice(allMedianGasPrice)
+	return latestL1GasPrice, nil
 }
