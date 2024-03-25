@@ -366,14 +366,15 @@ func NewMetrics(procName string) *Metrics {
 			Name:      "sequencer_sealing_total",
 			Help:      "Number of sequencer block sealing jobs",
 		}),
-		SequencerStepDurationSeconds: factory.NewHistogramVec(prometheus.HistogramOpts{
+		SequencerStepDurationSeconds: factory.NewHistogramVec(
+			prometheus.HistogramOpts{
 			Namespace: ns,
 			Name:      "sequencer_step_seconds",
-			Buckets:   []float64{
-				.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 			Help:      "Histogram of Sequencer main step duration time",
-		}, []string{"step"}),
-
+			},
+			[]string{"step"},
+		),
 		ProtocolVersionDelta: factory.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns,
 			Name:      "protocol_version_delta",

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 
@@ -21,6 +22,7 @@ type Metrics interface {
 	RecordHeadChannelOpened()
 	RecordChannelTimedOut()
 	RecordFrame()
+	RecordSequencerStepTime(step string, duration time.Duration)
 }
 
 type L1Fetcher interface {
