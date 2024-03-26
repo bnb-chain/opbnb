@@ -7,12 +7,10 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
 var (
@@ -329,18 +327,16 @@ func isTimestampForked(s *uint64, head uint64) bool {
 func (c *Config) Description(l2Chains map[string]string) string {
 	// Find and report the network the user is running
 	var banner string
-	networkL2 := ""
+	// replace using opBNB networks
+	networkL2 := NetworkNames[c.L2ChainID.String()]
 	if l2Chains != nil {
 		networkL2 = l2Chains[c.L2ChainID.String()]
 	}
-	// replace using opBNB networks
-	networkL2 = NetworkNames[c.L2ChainID.String()]
 	if networkL2 == "" {
 		networkL2 = "unknown L2"
 	}
-	networkL1 := params.NetworkNames[c.L1ChainID.String()]
 	// replace using bsc networks
-	networkL1 = NetworkNames[c.L1ChainID.String()]
+	networkL1 := NetworkNames[c.L1ChainID.String()]
 	if networkL1 == "" {
 		networkL1 = "unknown L1"
 	}
@@ -370,14 +366,16 @@ func (c *Config) Description(l2Chains map[string]string) string {
 // The config should be config.Check()-ed before creating a description.
 func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 	// Find and report the network the user is running
-	networkL2 := ""
+	// replace using opBNB networks
+	networkL2 := NetworkNames[c.L2ChainID.String()]
 	if l2Chains != nil {
 		networkL2 = l2Chains[c.L2ChainID.String()]
 	}
 	if networkL2 == "" {
 		networkL2 = "unknown L2"
 	}
-	networkL1 := params.NetworkNames[c.L1ChainID.String()]
+	// replace using bsc networks
+	networkL1 := NetworkNames[c.L1ChainID.String()]
 	if networkL1 == "" {
 		networkL1 = "unknown L1"
 	}
