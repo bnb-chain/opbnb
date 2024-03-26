@@ -17,10 +17,9 @@ var DefaultOPBNBTestnetBaseFee = big.NewInt(5000000000)
 var OPBNBTestnet = big.NewInt(5611)
 
 const (
-	percentile     = 50
-	CountBlockSize = 21
-	// BlockInfoCacheCap 21 validators in bsc, finalize block requires 15, 2 * (21+15) = 72 to buffer
-	BlockInfoCacheCap = 72
+	percentile        = 50
+	CountBlockSize    = 21
+	BlockInfoCacheCap = 1000
 )
 
 type BlockInfo struct {
