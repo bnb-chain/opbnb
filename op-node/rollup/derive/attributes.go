@@ -161,7 +161,7 @@ func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPa
 
 func SnowL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epoch eth.BlockID) (*big.Int, error) {
 	// Consider this situation. If start a new l2 chain, starting from the block height of l1 less than CountBlockSize,
-	// in fact, this situation is unlikely to happen.
+	// in fact, this situation is unlikely to happen except some test cases.
 	if epoch.Number < bsc.CountBlockSize-1 {
 		return bsc.DefaultBaseFee, nil
 	}
