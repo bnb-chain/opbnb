@@ -1,7 +1,9 @@
 package bsc
 
 import (
+	lru "github.com/hashicorp/golang-lru/v2"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +15,24 @@ import (
 var DefaultBaseFee = big.NewInt(3000000000)
 var DefaultOPBNBTestnetBaseFee = big.NewInt(5000000000)
 var OPBNBTestnet = big.NewInt(5611)
+
+const (
+	percentile        = 50
+	CountBlockSize    = 21
+	BlockInfoCacheCap = 1000
+)
+
+type BlockInfo struct {
+	BlockHash      common.Hash
+	ParentHash     common.Hash
+	MedianGasPrice *big.Int
+}
+
+var BlockInfoCache *lru.Cache[common.Hash, BlockInfo]
+
+func init() {
+	BlockInfoCache, _ = lru.New[common.Hash, BlockInfo](BlockInfoCacheCap)
+}
 
 type BlockInfoBSCWrapper struct {
 	eth.BlockInfo
@@ -78,3 +98,30 @@ func ToLegacyCallMsg(callMsg ethereum.CallMsg) ethereum.CallMsg {
 		Data:     callMsg.Data,
 	}
 }
+
+func MedianGasPrice(transactions types.Transactions) *big.Int {
+	var nonZeroTxsGasPrice []*big.Int
+	for _, tx := range transactions {
+		if tx.GasPrice().Cmp(common.Big0) > 0 {
+			nonZeroTxsGasPrice = append(nonZeroTxsGasPrice, tx.GasPrice())
+		}
+	}
+	sort.Sort(bigIntArray(nonZeroTxsGasPrice))
+	medianGasPrice := DefaultBaseFee
+	if len(nonZeroTxsGasPrice) != 0 {
+		medianGasPrice = nonZeroTxsGasPrice[(len(nonZeroTxsGasPrice)-1)*percentile/100]
+	}
+	return medianGasPrice
+}
+
+func FinalGasPrice(allMedianGasPrice []*big.Int) *big.Int {
+	sort.Sort(bigIntArray(allMedianGasPrice))
+	finalGasPrice := allMedianGasPrice[(len(allMedianGasPrice)-1)*percentile/100]
+	return finalGasPrice
+}
+
+type bigIntArray []*big.Int
+
+func (s bigIntArray) Len() int           { return len(s) }
+func (s bigIntArray) Less(i, j int) bool { return s[i].Cmp(s[j]) < 0 }
+func (s bigIntArray) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
