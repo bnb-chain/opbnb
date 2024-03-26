@@ -147,9 +147,9 @@ func TestRandomConfigDescription(t *testing.T) {
 	})
 	t.Run("named L1", func(t *testing.T) {
 		config := randConfig()
-		config.L1ChainID = big.NewInt(5)
+		config.L1ChainID = big.NewInt(97)
 		out := config.Description(map[string]string{config.L2ChainID.String(): "foobar chain"})
-		require.Contains(t, out, "goerli")
+		require.Contains(t, out, "bscTestnet")
 	})
 	t.Run("unnamed", func(t *testing.T) {
 		config := randConfig()
