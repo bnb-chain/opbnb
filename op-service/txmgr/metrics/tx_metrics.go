@@ -18,6 +18,7 @@ type TxMetricer interface {
 	TxConfirmed(*types.Receipt)
 	TxPublished(string)
 	RecordBaseFee(*big.Int)
+	RecordBlobBaseFee(*big.Int)
 	RecordTipCap(*big.Int)
 	RPCError()
 	client.FallbackClientMetricer
@@ -37,6 +38,7 @@ type TxMetrics struct {
 	publishEvent       *metrics.Event
 	confirmEvent       metrics.EventVec
 	baseFee            prometheus.Gauge
+	blobBaseFee        prometheus.Gauge
 	tipCap             prometheus.Gauge
 	rpcError           prometheus.Counter
 	*client.FallbackClientMetrics
@@ -112,7 +114,13 @@ func MakeTxMetrics(ns string, factory metrics.Factory) TxMetrics {
 		baseFee: factory.NewGauge(prometheus.GaugeOpts{
 			Namespace: ns,
 			Name:      "basefee_wei",
-			Help:      "Latest L1 baseFee (in Wei)",
+			Help:      "Latest L1 base fee (in Wei)",
+			Subsystem: "txmgr",
+		}),
+		blobBaseFee: factory.NewGauge(prometheus.GaugeOpts{
+			Namespace: ns,
+			Name:      "blob_basefee_wei",
+			Help:      "Latest Blob base fee (in Wei)",
 			Subsystem: "txmgr",
 		}),
 		tipCap: factory.NewGauge(prometheus.GaugeOpts{
@@ -167,6 +175,11 @@ func (t *TxMetrics) TxPublished(errString string) {
 func (t *TxMetrics) RecordBaseFee(baseFee *big.Int) {
 	bff, _ := baseFee.Float64()
 	t.baseFee.Set(bff)
+}
+
+func (t *TxMetrics) RecordBlobBaseFee(blobBaseFee *big.Int) {
+	bff, _ := blobBaseFee.Float64()
+	t.blobBaseFee.Set(bff)
 }
 
 func (t *TxMetrics) RecordTipCap(tipcap *big.Int) {
