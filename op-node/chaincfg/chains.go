@@ -141,8 +141,7 @@ var OPBNBMainnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x7ac836148c14c74086d57f7828f2d065672db3b8"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(9397477), // Nov-28-2023 06 AM +UTC
-	// TODO update timestamp
-	SnowTime: nil,
+	SnowTime:               u64Ptr(1712642400),  // Apr-09-2024 06 AM +UTC
 }
 
 var OPBNBTestnet = rollup.Config{
