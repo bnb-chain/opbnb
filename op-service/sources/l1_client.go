@@ -73,7 +73,7 @@ type L1Client struct {
 
 // NewL1Client wraps a RPC with bindings to fetch L1 data, while logging errors, tracking metrics (optional), and caching.
 func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, config *L1ClientConfig) (*L1Client, error) {
-	ethClient, err := NewEthClient(client, log, metrics, &config.EthClientConfig)
+	ethClient, err := NewEthClient(client, log, metrics, &config.EthClientConfig, true)
 	if err != nil {
 		return nil, err
 	}
@@ -187,13 +187,13 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 								case <-s.done:
 									return
 								default:
-									pair, ok := s.receiptsCache.Get(blockNumber)
 									blockInfo, err := s.L1BlockRefByNumber(ctx, blockNumber)
 									if err != nil {
 										s.log.Debug("failed to fetch block ref", "err", err, "blockNumber", blockNumber)
 										time.Sleep(1 * time.Second)
 										continue
 									}
+									pair, ok := s.receiptsCache.Get(blockNumber, false)
 									if ok && pair.blockHash == blockInfo.Hash {
 										blockInfoChan <- blockInfo
 										return
@@ -251,6 +251,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 }
 
 func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
+	s.log.Debug("clear receipts cache before", "blockNumber", blockNumber)
 	s.receiptsCache.RemoveLessThan(blockNumber)
 }
 

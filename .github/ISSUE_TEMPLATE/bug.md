@@ -12,7 +12,7 @@ Network: `mainnet`/`testnet`/`local`
 
 if you are running a local node, please provide the following information:
 op-node version: `op-node version`
-op-geth version: `op-node -v`
+op-geth version: `op-geth -v`
 OS & Version: Windows/Linux/OSX
 
 #### Expected behaviour
