@@ -75,6 +75,7 @@ type Metricer interface {
 	RecordAccept(allow bool)
 	ReportProtocolVersions(local, engine, recommended, required params.ProtocolVersion)
 	RecordL1UrlSwitchEvent()
+	RecordSequencerStepTime(step string, duration time.Duration)
 }
 
 // Metrics tracks all the metrics for the op-node.
