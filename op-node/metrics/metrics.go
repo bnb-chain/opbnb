@@ -757,5 +757,5 @@ func (n *noopMetricer) ReportProtocolVersions(local, engine, recommended, requir
 func (n *noopMetricer) RecordL1UrlSwitchEvent() {
 }
 
-func (n *noopMetricer) RecordSequencerStepTime(_step string, _duration time.Duration) {
+func (n *noopMetricer) RecordSequencerStepTime(step string, duration time.Duration) {
 }

@@ -55,7 +55,7 @@ func (t *TestDerivationMetrics) RecordChannelTimedOut() {
 func (t *TestDerivationMetrics) RecordFrame() {
 }
 
-func (t *TestDerivationMetrics) RecordSequencerStepTime(_step string, _duration time.Duration) {
+func (t *TestDerivationMetrics) RecordSequencerStepTime(step string, duration time.Duration) {
 }
 
 type TestRPCMetrics struct{}
