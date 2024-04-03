@@ -369,10 +369,10 @@ func NewMetrics(procName string) *Metrics {
 		}),
 		SequencerStepDurationSeconds: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
-			Namespace: ns,
-			Name:      "sequencer_step_seconds",
-			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
-			Help:      "Histogram of Sequencer main step duration time",
+				Namespace: ns,
+				Name:      "sequencer_step_seconds",
+				Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
+				Help:      "Histogram of Sequencer main step duration time",
 			},
 			[]string{"step"},
 		),
