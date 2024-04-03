@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.3.1
+
+This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 9, 2024, at 6 AM UTC.
+All mainnet nodes must upgrade to this release before the hardfork.
+
+### User Facing Changes
+
+- The L1 gas price of all L2 transactions will be optimized after the snow hardfork. The price will be calculated based on the median of the last 21 blocks' gas prices on BSC. The L1 gas price for the opBNB Mainnet is expected to be decreased to 1 Gwei after the hardfork. And it will adjust automatically if the gas price on BSC changes.
+
+### Partial Changelog
+
+- #169: feat: optimize l1 gas price calculation after snow hardfork
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.3.1
+- ghcr.io/bnb-chain/op-batcher:v0.3.1
+- ghcr.io/bnb-chain/op-proposer:v0.3.1
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.3.0...v0.3.1
+
+## v0.3.0
+
+This is a recommended release for op-node. This release brings in upstream updates, see https://github.com/bnb-chain/opbnb/pull/121 for the contents. This is also a ready release for the next planed fork, which will bring in canyon fork from upstream as well.
+
+### User Facing Changes
+
+- The default address for the metrics, rpc, and pprof servers will be changing from 0.0.0.0 to 127.0.0.1, and pprof server will change to use 6060 port by default(you may encounter panic due to port conflict, if so you could change it to another value via `--pprof.port`).
+- op-node enable p2p score feature, and with `--p2p.scoring=light`, `--p2p.ban.peers=true` by default(to keep previous config, you could set `--p2p.scoring=none`, `--p2p.ban.peers=false`).
+
+### Partial Changelog
+
+- #115: fix(op-node): pre-fetching handle L1 reOrg
+- #117: fix(op-node): pre-fetching handle L1 reOrg round 2
+- #118: fix(op-node/op-batcher/op-proposer): the fallback client should always try recover
+- #121: Merge upstream v1.3.0
+- #127: fix(op-node): fix basefee when start new chain with fermat
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.3.0
+- ghcr.io/bnb-chain/op-batcher:v0.3.0
+- ghcr.io/bnb-chain/op-proposer:v0.3.0
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.2.4...v0.3.0
+
 ## v0.2.4
 
 This is a minor release and upgrading is optional.

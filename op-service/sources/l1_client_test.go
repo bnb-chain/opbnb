@@ -158,10 +158,10 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 		err2 := s.GoOrUpdatePreFetchReceipts(ctx, 81)
 		require.NoError(t, err2)
 		time.Sleep(1 * time.Second)
-		pair, ok := s.receiptsCache.Get(100)
+		pair, ok := s.receiptsCache.Get(100, false)
 		require.True(t, ok, "100 cache miss")
 		require.Equal(t, real100Hash, pair.blockHash, "block 100 hash is different,want:%s,but:%s", real100Hash, pair.blockHash)
-		_, ok2 := s.receiptsCache.Get(76)
+		_, ok2 := s.receiptsCache.Get(76, false)
 		require.True(t, ok2, "76 cache miss")
 	})
 }

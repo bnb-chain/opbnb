@@ -15,6 +15,11 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
+var (
+	latestBlockHash  common.Hash
+	latestL1GasPrice *big.Int
+)
+
 // L1ReceiptsFetcher fetches L1 header info and receipts for the payload attributes derivation (the info tx and deposits)
 type L1ReceiptsFetcher interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
@@ -60,18 +65,6 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		return nil, NewTemporaryError(fmt.Errorf("failed to retrieve L2 parent block: %w", err))
 	}
 
-	// Calculate bsc block base fee
-	var l1BaseFee *big.Int
-	if ba.cfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
-		l1BaseFee = bsc.BaseFeeByNetworks(ba.cfg.L2ChainID)
-	} else {
-		_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
-		if err != nil {
-			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
-		}
-		l1BaseFee = bsc.BaseFeeByTransactions(transactions)
-	}
-
 	// If the L1 origin changed this block, then we are in the first block of the epoch. In this
 	// case we need to fetch all transaction receipts from the L1 origin block so we can scan for
 	// user deposits.
@@ -112,6 +105,22 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		seqNumber = l2Parent.SequenceNumber + 1
 	}
 
+	// Calculate bsc block base fee
+	var l1BaseFee *big.Int
+	if ba.cfg.IsSnow(l2Parent.Time + ba.cfg.BlockTime) {
+		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
+		if err != nil {
+			return nil, err
+		}
+	} else if ba.cfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
+		l1BaseFee = bsc.BaseFeeByNetworks(ba.cfg.L2ChainID)
+	} else {
+		_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+		if err != nil {
+			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+		}
+		l1BaseFee = bsc.BaseFeeByTransactions(transactions)
+	}
 	l1Info = bsc.NewBlockInfoBSCWrapper(l1Info, l1BaseFee)
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
@@ -148,4 +157,40 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
 	return ba.l2.CachePayloadByHash(payload)
+}
+
+func SnowL1GasPrice(ctx context.Context, ba *FetchingAttributesBuilder, epoch eth.BlockID) (*big.Int, error) {
+	// Consider this situation. If start a new l2 chain, starting from the block height of l1 less than CountBlockSize,
+	// in fact, this situation is unlikely to happen except some test cases.
+	if epoch.Number < bsc.CountBlockSize-1 {
+		return bsc.DefaultBaseFee, nil
+	}
+	if latestBlockHash == epoch.Hash {
+		return latestL1GasPrice, nil
+	}
+	var allMedianGasPrice []*big.Int
+	blockHash := epoch.Hash
+	for len(allMedianGasPrice) < bsc.CountBlockSize {
+		if blockInfo, ok := bsc.BlockInfoCache.Get(blockHash); ok {
+			allMedianGasPrice = append(allMedianGasPrice, blockInfo.MedianGasPrice)
+			blockHash = blockInfo.ParentHash
+		} else {
+			block, transactions, err := ba.l1.InfoAndTxsByHash(ctx, blockHash)
+			if err != nil {
+				return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+			}
+			medianGasPrice := bsc.MedianGasPrice(transactions)
+			allMedianGasPrice = append(allMedianGasPrice, medianGasPrice)
+			newBlockInfo := bsc.BlockInfo{
+				BlockHash:      block.Hash(),
+				ParentHash:     block.ParentHash(),
+				MedianGasPrice: medianGasPrice,
+			}
+			bsc.BlockInfoCache.Add(block.Hash(), newBlockInfo)
+			blockHash = block.ParentHash()
+		}
+	}
+	latestBlockHash = epoch.Hash
+	latestL1GasPrice = bsc.FinalGasPrice(allMedianGasPrice)
+	return latestL1GasPrice, nil
 }

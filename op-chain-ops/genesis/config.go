@@ -735,6 +735,7 @@ func NewL2StorageConfig(config *DeployConfig, block *types.Block) (state.Storage
 	//}
 
 	var baseFee *big.Int
+	// Simplify the basefee when constructing the genesis block and ignore the Snow fork logic just in genesis.
 	if config.Fermat != nil && config.Fermat.Cmp(big.NewInt(0)) <= 0 {
 		baseFee = bsc.BaseFeeByNetworks(big.NewInt(int64(config.L2ChainID)))
 	} else {
