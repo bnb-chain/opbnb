@@ -5,7 +5,7 @@
 This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 15, 2024, at 6 AM UTC.
 All op-node of mainnet nodes must upgrade to this release before the hardfork.
 
-If you are on v0.3.1, you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UTC.
+**If you are on v0.3.1, you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UTC.**
 
 ### User Facing Changes
 
@@ -23,10 +23,12 @@ If you are on v0.3.1, you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UT
 
 https://github.com/bnb-chain/opbnb/compare/v0.3.0...v0.3.2
 
-## v0.3.1
+## v0.3.1 [Deprecated]
 
 This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 9, 2024, at 6 AM UTC.
 All mainnet nodes must upgrade to this release before the hardfork.
+
+**Please notice that this version is deprecated, and you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UTC if you are on this version.**
 
 ### User Facing Changes
 
