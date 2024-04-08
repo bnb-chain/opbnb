@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"time"
+
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
@@ -51,6 +53,9 @@ func (t *TestDerivationMetrics) RecordChannelTimedOut() {
 }
 
 func (t *TestDerivationMetrics) RecordFrame() {
+}
+
+func (t *TestDerivationMetrics) RecordSequencerStepTime(step string, duration time.Duration) {
 }
 
 type TestRPCMetrics struct{}
