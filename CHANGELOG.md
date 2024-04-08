@@ -1,9 +1,34 @@
 # Changelog
 
-## v0.3.1
+## v0.3.2
+
+This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 15, 2024, at 6 AM UTC.
+All op-node of mainnet nodes must upgrade to this release before the hardfork.
+
+**If you are on v0.3.1, you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UTC.**
+
+### User Facing Changes
+
+- The L1 gas price of all L2 transactions will be optimized after the snow hardfork. The price will be calculated based on the median of the last 21 blocks' gas prices on BSC. The L1 gas price for the opBNB Mainnet is expected to be decreased to 1 Gwei after the hardfork. And it will adjust automatically if the gas price on BSC changes.
+
+### Partial Changelog
+
+- #169: feat: optimize l1 gas price calculation after snow hardfork
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.3.2
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.3.0...v0.3.2
+
+## v0.3.1 [Deprecated]
 
 This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 9, 2024, at 6 AM UTC.
 All mainnet nodes must upgrade to this release before the hardfork.
+
+**Please notice that this version is deprecated, and you need to upgrade to v0.3.2 by April 9, 2024, at 6 AM UTC if you are on this version.**
 
 ### User Facing Changes
 
