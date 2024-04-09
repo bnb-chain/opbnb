@@ -516,6 +516,14 @@ func (eq *EngineQueue) tryNextUnsafePayload(ctx context.Context) error {
 		return io.EOF // time to go to next stage if we cannot process the first unsafe payload
 	}
 
+	//开启engine-sync且块高不连续
+	if eq.syncCfg.EngineSync && first.ParentHash != eq.unsafeHead.Hash {
+		if uint64(first.BlockNumber)-eq.unsafeHead.Number < uint64(eq.syncCfg.EngineSyncGap) {
+			log.Warn("ZXL: back to L1 sync")
+			return io.EOF
+		}
+	}
+
 	ref, err := PayloadToBlockRef(eq.cfg, first)
 	if err != nil {
 		eq.log.Error("failed to decode L2 block ref from payload", "err", err)

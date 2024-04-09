@@ -311,6 +311,13 @@ var (
 		Value:   false,
 		Hidden:  true,
 	}
+	EngineSyncGap = &cli.IntFlag{
+		Name:    "l2.engine-sync.gap",
+		Usage:   "gap to trigger engine-sync",
+		Value:   1000,
+		EnvVars: prefixEnvVars("L2_ENGINE_SYNC_GAP"),
+	}
+
 	SkipSyncStartCheck = &cli.BoolFlag{
 		Name: "l2.skip-sync-start-check",
 		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
@@ -410,6 +417,7 @@ var optionalFlags = []cli.Flag{
 
 var DeprecatedFlags = []cli.Flag{
 	L2EngineSyncEnabled,
+	EngineSyncGap,
 	SkipSyncStartCheck,
 	BetaExtraNetworks,
 	BackupL2UnsafeSyncRPC,
