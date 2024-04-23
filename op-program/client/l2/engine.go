@@ -151,6 +151,6 @@ func (o *OracleEngine) SystemConfigByL2Hash(ctx context.Context, hash common.Has
 	return derive.PayloadToSystemConfig(o.rollupCfg, payload.ExecutionPayload)
 }
 
-func (o *OracleEngine) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+func (o *OracleEngine) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
 	return true
 }

@@ -20,9 +20,6 @@ import (
 // When block produce is interrupted by high L1 latency, sequencer will build a full block periodically to avoid chain stuck
 const buildFullBlockInterval = 20
 
-// When block produce is lagging exceed lagTimeWindow, sequencer will set attrs.NoTxPool to true to quickly catch up
-const lagTimeWindow = 2 * time.Minute
-
 type Downloader interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
@@ -254,10 +251,10 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			return nil, nil
 		} else {
 			payload := envelope.ExecutionPayload
-			d.attrBuilder.CachePayloadByHash(payload)
 			if len(payload.Transactions) == 1 {
 				d.accEmptyBlocks += 1
 			}
+			d.attrBuilder.CachePayloadByHash(envelope)
 			d.log.Info("sequencer successfully built a new block", "block", payload.ID(), "time", uint64(payload.Timestamp), "txs", len(payload.Transactions))
 			return envelope, nil
 		}

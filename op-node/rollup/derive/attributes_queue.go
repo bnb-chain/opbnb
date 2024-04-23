@@ -25,7 +25,7 @@ import (
 
 type AttributesBuilder interface {
 	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error)
-	CachePayloadByHash(payload *eth.ExecutionPayload) bool
+	CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool
 }
 
 type AttributesQueue struct {

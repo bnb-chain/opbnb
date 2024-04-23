@@ -39,6 +39,6 @@ func (m *MockEngine) ExpectNewPayload(payload *eth.ExecutionPayload, parentBeaco
 	m.Mock.On("NewPayload", payload, parentBeaconBlockRoot).Once().Return(result, err)
 }
 
-func (m *MockEngine) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+func (m *MockEngine) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
 	return true
 }

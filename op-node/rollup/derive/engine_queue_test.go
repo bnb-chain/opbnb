@@ -853,7 +853,6 @@ func TestVerifyNewL1Origin(t *testing.T) {
 
 			// L1 chain reorgs so new origin is at same slot as refF but on a different fork
 			prev.origin = test.newOrigin
-			eq.UnsafeL2Head()
 			if test.verifyPass {
 				l1F.ExpectClearReceiptsCacheBefore(refB.Number)
 			}

@@ -32,7 +32,7 @@ type L1ReceiptsFetcher interface {
 
 type SystemConfigL2Fetcher interface {
 	SystemConfigByL2Hash(ctx context.Context, hash common.Hash) (eth.SystemConfig, error)
-	CachePayloadByHash(payload *eth.ExecutionPayload) bool
+	CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool
 }
 
 // FetchingAttributesBuilder fetches inputs for the building of L2 payload attributes on the fly.
@@ -173,7 +173,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	}, nil
 }
 
-func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
 	return ba.l2.CachePayloadByHash(payload)
 }
 

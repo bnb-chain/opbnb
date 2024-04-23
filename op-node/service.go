@@ -225,10 +225,6 @@ Conflicting configuration is deprecated, and will stop the op-node from starting
 		if err != nil {
 			return nil, err
 		}
-		if ctx.IsSet(flags.CanyonOverrideFlag.Name) {
-			canyon := ctx.Uint64(flags.CanyonOverrideFlag.Name)
-			config.CanyonTime = &canyon
-		}
 		return &config, nil
 	}
 
@@ -250,10 +246,6 @@ Conflicting configuration is deprecated, and will stop the op-node from starting
 		return &rollupConfig, nil
 	}
 
-	if ctx.IsSet(flags.CanyonOverrideFlag.Name) {
-		canyon := ctx.Uint64(flags.CanyonOverrideFlag.Name)
-		presetRollupConfig.CanyonTime = &canyon
-	}
 	log.Warn("using preset rollup config of", rollupConfig.L2ChainID, "overwrite rollup file")
 	return &presetRollupConfig, nil
 }
