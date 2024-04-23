@@ -55,7 +55,7 @@ var (
 		Name:    "rpc.port",
 		Usage:   "RPC listening port",
 		EnvVars: prefixEnvVars("RPC_PORT"),
-		Value:   7000, // Note: op-service/rpc/cli.go uses 8545 as the default.
+		Value:   9545, // Note: op-service/rpc/cli.go uses 8545 as the default.
 	}
 	RPCEnableAdmin = &cli.BoolFlag{
 		Name:    "rpc.enable-admin",
