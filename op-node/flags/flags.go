@@ -72,6 +72,7 @@ var (
 		Name:    "l1.trustrpc",
 		Usage:   "Trust the L1 RPC, sync faster at risk of malicious/buggy RPC providing bad or inconsistent L1 data",
 		EnvVars: prefixEnvVars("L1_TRUST_RPC"),
+		Value:   true,
 	}
 	L1RPCProviderKind = &cli.GenericFlag{
 		Name: "l1.rpckind",
