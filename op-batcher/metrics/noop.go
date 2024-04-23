@@ -41,6 +41,7 @@ func (*noopMetrics) RecordChannelTimedOut(derive.ChannelID)       {}
 func (*noopMetrics) RecordBatchTxSubmitted() {}
 func (*noopMetrics) RecordBatchTxSuccess()   {}
 func (*noopMetrics) RecordBatchTxFailed()    {}
+func (*noopMetrics) RecordBlobUsedBytes(int) {}
 func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, common.Address) io.Closer {
 	return nil
 }

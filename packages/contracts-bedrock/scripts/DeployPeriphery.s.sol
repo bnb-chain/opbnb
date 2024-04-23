@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 
 import { console2 as console } from "forge-std/console2.sol";
 
-import { Deployer } from "./Deployer.sol";
-import { PeripheryDeployConfig } from "./PeripheryDeployConfig.s.sol";
+import { Script } from "forge-std/Script.sol";
+import { Artifacts } from "scripts/Artifacts.s.sol";
+import { PeripheryDeployConfig } from "scripts/PeripheryDeployConfig.s.sol";
 
 import { ProxyAdmin } from "src/universal/ProxyAdmin.sol";
 import { Proxy } from "src/universal/Proxy.sol";
@@ -12,29 +13,29 @@ import { Proxy } from "src/universal/Proxy.sol";
 import { Faucet } from "src/periphery/faucet/Faucet.sol";
 import { Drippie } from "src/periphery/drippie/Drippie.sol";
 import { CheckGelatoLow } from "src/periphery/drippie/dripchecks/CheckGelatoLow.sol";
-import { CheckBalanceHigh } from "src/periphery/drippie/dripchecks/CheckBalanceHigh.sol";
 import { CheckBalanceLow } from "src/periphery/drippie/dripchecks/CheckBalanceLow.sol";
 import { CheckTrue } from "src/periphery/drippie/dripchecks/CheckTrue.sol";
 import { AdminFaucetAuthModule } from "src/periphery/faucet/authmodules/AdminFaucetAuthModule.sol";
+import { EIP1967Helper } from "test/mocks/EIP1967Helper.sol";
+import { Config } from "scripts/Config.sol";
 
 /// @title DeployPeriphery
 /// @notice Script used to deploy periphery contracts.
-contract DeployPeriphery is Deployer {
+contract DeployPeriphery is Script, Artifacts {
     PeripheryDeployConfig cfg;
 
     /// @notice The name of the script, used to ensure the right deploy artifacts
     ///         are used.
-    function name() public pure override returns (string memory) {
-        return "DeployPeriphery";
+    function name() public pure returns (string memory name_) {
+        name_ = "DeployPeriphery";
     }
 
     function setUp() public override {
-        super.setUp();
+        Artifacts.setUp();
 
         string memory path = string.concat(vm.projectRoot(), "/periphery-deploy-config/", deploymentContext, ".json");
         cfg = new PeripheryDeployConfig(path);
 
-        console.log("Deploying from %s", deployScript);
         console.log("Deployment context: %s", deploymentContext);
     }
 
@@ -47,6 +48,14 @@ contract DeployPeriphery is Deployer {
 
         initializeFaucet();
         installFaucetAuthModulesConfigs();
+
+        if (cfg.installOpChainFaucetsDrips()) {
+            installOpChainFaucetsDrippieConfigs();
+        }
+
+        if (cfg.archivePreviousOpChainFaucetsDrips()) {
+            archivePreviousOpChainFaucetsDrippieConfigs();
+        }
     }
 
     /// @notice Deploy all of the proxies
@@ -62,7 +71,6 @@ contract DeployPeriphery is Deployer {
         deployFaucetDrippie();
         deployCheckTrue();
         deployCheckBalanceLow();
-        deployCheckBalanceHigh();
         deployCheckGelatoLow();
         deployOnChainAuthModule();
         deployOffChainAuthModule();
@@ -85,9 +93,7 @@ contract DeployPeriphery is Deployer {
             save("ProxyAdmin", preComputedAddress);
             addr_ = preComputedAddress;
         } else {
-            ProxyAdmin admin = new ProxyAdmin{ salt: salt }({
-              _owner: msg.sender
-            });
+            ProxyAdmin admin = new ProxyAdmin{ salt: salt }({ _owner: msg.sender });
             require(admin.owner() == msg.sender);
 
             save("ProxyAdmin", address(admin));
@@ -108,11 +114,8 @@ contract DeployPeriphery is Deployer {
             save("FaucetProxy", preComputedAddress);
             addr_ = preComputedAddress;
         } else {
-            Proxy proxy = new Proxy{ salt: salt }({
-              _admin: proxyAdmin
-            });
-            address admin = address(uint160(uint256(vm.load(address(proxy), OWNER_KEY))));
-            require(admin == proxyAdmin);
+            Proxy proxy = new Proxy{ salt: salt }({ _admin: proxyAdmin });
+            require(EIP1967Helper.getAdmin(address(proxy)) == proxyAdmin);
 
             save("FaucetProxy", address(proxy));
             console.log("FaucetProxy deployed at %s", address(proxy));
@@ -199,25 +202,6 @@ contract DeployPeriphery is Deployer {
         }
     }
 
-    /// @notice Deploy CheckBalanceHigh contract.
-    function deployCheckBalanceHigh() public broadcast returns (address addr_) {
-        bytes32 salt = keccak256(bytes("CheckBalanceHigh"));
-        bytes32 initCodeHash = keccak256(abi.encodePacked(type(CheckBalanceHigh).creationCode));
-        address preComputedAddress = computeCreate2Address(salt, initCodeHash);
-        if (preComputedAddress.code.length > 0) {
-            console.log("CheckBalanceHigh already deployed at %s", preComputedAddress);
-            save("CheckBalanceHigh", preComputedAddress);
-            addr_ = preComputedAddress;
-        } else {
-            CheckBalanceHigh checkBalanceHigh = new CheckBalanceHigh{ salt: salt }();
-
-            save("CheckBalanceHigh", address(checkBalanceHigh));
-            console.log("CheckBalanceHigh deployed at %s", address(checkBalanceHigh));
-
-            addr_ = address(checkBalanceHigh);
-        }
-    }
-
     /// @notice Deploy CheckGelatoLow contract.
     function deployCheckGelatoLow() public broadcast returns (address addr_) {
         bytes32 salt = keccak256(bytes("CheckGelatoLow"));
@@ -262,6 +246,113 @@ contract DeployPeriphery is Deployer {
         installFaucetGelatoBalanceV1();
 
         console.log("Faucet drip configs successfully installed");
+    }
+
+    /// @notice installs drip configs that deposit funds to all OP Chain faucets. This function
+    /// should only be called on an L1 testnet.
+    function installOpChainFaucetsDrippieConfigs() public {
+        uint256 drippieOwnerPrivateKey = Config.drippieOwnerPrivateKey();
+        vm.startBroadcast(drippieOwnerPrivateKey);
+
+        Drippie drippie = Drippie(mustGetAddress("FaucetDrippie"));
+        console.log("Installing OP Chain faucet drips at %s", address(drippie));
+        installSmallOpChainFaucetsDrips();
+        installLargeOpChainFaucetsDrips();
+        installSmallOpChainAdminWalletDrips();
+        installLargeOpChainAdminWalletDrips();
+
+        vm.stopBroadcast();
+
+        console.log("OP chain faucet drip configs successfully installed");
+    }
+
+    /// @notice archives the previous OP Chain drip configs.
+    function archivePreviousOpChainFaucetsDrippieConfigs() public {
+        uint256 drippieOwnerPrivateKey = Config.drippieOwnerPrivateKey();
+        vm.startBroadcast(drippieOwnerPrivateKey);
+
+        Drippie drippie = Drippie(mustGetAddress("FaucetDrippie"));
+        console.log("Archiving OP Chain faucet drips at %s", address(drippie));
+        archivePreviousSmallOpChainFaucetsDrips();
+        archivePreviousLargeOpChainFaucetsDrips();
+
+        vm.stopBroadcast();
+
+        console.log("OP chain faucet drip configs successfully installed");
+    }
+
+    /// @notice installs drips that send funds to small OP chain faucets on the scheduled interval.
+    function installSmallOpChainFaucetsDrips() public {
+        address faucetProxy = mustGetAddress("FaucetProxy");
+        uint256 arrayLength = cfg.getSmallFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.smallFaucetsL1BridgeAddresses(i);
+            _installDepositEthToDrip(
+                faucetProxy,
+                l1BridgeAddress,
+                cfg.smallOpChainFaucetDripValue(),
+                cfg.smallOpChainFaucetDripInterval(),
+                _faucetDripName(l1BridgeAddress, cfg.dripVersion())
+            );
+        }
+    }
+
+    /// @notice installs drips that send funds to the admin wallets for small OP chain faucets
+    /// on the scheduled interval.
+    function installSmallOpChainAdminWalletDrips() public {
+        require(
+            cfg.faucetOnchainAuthModuleAdmin() == cfg.faucetOffchainAuthModuleAdmin(),
+            "installSmallOpChainAdminWalletDrips: Only handles identical admin wallet addresses"
+        );
+        address adminWallet = cfg.faucetOnchainAuthModuleAdmin();
+        uint256 arrayLength = cfg.getSmallFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.smallFaucetsL1BridgeAddresses(i);
+            _installDepositEthToDrip(
+                adminWallet,
+                l1BridgeAddress,
+                cfg.opChainAdminWalletDripValue(),
+                cfg.opChainAdminWalletDripInterval(),
+                _adminWalletDripName(l1BridgeAddress, cfg.dripVersion())
+            );
+        }
+    }
+
+    /// @notice installs drips that send funds to the admin wallets for large OP chain faucets
+    /// on the scheduled interval.
+    function installLargeOpChainAdminWalletDrips() public {
+        require(
+            cfg.faucetOnchainAuthModuleAdmin() == cfg.faucetOffchainAuthModuleAdmin(),
+            "installLargeOpChainAdminWalletDrips: Only handles identical admin wallet addresses"
+        );
+        address adminWallet = cfg.faucetOnchainAuthModuleAdmin();
+        uint256 arrayLength = cfg.getLargeFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.largeFaucetsL1BridgeAddresses(i);
+            _installDepositEthToDrip(
+                adminWallet,
+                l1BridgeAddress,
+                cfg.opChainAdminWalletDripValue(),
+                cfg.opChainAdminWalletDripInterval(),
+                _adminWalletDripName(l1BridgeAddress, cfg.dripVersion())
+            );
+        }
+    }
+
+    /// @notice installs drips that send funds to large OP chain faucets on the scheduled interval.
+    function installLargeOpChainFaucetsDrips() public {
+        address faucetProxy = mustGetAddress("FaucetProxy");
+        uint256 arrayLength = cfg.getLargeFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.largeFaucetsL1BridgeAddresses(i);
+            _installDepositEthToDrip(
+                faucetProxy,
+                l1BridgeAddress,
+                cfg.largeOpChainFaucetDripValue(),
+                cfg.largeOpChainFaucetDripInterval(),
+                _faucetDripName(l1BridgeAddress, cfg.dripVersion())
+            );
+        }
     }
 
     /// @notice installs the FaucetDripV1 drip on the faucet drippie contract.
@@ -399,12 +490,75 @@ contract DeployPeriphery is Deployer {
         _activateIfPausedDrip(drippie, dripName);
     }
 
+    function archivePreviousSmallOpChainFaucetsDrips() public {
+        Drippie drippie = Drippie(mustGetAddress("FaucetDrippie"));
+        uint256 arrayLength = cfg.getSmallFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.smallFaucetsL1BridgeAddresses(i);
+            _pauseIfActivatedDrip(drippie, _faucetDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _pauseIfActivatedDrip(drippie, _adminWalletDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _archiveIfPausedDrip(drippie, _faucetDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _archiveIfPausedDrip(drippie, _adminWalletDripName(l1BridgeAddress, cfg.previousDripVersion()));
+        }
+    }
+
+    function archivePreviousLargeOpChainFaucetsDrips() public {
+        Drippie drippie = Drippie(mustGetAddress("FaucetDrippie"));
+        uint256 arrayLength = cfg.getLargeFaucetsL1BridgeAddressesCount();
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address l1BridgeAddress = cfg.largeFaucetsL1BridgeAddresses(i);
+            _pauseIfActivatedDrip(drippie, _faucetDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _pauseIfActivatedDrip(drippie, _adminWalletDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _archiveIfPausedDrip(drippie, _faucetDripName(l1BridgeAddress, cfg.previousDripVersion()));
+            _archiveIfPausedDrip(drippie, _adminWalletDripName(l1BridgeAddress, cfg.previousDripVersion()));
+        }
+    }
+
     function _activateIfPausedDrip(Drippie drippie, string memory dripName) internal {
+        require(
+            drippie.getDripStatus(dripName) == Drippie.DripStatus.ACTIVE
+                || drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED,
+            "attempting to activate a drip that is not currently paused or activated"
+        );
         if (drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED) {
             console.log("%s is paused, activating", dripName);
             drippie.status(dripName, Drippie.DripStatus.ACTIVE);
             console.log("%s activated", dripName);
             require(drippie.getDripStatus(dripName) == Drippie.DripStatus.ACTIVE);
+        } else {
+            console.log("%s already activated", dripName);
+        }
+    }
+
+    function _pauseIfActivatedDrip(Drippie drippie, string memory dripName) internal {
+        require(
+            drippie.getDripStatus(dripName) == Drippie.DripStatus.ACTIVE
+                || drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED,
+            "attempting to pause a drip that is not currently paused or activated"
+        );
+        if (drippie.getDripStatus(dripName) == Drippie.DripStatus.ACTIVE) {
+            console.log("%s is active, pausing", dripName);
+            drippie.status(dripName, Drippie.DripStatus.PAUSED);
+            console.log("%s paused", dripName);
+            require(drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED);
+        } else {
+            console.log("%s already paused", dripName);
+        }
+    }
+
+    function _archiveIfPausedDrip(Drippie drippie, string memory dripName) internal {
+        require(
+            drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED
+                || drippie.getDripStatus(dripName) == Drippie.DripStatus.ARCHIVED,
+            "attempting to archive a drip that is not currently paused or archived"
+        );
+        if (drippie.getDripStatus(dripName) == Drippie.DripStatus.PAUSED) {
+            console.log("%s is paused, archiving", dripName);
+            drippie.status(dripName, Drippie.DripStatus.ARCHIVED);
+            console.log("%s archived", dripName);
+            require(drippie.getDripStatus(dripName) == Drippie.DripStatus.ARCHIVED);
+        } else {
+            console.log("%s already archived", dripName);
         }
     }
 
@@ -468,7 +622,7 @@ contract DeployPeriphery is Deployer {
     /// @notice installs the OnChain AuthModule on the Faucet contract.
     function installOnChainAuthModule() public broadcast {
         string memory moduleName = "OnChainAuthModule";
-        Faucet faucet = Faucet(mustGetAddress("Faucet"));
+        Faucet faucet = Faucet(mustGetAddress("FaucetProxy"));
         AdminFaucetAuthModule onChainAuthModule = AdminFaucetAuthModule(mustGetAddress(moduleName));
         if (faucet.isModuleEnabled(onChainAuthModule)) {
             console.log("%s already installed.", moduleName);
@@ -488,7 +642,7 @@ contract DeployPeriphery is Deployer {
     /// @notice installs the OffChain AuthModule on the Faucet contract.
     function installOffChainAuthModule() public broadcast {
         string memory moduleName = "OffChainAuthModule";
-        Faucet faucet = Faucet(mustGetAddress("Faucet"));
+        Faucet faucet = Faucet(mustGetAddress("FaucetProxy"));
         AdminFaucetAuthModule offChainAuthModule = AdminFaucetAuthModule(mustGetAddress(moduleName));
         if (faucet.isModuleEnabled(offChainAuthModule)) {
             console.log("%s already installed.", moduleName);
@@ -507,11 +661,59 @@ contract DeployPeriphery is Deployer {
 
     /// @notice installs all of the auth module in the faucet contract.
     function installFaucetAuthModulesConfigs() public {
-        Faucet faucet = Faucet(mustGetAddress("Faucet"));
+        Faucet faucet = Faucet(mustGetAddress("FaucetProxy"));
         console.log("Installing auth modules at %s", address(faucet));
         installOnChainAuthModule();
         installOffChainAuthModule();
 
         console.log("Faucet Auth Module configs successfully installed");
+    }
+
+    function _faucetDripName(address _l1Bridge, uint256 version) internal pure returns (string memory) {
+        string memory dripNamePrefixWithBridgeAddress = string.concat("faucet-drip-", vm.toString(_l1Bridge));
+        string memory versionSuffix = string.concat("-", vm.toString(version));
+        return string.concat(dripNamePrefixWithBridgeAddress, versionSuffix);
+    }
+
+    function _adminWalletDripName(address _l1Bridge, uint256 version) internal pure returns (string memory) {
+        string memory dripNamePrefixWithBridgeAddress = string.concat("faucet-admin-drip-", vm.toString(_l1Bridge));
+        string memory versionSuffix = string.concat("-", vm.toString(version));
+        return string.concat(dripNamePrefixWithBridgeAddress, versionSuffix);
+    }
+
+    function _installDepositEthToDrip(
+        address _depositTo,
+        address _l1Bridge,
+        uint256 _dripValue,
+        uint256 _dripInterval,
+        string memory dripName
+    )
+        internal
+    {
+        Drippie drippie = Drippie(mustGetAddress("FaucetDrippie"));
+        if (drippie.getDripStatus(dripName) == Drippie.DripStatus.NONE) {
+            console.log("installing %s", dripName);
+            Drippie.DripAction[] memory actions = new Drippie.DripAction[](1);
+            actions[0] = Drippie.DripAction({
+                target: payable(_l1Bridge),
+                data: abi.encodeWithSignature("depositETHTo(address,uint32,bytes)", _depositTo, 200000, ""),
+                value: _dripValue
+            });
+            drippie.create({
+                _name: dripName,
+                _config: Drippie.DripConfig({
+                    reentrant: false,
+                    interval: _dripInterval,
+                    dripcheck: CheckTrue(mustGetAddress("CheckTrue")),
+                    checkparams: abi.encode(""),
+                    actions: actions
+                })
+            });
+            console.log("%s installed successfully", dripName);
+        } else {
+            console.log("%s already installed.", dripName);
+        }
+
+        _activateIfPausedDrip(drippie, dripName);
     }
 }

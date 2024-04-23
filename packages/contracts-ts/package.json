@@ -37,7 +37,6 @@
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf ./dist",
-    "preinstall": "npx only-allow pnpm",
     "generate": "wagmi generate && pnpm build && pnpm lint:fix",
     "generate:check": "pnpm generate && git diff --exit-code ./addresses.json && git diff --exit-code ./abis.json",
     "lint": "prettier --check .",
@@ -48,25 +47,26 @@
   },
   "devDependencies": {
     "@eth-optimism/contracts-bedrock": "workspace:*",
-    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react-hooks": "^8.0.1",
     "@types/glob": "^8.1.0",
-    "@vitest/coverage-istanbul": "^0.34.6",
-    "@wagmi/cli": "^1.5.2",
-    "@wagmi/core": "^1.4.5",
-    "abitype": "^0.10.1",
+    "@vitest/coverage-istanbul": "^1.2.2",
+    "@wagmi/cli": "^2.1.2",
+    "@wagmi/core": "^2.6.3",
+    "abitype": "^1.0.2",
     "glob": "^10.3.10",
     "isomorphic-fetch": "^3.0.0",
     "jest-dom": "link:@types/@testing-library/jest-dom",
-    "jsdom": "^22.1.0",
-    "tsup": "^7.2.0",
-    "typescript": "^5.2.2",
-    "vite": "^4.5.0",
-    "vitest": "^0.34.2"
+    "jsdom": "^24.0.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.5",
+    "wagmi": "^2.5.5",
+    "vitest": "^1.2.2"
   },
   "peerDependencies": {
-    "@wagmi/core": ">1.0.0",
-    "wagmi": ">1.0.0"
+    "@wagmi/core": "^2.6.3",
+    "wagmi": "^2.5.5"
   },
   "peerDependenciesMeta": {
     "wagmi": {
@@ -77,11 +77,11 @@
     }
   },
   "dependencies": {
-    "@testing-library/react": "^14.0.0",
+    "@testing-library/react": "^14.2.1",
     "@types/change-case": "^2.3.1",
     "change-case": "4.1.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "viem": "^1.18.0"
+    "viem": "^2.7.19"
   }
 }

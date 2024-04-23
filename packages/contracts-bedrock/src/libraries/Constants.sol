@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { ResourceMetering } from "../L1/ResourceMetering.sol";
+import { ResourceMetering } from "src/L1/ResourceMetering.sol";
 
 /// @title Constants
 /// @notice Constants is a library for storing constants. Simple! Don't put everything in here, just
@@ -43,8 +43,4 @@ library Constants {
         });
         return config;
     }
-
-    /// @notice The `reinitailizer` input for upgradable contracts. This value must be updated
-    ///         each time that the contracts are deployed.
-    uint8 internal constant INITIALIZER = 3;
 }

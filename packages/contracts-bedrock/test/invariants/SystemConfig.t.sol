@@ -4,15 +4,9 @@ pragma solidity 0.8.15;
 import { Test } from "forge-std/Test.sol";
 import { SystemConfig } from "src/L1/SystemConfig.sol";
 import { Proxy } from "src/universal/Proxy.sol";
-import { ResourceMetering } from "src/L1/ResourceMetering.sol";
 import { Constants } from "src/libraries/Constants.sol";
 
 contract SystemConfig_GasLimitLowerBound_Invariant is Test {
-    struct FuzzInterface {
-        address target;
-        string[] artifacts;
-    }
-
     SystemConfig public config;
 
     function setUp() external {
@@ -31,8 +25,7 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
                     bytes32(hex"abcd"), // batcher hash
                     30_000_000, // gas limit
                     address(1), // unsafe block signer
-                    Constants.DEFAULT_RESOURCE_CONFIG(), // resource config
-                    0, //_startBlock
+                    Constants.DEFAULT_RESOURCE_CONFIG(),
                     address(0), // _batchInbox
                     SystemConfig.Addresses({ // _addrs
                         l1CrossDomainMessenger: address(0),
@@ -59,19 +52,14 @@ contract SystemConfig_GasLimitLowerBound_Invariant is Test {
         selectors[0] = config.setGasLimit.selector;
         FuzzSelector memory selector = FuzzSelector({ addr: address(config), selectors: selectors });
         targetSelector(selector);
-    }
 
-    /// @dev Allows the SystemConfig contract to be the target of the invariant test
-    ///      when it is behind a proxy. Foundry calls this function under the hood to
-    ///      know the ABI to use when calling the target contract.
-    function targetInterfaces() public view returns (FuzzInterface[] memory) {
-        require(address(config) != address(0), "SystemConfig not initialized");
-
-        FuzzInterface[] memory targets = new FuzzInterface[](1);
+        /// Allows the SystemConfig contract to be the target of the invariant test
+        /// when it is behind a proxy. Foundry calls this function under the hood to
+        /// know the ABI to use when calling the target contract.
         string[] memory artifacts = new string[](1);
         artifacts[0] = "SystemConfig";
-        targets[0] = FuzzInterface(address(config), artifacts);
-        return targets;
+        FuzzInterface memory target = FuzzInterface(address(config), artifacts);
+        targetInterface(target);
     }
 
     /// @custom:invariant The gas limit of the `SystemConfig` contract can never be lower

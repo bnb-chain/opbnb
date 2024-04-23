@@ -53,7 +53,35 @@ var (
 	GossipMeshDlazyName    = "p2p.gossip.mesh.dlazy"
 	GossipFloodPublishName = "p2p.gossip.mesh.floodpublish"
 	SyncReqRespName        = "p2p.sync.req-resp"
+	P2PPingName            = "p2p.ping"
 )
+
+func deprecatedP2PFlags(envPrefix string) []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     PeerScoringName,
+			Usage:    fmt.Sprintf("Deprecated: Use %v instead", ScoringName),
+			Required: false,
+			Hidden:   true,
+			Category: P2PCategory,
+		},
+		&cli.StringFlag{
+			Name:     PeerScoreBandsName,
+			Usage:    "Deprecated. This option is ignored and is only present for backwards compatibility.",
+			Required: false,
+			Value:    "",
+			Hidden:   true,
+			Category: P2PCategory,
+		},
+		&cli.StringFlag{
+			Name:     TopicScoringName,
+			Usage:    fmt.Sprintf("Deprecated: Use %v instead", ScoringName),
+			Required: false,
+			Hidden:   true,
+			Category: P2PCategory,
+		},
+	}
+}
 
 // None of these flags are strictly required.
 // Some are hidden if they are too technical, or not recommended.
@@ -64,12 +92,14 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Usage:    "Completely disable the P2P stack",
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "DISABLE"),
+			Category: P2PCategory,
 		},
 		&cli.BoolFlag{
 			Name:     NoDiscoveryName,
 			Usage:    "Disable Discv5 (node discovery)",
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "NO_DISCOVERY"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     ScoringName,
@@ -77,19 +107,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "light",
 			EnvVars:  p2pEnv(envPrefix, "PEER_SCORING"),
-		},
-		&cli.StringFlag{
-			Name:     PeerScoringName,
-			Usage:    fmt.Sprintf("Deprecated: Use %v instead", ScoringName),
-			Required: false,
-			Hidden:   true,
-		},
-		&cli.StringFlag{
-			Name:     PeerScoreBandsName,
-			Usage:    "Deprecated. This option is ignored and is only present for backwards compatibility.",
-			Required: false,
-			Value:    "",
-			Hidden:   true,
+			Category: P2PCategory,
 		},
 		&cli.BoolFlag{
 			// Banning Flag - whether or not we want to act on the scoring
@@ -98,6 +116,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Value:    true,
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "PEER_BANNING"),
+			Category: P2PCategory,
 		},
 		&cli.Float64Flag{
 			Name:     BanningThresholdName,
@@ -105,6 +124,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    -100,
 			EnvVars:  p2pEnv(envPrefix, "PEER_BANNING_THRESHOLD"),
+			Category: P2PCategory,
 		},
 		&cli.DurationFlag{
 			Name:     BanningDurationName,
@@ -112,12 +132,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    1 * time.Hour,
 			EnvVars:  p2pEnv(envPrefix, "PEER_BANNING_DURATION"),
-		},
-		&cli.StringFlag{
-			Name:     TopicScoringName,
-			Usage:    fmt.Sprintf("Deprecated: Use %v instead", ScoringName),
-			Required: false,
-			Hidden:   true,
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name: P2PPrivPathName,
@@ -127,6 +142,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Value:     "opnode_p2p_priv.txt",
 			EnvVars:   p2pEnv(envPrefix, "PRIV_PATH"),
 			TakesFile: true,
+			Category:  P2PCategory,
 		},
 		&cli.StringFlag{
 			// sometimes it may be ok to not persist the peer priv key as file, and instead pass it directly.
@@ -136,6 +152,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Hidden:   true,
 			Value:    "",
 			EnvVars:  p2pEnv(envPrefix, "PRIV_RAW"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     ListenIPName,
@@ -143,6 +160,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "0.0.0.0",
 			EnvVars:  p2pEnv(envPrefix, "LISTEN_IP"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     ListenTCPPortName,
@@ -150,6 +168,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    9222,
 			EnvVars:  p2pEnv(envPrefix, "LISTEN_TCP_PORT"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     ListenUDPPortName,
@@ -157,6 +176,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    0, // can simply match the TCP libp2p port
 			EnvVars:  p2pEnv(envPrefix, "LISTEN_UDP_PORT"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     AdvertiseIPName,
@@ -164,8 +184,9 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			// Ignored by default, nodes can discover their own external IP in the happy case,
 			// by communicating with bootnodes. Fixed IP is recommended for faster bootstrap though.
-			Value:   "",
-			EnvVars: p2pEnv(envPrefix, "ADVERTISE_IP"),
+			Value:    "",
+			EnvVars:  p2pEnv(envPrefix, "ADVERTISE_IP"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     AdvertiseTCPPortName,
@@ -173,6 +194,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    0,
 			EnvVars:  p2pEnv(envPrefix, "ADVERTISE_TCP"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     AdvertiseUDPPortName,
@@ -180,6 +202,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    0,
 			EnvVars:  p2pEnv(envPrefix, "ADVERTISE_UDP"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     BootnodesName,
@@ -187,19 +210,23 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "",
 			EnvVars:  p2pEnv(envPrefix, "BOOTNODES"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
-			Name:     StaticPeersName,
-			Usage:    "Comma-separated multiaddr-format peer list. Static connections to make and maintain, these peers will be regarded as trusted.",
+			Name: StaticPeersName,
+			Usage: "Comma-separated multiaddr-format peer list. Static connections to make and maintain, these peers will be regarded as trusted. " +
+				"Addresses of the local peer are ignored. Duplicate/Alternative addresses for the same peer all apply, but only a single connection per peer is maintained.",
 			Required: false,
 			Value:    "",
 			EnvVars:  p2pEnv(envPrefix, "STATIC"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     NetRestrictName,
 			Usage:    "Comma-separated list of CIDR masks. P2P will only try to connect on these networks",
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "NETRESTRICT"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     HostMuxName,
@@ -208,6 +235,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "yamux,mplex",
 			EnvVars:  p2pEnv(envPrefix, "MUX"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     HostSecurityName,
@@ -216,6 +244,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "noise",
 			EnvVars:  p2pEnv(envPrefix, "SECURITY"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     PeersLoName,
@@ -223,6 +252,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    20,
 			EnvVars:  p2pEnv(envPrefix, "PEERS_LO"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     PeersHiName,
@@ -230,6 +260,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    30,
 			EnvVars:  p2pEnv(envPrefix, "PEERS_HI"),
+			Category: P2PCategory,
 		},
 		&cli.DurationFlag{
 			Name:     PeersGraceName,
@@ -237,12 +268,14 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    30 * time.Second,
 			EnvVars:  p2pEnv(envPrefix, "PEERS_GRACE"),
+			Category: P2PCategory,
 		},
 		&cli.BoolFlag{
 			Name:     NATName,
 			Usage:    "Enable NAT traversal with PMP/UPNP devices to learn external IP.",
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "NAT"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     UserAgentName,
@@ -251,6 +284,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "optimism",
 			EnvVars:  p2pEnv(envPrefix, "AGENT"),
+			Category: P2PCategory,
 		},
 		&cli.DurationFlag{
 			Name:     TimeoutNegotiationName,
@@ -259,6 +293,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    10 * time.Second,
 			EnvVars:  p2pEnv(envPrefix, "TIMEOUT_NEGOTIATION"),
+			Category: P2PCategory,
 		},
 		&cli.DurationFlag{
 			Name:     TimeoutAcceptName,
@@ -267,6 +302,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    10 * time.Second,
 			EnvVars:  p2pEnv(envPrefix, "TIMEOUT_ACCEPT"),
+			Category: P2PCategory,
 		},
 		&cli.DurationFlag{
 			Name:     TimeoutDialName,
@@ -275,6 +311,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    10 * time.Second,
 			EnvVars:  p2pEnv(envPrefix, "TIMEOUT_DIAL"),
+			Category: P2PCategory,
 		},
 		&cli.StringFlag{
 			Name: PeerstorePathName,
@@ -285,6 +322,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			TakesFile: true,
 			Value:     "opnode_peerstore_db",
 			EnvVars:   p2pEnv(envPrefix, "PEERSTORE_PATH"),
+			Category:  P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:      DiscoveryPathName,
@@ -293,6 +331,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			TakesFile: true,
 			Value:     "opnode_discovery_db",
 			EnvVars:   p2pEnv(envPrefix, "DISCOVERY_PATH"),
+			Category:  P2PCategory,
 		},
 		&cli.StringFlag{
 			Name:     SequencerP2PKeyName,
@@ -300,6 +339,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Value:    "",
 			EnvVars:  p2pEnv(envPrefix, "SEQUENCER_KEY"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     GossipMeshDName,
@@ -308,6 +348,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Hidden:   true,
 			Value:    p2p.DefaultMeshD,
 			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_D"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     GossipMeshDloName,
@@ -316,6 +357,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Hidden:   true,
 			Value:    p2p.DefaultMeshDlo,
 			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DLO"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     GossipMeshDhiName,
@@ -324,6 +366,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Hidden:   true,
 			Value:    p2p.DefaultMeshDhi,
 			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DHI"),
+			Category: P2PCategory,
 		},
 		&cli.UintFlag{
 			Name:     GossipMeshDlazyName,
@@ -332,6 +375,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Hidden:   true,
 			Value:    p2p.DefaultMeshDlazy,
 			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DLAZY"),
+			Category: P2PCategory,
 		},
 		&cli.BoolFlag{
 			Name:     GossipFloodPublishName,
@@ -339,6 +383,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Required: false,
 			Hidden:   true,
 			EnvVars:  p2pEnv(envPrefix, "GOSSIP_FLOOD_PUBLISH"),
+			Category: P2PCategory,
 		},
 		&cli.BoolFlag{
 			Name:     SyncReqRespName,
@@ -346,6 +391,15 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Value:    true,
 			Required: false,
 			EnvVars:  p2pEnv(envPrefix, "SYNC_REQ_RESP"),
+			Category: P2PCategory,
+		},
+		&cli.BoolFlag{
+			Name:     P2PPingName,
+			Usage:    "Enables P2P ping-pong background service",
+			Value:    true, // on by default
+			Hidden:   true, // hidden, only here to disable in case of bugs.
+			Required: false,
+			EnvVars:  p2pEnv(envPrefix, "PING"),
 		},
 	}
 }

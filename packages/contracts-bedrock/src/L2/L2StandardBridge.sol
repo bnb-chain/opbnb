@@ -52,18 +52,21 @@ contract L2StandardBridge is StandardBridge, ISemver {
         bytes extraData
     );
 
-    /// @custom:semver 1.4.0
-    string public constant version = "1.4.0";
+    /// @custom:semver 1.8.0
+    string public constant version = "1.8.0";
 
     /// @notice Constructs the L2StandardBridge contract.
-    /// @param _otherBridge Address of the L1StandardBridge.
-    constructor(StandardBridge _otherBridge) StandardBridge(_otherBridge) {
-        initialize();
+    constructor() StandardBridge() {
+        initialize({ _otherBridge: StandardBridge(payable(address(0))) });
     }
 
-    /// @notice Initializer
-    function initialize() public reinitializer(Constants.INITIALIZER) {
-        __StandardBridge_init({ _messenger: CrossDomainMessenger(Predeploys.L2_CROSS_DOMAIN_MESSENGER) });
+    /// @notice Initializer.
+    /// @param _otherBridge Contract for the corresponding bridge on the other chain.
+    function initialize(StandardBridge _otherBridge) public initializer {
+        __StandardBridge_init({
+            _messenger: CrossDomainMessenger(Predeploys.L2_CROSS_DOMAIN_MESSENGER),
+            _otherBridge: _otherBridge
+        });
     }
 
     /// @notice Allows EOAs to bridge ETH by sending directly to the bridge.
@@ -154,7 +157,7 @@ contract L2StandardBridge is StandardBridge, ISemver {
     /// @notice Retrieves the access of the corresponding L1 bridge contract.
     /// @return Address of the corresponding L1 bridge contract.
     function l1TokenBridge() external view returns (address) {
-        return address(OTHER_BRIDGE);
+        return address(otherBridge);
     }
 
     /// @custom:legacy

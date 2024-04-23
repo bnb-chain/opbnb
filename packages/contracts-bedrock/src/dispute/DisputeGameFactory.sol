@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.15;
+pragma solidity 0.8.15;
 
 import { ClonesWithImmutableArgs } from "@cwia/ClonesWithImmutableArgs.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -14,33 +14,33 @@ import "src/libraries/DisputeTypes.sol";
 import "src/libraries/DisputeErrors.sol";
 
 /// @title DisputeGameFactory
-/// @notice A factory contract for creating `IDisputeGame` contracts. All created dispute games
-///         are stored in both a mapping and an append only array. The timestamp of the creation
-///         time of the dispute game is packed tightly into the storage slot with the address of
-///         the dispute game. This is to make offchain discoverability of playable dispute games
-///         easier.
+/// @notice A factory contract for creating `IDisputeGame` contracts. All created dispute games are stored in both a
+///         mapping and an append only array. The timestamp of the creation time of the dispute game is packed tightly
+///         into the storage slot with the address of the dispute game to make offchain discoverability of playable
+///         dispute games easier.
 contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver {
     /// @dev Allows for the creation of clone proxies with immutable arguments.
     using ClonesWithImmutableArgs for address;
 
+    /// @notice Semantic version.
+    /// @custom:semver 0.2.0
+    string public constant version = "0.2.0";
+
     /// @inheritdoc IDisputeGameFactory
     mapping(GameType => IDisputeGame) public gameImpls;
 
-    /// @notice Mapping of a hash of `gameType || rootClaim || extraData` to
-    ///         the deployed `IDisputeGame` clone.
-    /// @dev Note: `||` denotes concatenation.
+    /// @inheritdoc IDisputeGameFactory
+    mapping(GameType => uint256) public initBonds;
+
+    /// @notice Mapping of a hash of `gameType || rootClaim || extraData` to the deployed `IDisputeGame` clone (where
+    //          `||` denotes concatenation).
     mapping(Hash => GameId) internal _disputeGames;
 
-    /// @notice an append-only array of disputeGames that have been created.
-    /// @dev this accessor is used by offchain game solvers to efficiently
-    ///      track dispute games
+    /// @notice An append-only array of disputeGames that have been created. Used by offchain game solvers to
+    ///         efficiently track dispute games.
     GameId[] internal _disputeGameList;
 
-    /// @notice Semantic version.
-    /// @custom:semver 0.0.6
-    string public constant version = "0.0.6";
-
-    /// @notice constructs a new DisputeGameFactory contract.
+    /// @notice Constructs a new DisputeGameFactory contract.
     constructor() OwnableUpgradeable() {
         initialize(address(0));
     }
@@ -87,6 +87,7 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         bytes calldata _extraData
     )
         external
+        payable
         returns (IDisputeGame proxy_)
     {
         // Grab the implementation contract for the given `GameType`.
@@ -95,9 +96,15 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         // If there is no implementation to clone for the given `GameType`, revert.
         if (address(impl) == address(0)) revert NoImplementation(_gameType);
 
+        // If the required initialization bond is not met, revert.
+        if (msg.value < initBonds[_gameType]) revert InsufficientBond();
+
+        // Get the hash of the parent block.
+        bytes32 parentHash = blockhash(block.number - 1);
+
         // Clone the implementation contract and initialize it with the given parameters.
-        proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(_rootClaim, _extraData)));
-        proxy_.initialize();
+        proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(_rootClaim, parentHash, _extraData)));
+        proxy_.initialize{ value: msg.value }();
 
         // Compute the unique identifier for the dispute game.
         Hash uuid = getGameUUID(_gameType, _rootClaim, _extraData);
@@ -105,6 +112,7 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         // If a dispute game with the same UUID already exists, revert.
         if (GameId.unwrap(_disputeGames[uuid]) != bytes32(0)) revert GameAlreadyExists(uuid);
 
+        // Pack the game ID.
         GameId id = LibGameId.pack(_gameType, Timestamp.wrap(uint64(block.timestamp)), proxy_);
 
         // Store the dispute game id in the mapping & emit the `DisputeGameCreated` event.
@@ -117,40 +125,63 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
     function getGameUUID(
         GameType _gameType,
         Claim _rootClaim,
-        bytes memory _extraData
+        bytes calldata _extraData
     )
         public
         pure
         returns (Hash uuid_)
     {
+        uuid_ = Hash.wrap(keccak256(abi.encode(_gameType, _rootClaim, _extraData)));
+    }
+
+    /// @inheritdoc IDisputeGameFactory
+    function findLatestGames(
+        GameType _gameType,
+        uint256 _start,
+        uint256 _n
+    )
+        external
+        view
+        returns (GameSearchResult[] memory games_)
+    {
+        // If the `_start` index is greater than or equal to the game array length or `_n == 0`, return an empty array.
+        if (_start >= _disputeGameList.length || _n == 0) return games_;
+
+        // Allocate enough memory for the full array, but start the array's length at `0`. We may not use all of the
+        // memory allocated, but we don't know ahead of time the final size of the array.
         assembly {
-            // Grab the offsets of the other memory locations we will need to temporarily overwrite.
-            let gameTypeOffset := sub(_extraData, 0x60)
-            let rootClaimOffset := add(gameTypeOffset, 0x20)
-            let pointerOffset := add(rootClaimOffset, 0x20)
+            games_ := mload(0x40)
+            mstore(0x40, add(games_, add(0x20, shl(0x05, _n))))
+        }
 
-            // Copy the memory that we will temporarily overwrite onto the stack
-            // so we can restore it later
-            let tempA := mload(gameTypeOffset)
-            let tempB := mload(rootClaimOffset)
-            let tempC := mload(pointerOffset)
+        // Perform a reverse linear search for the `_n` most recent games of type `_gameType`.
+        for (uint256 i = _start; i >= 0 && i <= _start;) {
+            GameId id = _disputeGameList[i];
+            (GameType gameType, Timestamp timestamp, IDisputeGame proxy) = id.unpack();
 
-            // Overwrite the memory with the data we want to hash
-            mstore(gameTypeOffset, _gameType)
-            mstore(rootClaimOffset, _rootClaim)
-            mstore(pointerOffset, 0x60)
+            if (gameType.raw() == _gameType.raw()) {
+                // Increase the size of the `games_` array by 1.
+                // SAFETY: We can safely lazily allocate memory here because we pre-allocated enough memory for the max
+                //         possible size of the array.
+                assembly {
+                    mstore(games_, add(mload(games_), 0x01))
+                }
 
-            // Compute the length of the memory to hash
-            // `0x60 + 0x20 + extraData.length` rounded to the *next* multiple of 32.
-            let hashLen := and(add(mload(_extraData), 0x9F), not(0x1F))
+                bytes memory extraData = proxy.extraData();
+                Claim rootClaim = proxy.rootClaim();
+                games_[games_.length - 1] = GameSearchResult({
+                    index: i,
+                    metadata: id,
+                    timestamp: timestamp,
+                    rootClaim: rootClaim,
+                    extraData: extraData
+                });
+                if (games_.length >= _n) break;
+            }
 
-            // Hash the memory to produce the UUID digest
-            uuid_ := keccak256(gameTypeOffset, hashLen)
-
-            // Restore the memory prior to `extraData`
-            mstore(gameTypeOffset, tempA)
-            mstore(rootClaimOffset, tempB)
-            mstore(pointerOffset, tempC)
+            unchecked {
+                i--;
+            }
         }
     }
 
@@ -158,5 +189,11 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
     function setImplementation(GameType _gameType, IDisputeGame _impl) external onlyOwner {
         gameImpls[_gameType] = _impl;
         emit ImplementationSet(address(_impl), _gameType);
+    }
+
+    /// @inheritdoc IDisputeGameFactory
+    function setInitBond(GameType _gameType, uint256 _initBond) external onlyOwner {
+        initBonds[_gameType] = _initBond;
+        emit InitBondUpdated(_gameType, _initBond);
     }
 }

@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	faulttest "github.com/ethereum-optimism/optimism/op-challenger/game/fault/test"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAttemptStep(t *testing.T) {
-	maxDepth := 3
-	claimBuilder := faulttest.NewAlphabetClaimBuilder(t, maxDepth)
+	maxDepth := types.Depth(3)
+	startingL2BlockNumber := big.NewInt(0)
+	claimBuilder := faulttest.NewAlphabetClaimBuilder(t, startingL2BlockNumber, maxDepth)
 
 	// Last accessible leaf is the second last trace index
 	// The root node is used for the last trace index and can only be attacked.
@@ -25,6 +27,7 @@ func TestAttemptStep(t *testing.T) {
 		name                string
 		agreeWithOutputRoot bool
 		expectedErr         error
+		expectNoStep        bool
 		expectAttack        bool
 		expectPreState      []byte
 		expectProofData     []byte
@@ -39,9 +42,9 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(common.Big0),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					Attack(common.Hash{0xaa}).
-					AttackCorrect().
-					Attack(common.Hash{0xbb})
+					Attack(faulttest.WithValue(common.Hash{0xaa})).
+					Attack().
+					Attack(faulttest.WithValue(common.Hash{0xbb}))
 			},
 		},
 		{
@@ -52,9 +55,9 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(big.NewInt(1)),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					Attack(common.Hash{0xaa}).
-					AttackCorrect().
-					AttackCorrect()
+					Attack(faulttest.WithValue(common.Hash{0xaa})).
+					Attack().
+					Attack()
 			},
 		},
 		{
@@ -65,9 +68,9 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(big.NewInt(4)),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					DefendCorrect().
-					Attack(common.Hash{0xaa})
+					Attack().
+					Defend().
+					Attack(faulttest.WithValue(common.Hash{0xaa}))
 			},
 		},
 		{
@@ -78,9 +81,9 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(big.NewInt(5)),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					DefendCorrect().
-					AttackCorrect()
+					Attack().
+					Defend().
+					Attack()
 			},
 		},
 		{
@@ -91,9 +94,9 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(lastLeafTraceIndex),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					DefendCorrect().
-					Defend(common.Hash{0xaa})
+					Attack().
+					Defend().
+					Defend(faulttest.WithValue(common.Hash{0xaa}))
 			},
 		},
 		{
@@ -104,15 +107,15 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(lastLeafTraceIndexPlusOne),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					DefendCorrect().
-					DefendCorrect()
+					Attack().
+					Defend().
+					Defend()
 			},
 		},
 		{
 			name: "CannotStepNonLeaf",
 			setupGame: func(builder *faulttest.GameBuilder) {
-				builder.Seq().AttackCorrect().AttackCorrect()
+				builder.Seq().Attack().Attack()
 			},
 			expectedErr:         ErrStepNonLeafNode,
 			agreeWithOutputRoot: true,
@@ -121,22 +124,22 @@ func TestAttemptStep(t *testing.T) {
 			name: "CannotStepAgreedNode",
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					Attack(common.Hash{0xaa}).
-					AttackCorrect()
+					Attack().
+					Attack(faulttest.WithValue(common.Hash{0xaa})).
+					Attack()
 			},
-			expectedErr:         ErrStepIgnoreInvalidPath,
+			expectNoStep:        true,
 			agreeWithOutputRoot: true,
 		},
 		{
 			name: "CannotStepInvalidPath",
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					Attack(common.Hash{0xaa}).
-					Attack(common.Hash{0xbb}).
-					Attack(common.Hash{0xcc})
+					Attack(faulttest.WithValue(common.Hash{0xaa})).
+					Attack(faulttest.WithValue(common.Hash{0xbb})).
+					Attack(faulttest.WithValue(common.Hash{0xcc}))
 			},
-			expectedErr:         ErrStepIgnoreInvalidPath,
+			expectNoStep:        true,
 			agreeWithOutputRoot: true,
 		},
 		{
@@ -147,11 +150,11 @@ func TestAttemptStep(t *testing.T) {
 			expectedOracleData: claimBuilder.CorrectOracleData(big.NewInt(4)),
 			setupGame: func(builder *faulttest.GameBuilder) {
 				builder.Seq().
-					AttackCorrect().
-					DefendCorrect().
-					DefendCorrect()
+					Attack().
+					Defend().
+					Defend()
 			},
-			expectedErr:         ErrStepIgnoreInvalidPath,
+			expectNoStep:        true,
 			agreeWithOutputRoot: true,
 		},
 	}
@@ -159,26 +162,35 @@ func TestAttemptStep(t *testing.T) {
 	for _, tableTest := range tests {
 		tableTest := tableTest
 		t.Run(tableTest.name, func(t *testing.T) {
-			builder := claimBuilder.GameBuilder(tableTest.agreeWithOutputRoot, !tableTest.agreeWithOutputRoot)
+			builder := claimBuilder.GameBuilder(faulttest.WithInvalidValue(tableTest.agreeWithOutputRoot))
 			tableTest.setupGame(builder)
-			alphabetSolver := newClaimSolver(maxDepth, claimBuilder.CorrectTraceProvider())
+			alphabetSolver := newClaimSolver(maxDepth, trace.NewSimpleTraceAccessor(claimBuilder.CorrectTraceProvider()))
 			game := builder.Game
 			claims := game.Claims()
 			lastClaim := claims[len(claims)-1]
-			step, err := alphabetSolver.AttemptStep(ctx, game, lastClaim)
-			if tableTest.expectedErr == nil {
-				require.NoError(t, err)
+			agreedClaims := newHonestClaimTracker()
+			if tableTest.agreeWithOutputRoot {
+				agreedClaims.AddHonestClaim(types.Claim{}, claims[0])
+			}
+			if (lastClaim.Depth()%2 == 0) == tableTest.agreeWithOutputRoot {
+				parentClaim := claims[lastClaim.ParentContractIndex]
+				grandParentClaim := claims[parentClaim.ParentContractIndex]
+				agreedClaims.AddHonestClaim(grandParentClaim, parentClaim)
+			}
+			step, err := alphabetSolver.AttemptStep(ctx, game, lastClaim, agreedClaims)
+			require.ErrorIs(t, err, tableTest.expectedErr)
+			if !tableTest.expectNoStep && tableTest.expectedErr == nil {
+				require.NotNil(t, step)
 				require.Equal(t, lastClaim, step.LeafClaim)
 				require.Equal(t, tableTest.expectAttack, step.IsAttack)
 				require.Equal(t, tableTest.expectPreState, step.PreState)
 				require.Equal(t, tableTest.expectProofData, step.ProofData)
 				require.Equal(t, tableTest.expectedOracleData.IsLocal, step.OracleData.IsLocal)
 				require.Equal(t, tableTest.expectedOracleData.OracleKey, step.OracleData.OracleKey)
-				require.Equal(t, tableTest.expectedOracleData.OracleData, step.OracleData.OracleData)
+				require.Equal(t, tableTest.expectedOracleData.GetPreimageWithSize(), step.OracleData.GetPreimageWithSize())
 				require.Equal(t, tableTest.expectedOracleData.OracleOffset, step.OracleData.OracleOffset)
 			} else {
-				require.ErrorIs(t, err, tableTest.expectedErr)
-				require.Equal(t, StepData{}, step)
+				require.Nil(t, step)
 			}
 		})
 	}

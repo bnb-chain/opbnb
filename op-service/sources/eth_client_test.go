@@ -4,6 +4,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -18,6 +19,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
 )
 
 type mockRPC struct {
@@ -60,7 +62,7 @@ func randHash() (out common.Hash) {
 	return out
 }
 
-func randHeader() (*types.Header, *rpcHeader) {
+func randHeader() (*types.Header, *RPCHeader) {
 	hdr := &types.Header{
 		ParentHash:  randHash(),
 		UncleHash:   randHash(),
@@ -79,7 +81,7 @@ func randHeader() (*types.Header, *rpcHeader) {
 		Nonce:       types.BlockNonce{},
 		BaseFee:     big.NewInt(100),
 	}
-	rhdr := &rpcHeader{
+	rhdr := &RPCHeader{
 		ParentHash:  hdr.ParentHash,
 		UncleHash:   hdr.UncleHash,
 		Coinbase:    hdr.Coinbase,
@@ -106,9 +108,9 @@ func TestEthClient_InfoByHash(t *testing.T) {
 	_, rhdr := randHeader()
 	expectedInfo, _ := rhdr.Info(true, false)
 	ctx := context.Background()
-	m.On("CallContext", ctx, new(*rpcHeader),
+	m.On("CallContext", ctx, new(*RPCHeader),
 		"eth_getBlockByHash", []any{rhdr.Hash, false}).Run(func(args mock.Arguments) {
-		*args[1].(**rpcHeader) = rhdr
+		*args[1].(**RPCHeader) = rhdr
 	}).Return([]error{nil})
 	s, err := NewEthClient(m, nil, nil, testEthClientConfig, false)
 	require.NoError(t, err)
@@ -129,9 +131,9 @@ func TestEthClient_InfoByNumber(t *testing.T) {
 	expectedInfo, _ := rhdr.Info(true, false)
 	n := rhdr.Number
 	ctx := context.Background()
-	m.On("CallContext", ctx, new(*rpcHeader),
+	m.On("CallContext", ctx, new(*RPCHeader),
 		"eth_getBlockByNumber", []any{n.String(), false}).Run(func(args mock.Arguments) {
-		*args[1].(**rpcHeader) = rhdr
+		*args[1].(**RPCHeader) = rhdr
 	}).Return([]error{nil})
 	s, err := NewL1Client(m, nil, nil, L1ClientDefaultConfig(&rollup.Config{SeqWindowSize: 10}, true, RPCKindStandard))
 	require.NoError(t, err)
@@ -148,9 +150,9 @@ func TestEthClient_WrongInfoByNumber(t *testing.T) {
 	rhdr2.Number += 1
 	n := rhdr.Number
 	ctx := context.Background()
-	m.On("CallContext", ctx, new(*rpcHeader),
+	m.On("CallContext", ctx, new(*RPCHeader),
 		"eth_getBlockByNumber", []any{n.String(), false}).Run(func(args mock.Arguments) {
-		*args[1].(**rpcHeader) = &rhdr2
+		*args[1].(**RPCHeader) = &rhdr2
 	}).Return([]error{nil})
 	s, err := NewL1Client(m, nil, nil, L1ClientDefaultConfig(&rollup.Config{SeqWindowSize: 10}, true, RPCKindStandard))
 	require.NoError(t, err)
@@ -167,13 +169,60 @@ func TestEthClient_WrongInfoByHash(t *testing.T) {
 	rhdr2.Hash = rhdr2.computeBlockHash()
 	k := rhdr.Hash
 	ctx := context.Background()
-	m.On("CallContext", ctx, new(*rpcHeader),
+	m.On("CallContext", ctx, new(*RPCHeader),
 		"eth_getBlockByHash", []any{k, false}).Run(func(args mock.Arguments) {
-		*args[1].(**rpcHeader) = &rhdr2
+		*args[1].(**RPCHeader) = &rhdr2
 	}).Return([]error{nil})
 	s, err := NewL1Client(m, nil, nil, L1ClientDefaultConfig(&rollup.Config{SeqWindowSize: 10}, true, RPCKindStandard))
 	require.NoError(t, err)
 	_, err = s.InfoByHash(ctx, k)
 	require.Error(t, err, "cannot accept the wrong block")
 	m.Mock.AssertExpectations(t)
+}
+
+func newEthClientWithCaches(metrics caching.Metrics, cacheSize int) *EthClient {
+	return &EthClient{
+		transactionsCache: caching.NewLRUCache[common.Hash, types.Transactions](metrics, "txs", cacheSize),
+		headersCache:      caching.NewLRUCache[common.Hash, eth.BlockInfo](metrics, "headers", cacheSize),
+		payloadsCache:     caching.NewLRUCache[common.Hash, *eth.ExecutionPayloadEnvelope](metrics, "payloads", cacheSize),
+	}
+}
+
+// TestReceiptValidation tests that the receipt validation is performed by the underlying RPCReceiptsFetcher
+func TestReceiptValidation(t *testing.T) {
+	require := require.New(t)
+	mrpc := new(mockRPC)
+	rp := NewRPCReceiptsFetcher(mrpc, nil, RPCReceiptsConfig{})
+	const numTxs = 1
+	block, _ := randomRpcBlockAndReceipts(rand.New(rand.NewSource(420)), numTxs)
+	//txHashes := receiptTxHashes(receipts)
+	ctx := context.Background()
+
+	mrpc.On("CallContext",
+		ctx,
+		mock.Anything,
+		"eth_getTransactionReceipt",
+		mock.Anything).
+		Run(func(args mock.Arguments) {
+		}).
+		Return([]error{nil})
+
+	// when the block is requested, the block is returned
+	mrpc.On("CallContext",
+		ctx,
+		mock.Anything,
+		"eth_getBlockByHash",
+		mock.Anything).
+		Run(func(args mock.Arguments) {
+			*(args[1].(**RPCBlock)) = block
+		}).
+		Return([]error{nil})
+
+	ethcl := newEthClientWithCaches(nil, numTxs)
+	ethcl.client = mrpc
+	ethcl.recProvider = rp
+	ethcl.trustRPC = true
+
+	_, _, err := ethcl.FetchReceipts(ctx, block.Hash)
+	require.ErrorContains(err, "unexpected nil block number")
 }

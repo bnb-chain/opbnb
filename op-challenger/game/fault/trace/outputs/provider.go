@@ -2,88 +2,102 @@ package outputs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
-	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
-	GetStepDataErr      = fmt.Errorf("GetStepData not supported")
-	AbsolutePreStateErr = fmt.Errorf("AbsolutePreState not supported")
+	ErrGetStepData = errors.New("GetStepData not supported")
+	ErrIndexTooBig = errors.New("trace index is greater than max uint64")
 )
 
 var _ types.TraceProvider = (*OutputTraceProvider)(nil)
 
 type OutputRollupClient interface {
 	OutputAtBlock(ctx context.Context, blockNum uint64) (*eth.OutputResponse, error)
+	SafeHeadAtL1Block(ctx context.Context, l1BlockNum uint64) (*eth.SafeHeadResponse, error)
 }
 
 // OutputTraceProvider is a [types.TraceProvider] implementation that uses
 // output roots for given L2 Blocks as a trace.
 type OutputTraceProvider struct {
+	types.PrestateProvider
 	logger         log.Logger
-	rollupClient   OutputRollupClient
+	rollupProvider OutputRollupClient
 	prestateBlock  uint64
 	poststateBlock uint64
-	gameDepth      uint64
+	l1Head         eth.BlockID
+	gameDepth      types.Depth
 }
 
-func NewTraceProvider(ctx context.Context, logger log.Logger, rollupRpc string, gameDepth, prestateBlock, poststateBlock uint64) (*OutputTraceProvider, error) {
-	rollupClient, err := dial.DialRollupClientWithTimeout(ctx, dial.DefaultDialTimeout, logger, rollupRpc)
-	if err != nil {
-		return nil, err
-	}
-	return NewTraceProviderFromInputs(logger, rollupClient, gameDepth, prestateBlock, poststateBlock), nil
-}
-
-func NewTraceProviderFromInputs(logger log.Logger, rollupClient OutputRollupClient, gameDepth, prestateBlock, poststateBlock uint64) *OutputTraceProvider {
+func NewTraceProvider(logger log.Logger, prestateProvider types.PrestateProvider, rollupProvider OutputRollupClient, l1Head eth.BlockID, gameDepth types.Depth, prestateBlock, poststateBlock uint64) *OutputTraceProvider {
 	return &OutputTraceProvider{
-		logger:         logger,
-		rollupClient:   rollupClient,
-		prestateBlock:  prestateBlock,
-		poststateBlock: poststateBlock,
-		gameDepth:      gameDepth,
+		PrestateProvider: prestateProvider,
+		logger:           logger,
+		rollupProvider:   rollupProvider,
+		prestateBlock:    prestateBlock,
+		poststateBlock:   poststateBlock,
+		l1Head:           l1Head,
+		gameDepth:        gameDepth,
 	}
 }
 
-func (o *OutputTraceProvider) Get(ctx context.Context, pos types.Position) (common.Hash, error) {
-	traceIndex := pos.TraceIndex(int(o.gameDepth))
+// ClaimedBlockNumber returns the block number for a position restricted only by the claimed L2 block number.
+// The returned block number may be after the safe head reached by processing batch data up to the game's L1 head
+func (o *OutputTraceProvider) ClaimedBlockNumber(pos types.Position) (uint64, error) {
+	traceIndex := pos.TraceIndex(o.gameDepth)
 	if !traceIndex.IsUint64() {
-		return common.Hash{}, fmt.Errorf("trace index %v is greater than max uint64", traceIndex)
+		return 0, fmt.Errorf("%w: %v", ErrIndexTooBig, traceIndex)
 	}
+
 	outputBlock := traceIndex.Uint64() + o.prestateBlock + 1
 	if outputBlock > o.poststateBlock {
 		outputBlock = o.poststateBlock
 	}
-	output, err := o.rollupClient.OutputAtBlock(ctx, outputBlock)
-	if err != nil {
-		o.logger.Error("Failed to fetch output", "blockNumber", outputBlock, "err", err)
-		return common.Hash{}, err
-	}
-	return common.Hash(output.OutputRoot), nil
+	return outputBlock, nil
 }
 
-// AbsolutePreStateCommitment returns the absolute prestate at the configured prestateBlock.
-func (o *OutputTraceProvider) AbsolutePreStateCommitment(ctx context.Context) (hash common.Hash, err error) {
-	output, err := o.rollupClient.OutputAtBlock(ctx, o.prestateBlock)
+// HonestBlockNumber returns the block number for a position in the game restricted to the minimum of the claimed L2
+// block number or the safe head reached by processing batch data up to the game's L1 head.
+// This is used when posting honest output roots to ensure that only roots supported by L1 data are posted
+func (o *OutputTraceProvider) HonestBlockNumber(ctx context.Context, pos types.Position) (uint64, error) {
+	outputBlock, err := o.ClaimedBlockNumber(pos)
 	if err != nil {
-		o.logger.Error("Failed to fetch output", "blockNumber", o.prestateBlock, "err", err)
-		return common.Hash{}, err
+		return 0, err
 	}
-	return common.Hash(output.OutputRoot), nil
+	resp, err := o.rollupProvider.SafeHeadAtL1Block(ctx, o.l1Head.Number)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get safe head at L1 block %v: %w", o.l1Head, err)
+	}
+	maxSafeHead := resp.SafeHead.Number
+	if outputBlock > maxSafeHead {
+		outputBlock = maxSafeHead
+	}
+	return outputBlock, nil
 }
 
-// AbsolutePreState is not supported in the [OutputTraceProvider].
-func (o *OutputTraceProvider) AbsolutePreState(ctx context.Context) (preimage []byte, err error) {
-	return nil, AbsolutePreStateErr
+func (o *OutputTraceProvider) Get(ctx context.Context, pos types.Position) (common.Hash, error) {
+	outputBlock, err := o.HonestBlockNumber(ctx, pos)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return o.outputAtBlock(ctx, outputBlock)
 }
 
 // GetStepData is not supported in the [OutputTraceProvider].
-func (o *OutputTraceProvider) GetStepData(ctx context.Context, pos types.Position) (prestate []byte, proofData []byte, preimageData *types.PreimageOracleData, err error) {
-	return nil, nil, nil, GetStepDataErr
+func (o *OutputTraceProvider) GetStepData(_ context.Context, _ types.Position) (prestate []byte, proofData []byte, preimageData *types.PreimageOracleData, err error) {
+	return nil, nil, nil, ErrGetStepData
+}
+
+func (o *OutputTraceProvider) outputAtBlock(ctx context.Context, block uint64) (common.Hash, error) {
+	output, err := o.rollupProvider.OutputAtBlock(ctx, block)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to fetch output at block %v: %w", block, err)
+	}
+	return common.Hash(output.OutputRoot), nil
 }

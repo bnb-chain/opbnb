@@ -106,7 +106,7 @@ func NextRandomL2Ref(rng *rand.Rand, l2BlockTime uint64, parent eth.L2BlockRef, 
 // Output is deterministic when the supplied rng generates the same random sequence.
 func InsecureRandomKey(rng *rand.Rand) *ecdsa.PrivateKey {
 	idx := rng.Intn(len(randomEcdsaKeys))
-	key, err := crypto.ToECDSA(common.Hex2Bytes(randomEcdsaKeys[idx]))
+	key, err := crypto.ToECDSA(common.FromHex(randomEcdsaKeys[idx]))
 	if err != nil {
 		// Should never happen because the list of keys is hard coded and known to be valid.
 		panic(fmt.Errorf("invalid pre-generated ecdsa key at index %v: %w", idx, err))
@@ -155,6 +155,10 @@ func RandomTx(rng *rand.Rand, baseFee *big.Int, signer types.Signer) *types.Tran
 		panic("invalid tx type")
 	}
 	return tx
+}
+
+func RandomLegacyTxNotProtected(rng *rand.Rand) *types.Transaction {
+	return RandomLegacyTx(rng, types.HomesteadSigner{})
 }
 
 func RandomLegacyTx(rng *rand.Rand, signer types.Signer) *types.Transaction {
@@ -324,7 +328,7 @@ func RandomOutputResponse(rng *rand.Rand) *eth.OutputResponse {
 			UnsafeL2:           RandomL2BlockRef(rng),
 			SafeL2:             RandomL2BlockRef(rng),
 			FinalizedL2:        RandomL2BlockRef(rng),
-			EngineSyncTarget:   RandomL2BlockRef(rng),
+			PendingSafeL2:      RandomL2BlockRef(rng),
 		},
 	}
 }

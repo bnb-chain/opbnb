@@ -44,6 +44,7 @@ type TestParams struct {
 	SequencerWindowSize uint64
 	ChannelTimeout      uint64
 	L1BlockTime         uint64
+	UsePlasma           bool
 }
 
 func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
@@ -57,9 +58,8 @@ func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
 	deployConfig.SequencerWindowSize = tp.SequencerWindowSize
 	deployConfig.ChannelTimeout = tp.ChannelTimeout
 	deployConfig.L1BlockTime = tp.L1BlockTime
-	deployConfig.L2GenesisRegolithTimeOffset = nil
-	deployConfig.L2GenesisCanyonTimeOffset = CanyonTimeOffset()
-	deployConfig.L2GenesisSpanBatchTimeOffset = SpanBatchTimeOffset()
+	deployConfig.UsePlasma = tp.UsePlasma
+	ApplyDeployConfigForks(deployConfig)
 
 	require.NoError(t, deployConfig.Check())
 	require.Equal(t, addresses.Batcher, deployConfig.BatchSenderAddress)
@@ -105,9 +105,9 @@ func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *
 	require.NoError(t, deployConf.Check())
 
 	l1Deployments := config.L1Deployments.Copy()
-	require.NoError(t, l1Deployments.Check())
+	require.NoError(t, l1Deployments.Check(deployConf))
 
-	l1Genesis, err := genesis.BuildL1DeveloperGenesis(deployConf, config.L1Allocs, l1Deployments, true)
+	l1Genesis, err := genesis.BuildL1DeveloperGenesis(deployConf, config.L1Allocs, l1Deployments)
 	require.NoError(t, err, "failed to create l1 genesis")
 	if alloc.PrefundTestUsers {
 		for _, addr := range deployParams.Addresses.All() {
@@ -159,7 +159,14 @@ func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *
 		L1SystemConfigAddress:  deployConf.SystemConfigProxy,
 		RegolithTime:           deployConf.RegolithTime(uint64(deployConf.L1GenesisBlockTimestamp)),
 		CanyonTime:             deployConf.CanyonTime(uint64(deployConf.L1GenesisBlockTimestamp)),
-		SpanBatchTime:          deployConf.SpanBatchTime(uint64(deployConf.L1GenesisBlockTimestamp)),
+		DeltaTime:              deployConf.DeltaTime(uint64(deployConf.L1GenesisBlockTimestamp)),
+		EcotoneTime:            deployConf.EcotoneTime(uint64(deployConf.L1GenesisBlockTimestamp)),
+		FjordTime:              deployConf.FjordTime(uint64(deployConf.L1GenesisBlockTimestamp)),
+		InteropTime:            deployConf.InteropTime(uint64(deployConf.L1GenesisBlockTimestamp)),
+		DAChallengeAddress:     l1Deployments.DataAvailabilityChallengeProxy,
+		DAChallengeWindow:      deployConf.DAChallengeWindow,
+		DAResolveWindow:        deployConf.DAResolveWindow,
+		UsePlasma:              deployConf.UsePlasma,
 	}
 
 	require.NoError(t, rollupCfg.Check())
@@ -186,18 +193,28 @@ func SystemConfigFromDeployConfig(deployConfig *genesis.DeployConfig) eth.System
 	}
 }
 
-func SpanBatchTimeOffset() *hexutil.Uint64 {
-	if os.Getenv("OP_E2E_USE_SPAN_BATCH") == "true" {
-		offset := hexutil.Uint64(0)
-		return &offset
+func ApplyDeployConfigForks(deployConfig *genesis.DeployConfig) {
+	isFjord := os.Getenv("OP_E2E_USE_FJORD") == "true"
+	isEcotone := isFjord || os.Getenv("OP_E2E_USE_ECOTONE") == "true"
+	isDelta := isEcotone || os.Getenv("OP_E2E_USE_DELTA") == "true"
+	if isDelta {
+		deployConfig.L2GenesisDeltaTimeOffset = new(hexutil.Uint64)
 	}
-	return nil
+	if isEcotone {
+		deployConfig.L2GenesisEcotoneTimeOffset = new(hexutil.Uint64)
+	}
+	if isFjord {
+		deployConfig.L2GenesisFjordTimeOffset = new(hexutil.Uint64)
+	}
+	// Canyon and lower is activated by default
+	deployConfig.L2GenesisCanyonTimeOffset = new(hexutil.Uint64)
+	deployConfig.L2GenesisRegolithTimeOffset = new(hexutil.Uint64)
 }
 
-func CanyonTimeOffset() *hexutil.Uint64 {
-	if os.Getenv("OP_E2E_USE_CANYON") == "true" {
-		offset := hexutil.Uint64(0)
-		return &offset
-	}
-	return nil
+func UseFPAC() bool {
+	return os.Getenv("OP_E2E_USE_FPAC") == "true"
+}
+
+func UsePlasma() bool {
+	return os.Getenv("OP_E2E_USE_PLASMA") == "true"
 }

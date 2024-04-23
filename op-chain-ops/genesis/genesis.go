@@ -64,6 +64,9 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		RegolithTime:                  config.RegolithTime(block.Time()),
 		CanyonTime:                    config.CanyonTime(block.Time()),
 		ShanghaiTime:                  config.CanyonTime(block.Time()),
+		CancunTime:                    config.EcotoneTime(block.Time()),
+		EcotoneTime:                   config.EcotoneTime(block.Time()),
+		InteropTime:                   config.InteropTime(block.Time()),
 		Fermat:                        config.Fermat,
 		Optimism: &params.OptimismConfig{
 			EIP1559Denominator:       eip1559Denom,
@@ -95,7 +98,7 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		return nil, fmt.Errorf("transition block extradata too long: %d", size)
 	}
 
-	return &core.Genesis{
+	genesis := &core.Genesis{
 		Config:     &optimismChainConfig,
 		Nonce:      uint64(config.L2GenesisBlockNonce),
 		Timestamp:  block.Time(),
@@ -109,7 +112,14 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		ParentHash: config.L2GenesisBlockParentHash,
 		BaseFee:    baseFee.ToInt(),
 		Alloc:      map[common.Address]core.GenesisAccount{},
-	}, nil
+	}
+
+	if optimismChainConfig.IsEcotone(genesis.Timestamp) {
+		genesis.BlobGasUsed = u64ptr(0)
+		genesis.ExcessBlobGas = u64ptr(0)
+	}
+
+	return genesis, nil
 }
 
 // NewL1Genesis will create a new L1 genesis config
@@ -135,6 +145,8 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 		LondonBlock:         big.NewInt(0),
 		ArrowGlacierBlock:   big.NewInt(0),
 		GrayGlacierBlock:    big.NewInt(0),
+		ShanghaiTime:        nil,
+		CancunTime:          nil,
 	}
 
 	extraData := make([]byte, 0)
@@ -151,6 +163,7 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 		chainConfig.TerminalTotalDifficulty = big.NewInt(0)
 		chainConfig.TerminalTotalDifficultyPassed = true
 		chainConfig.ShanghaiTime = u64ptr(0)
+		chainConfig.CancunTime = u64ptr(0)
 	}
 
 	gasLimit := config.L1GenesisBlockGasLimit
@@ -168,6 +181,10 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 	timestamp := config.L1GenesisBlockTimestamp
 	if timestamp == 0 {
 		timestamp = hexutil.Uint64(time.Now().Unix())
+	}
+	if !config.L1UseClique && config.L1CancunTimeOffset != nil {
+		cancunTime := uint64(timestamp) + uint64(*config.L1CancunTimeOffset)
+		chainConfig.CancunTime = &cancunTime
 	}
 
 	return &core.Genesis{

@@ -1,8 +1,11 @@
 package metrics
 
 import (
-	"github.com/ethereum-optimism/optimism/op-service/metrics"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/ethereum-optimism/optimism/op-service/metrics"
 )
 
 type NoopTxMetrics struct {
@@ -15,5 +18,7 @@ func (*NoopTxMetrics) RecordGasBumpCount(int)            {}
 func (*NoopTxMetrics) RecordTxConfirmationLatency(int64) {}
 func (*NoopTxMetrics) TxConfirmed(*types.Receipt)        {}
 func (*NoopTxMetrics) TxPublished(string)                {}
+func (*NoopTxMetrics) RecordBaseFee(*big.Int)            {}
+func (*NoopTxMetrics) RecordTipCap(*big.Int)             {}
 func (*NoopTxMetrics) RPCError()                         {}
 func (m *NoopTxMetrics) RecordL1UrlSwitchEvt(url string) {}

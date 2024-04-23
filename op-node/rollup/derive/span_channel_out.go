@@ -3,12 +3,13 @@ package derive
 import (
 	"bytes"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+
+	"github.com/ethereum-optimism/optimism/op-node/rollup"
 )
 
 type SpanChannelOut struct {
@@ -64,12 +65,12 @@ func (co *SpanChannelOut) Reset() error {
 // and an error if there is a problem adding the block. The only sentinel error
 // that it returns is ErrTooManyRLPBytes. If this error is returned, the channel
 // should be closed and a new one should be made.
-func (co *SpanChannelOut) AddBlock(block *types.Block) (uint64, error) {
+func (co *SpanChannelOut) AddBlock(rollupCfg *rollup.Config, block *types.Block) (uint64, error) {
 	if co.closed {
-		return 0, errors.New("already closed")
+		return 0, ErrChannelOutAlreadyClosed
 	}
 
-	batch, l1Info, err := BlockToSingularBatch(block)
+	batch, l1Info, err := BlockToSingularBatch(rollupCfg, block)
 	if err != nil {
 		return 0, err
 	}
@@ -91,7 +92,7 @@ func (co *SpanChannelOut) AddBlock(block *types.Block) (uint64, error) {
 // It makes we can only get frames once the channel is full or closed, in the case of SpanBatch.
 func (co *SpanChannelOut) AddSingularBatch(batch *SingularBatch, seqNum uint64) (uint64, error) {
 	if co.closed {
-		return 0, errors.New("already closed")
+		return 0, ErrChannelOutAlreadyClosed
 	}
 	if co.FullErr() != nil {
 		// channel is already full
@@ -186,7 +187,7 @@ func (co *SpanChannelOut) FullErr() error {
 
 func (co *SpanChannelOut) Close() error {
 	if co.closed {
-		return errors.New("already closed")
+		return ErrChannelOutAlreadyClosed
 	}
 	co.closed = true
 	if err := co.Flush(); err != nil {

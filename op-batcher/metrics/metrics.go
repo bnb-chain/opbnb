@@ -44,6 +44,8 @@ type Metricer interface {
 	RecordBatchTxSuccess()
 	RecordBatchTxFailed()
 
+	RecordBlobUsedBytes(num int)
+
 	Document() []opmetrics.DocumentedMetric
 }
 
@@ -58,7 +60,7 @@ type Metrics struct {
 	info prometheus.GaugeVec
 	up   prometheus.Gauge
 
-	// label by openend, closed, fully_submitted, timed_out
+	// label by opened, closed, fully_submitted, timed_out
 	channelEvs opmetrics.EventVec
 
 	pendingBlocksCount        prometheus.GaugeVec
@@ -76,6 +78,8 @@ type Metrics struct {
 	channelOutputBytesTotal prometheus.Counter
 
 	batcherTxEvs opmetrics.EventVec
+
+	blobUsedBytes prometheus.Histogram
 }
 
 var _ Metricer = (*Metrics)(nil)
@@ -176,6 +180,12 @@ func NewMetrics(procName string) *Metrics {
 			Namespace: ns,
 			Name:      "output_bytes_total",
 			Help:      "Total number of compressed output bytes from a channel.",
+		}),
+		blobUsedBytes: factory.NewHistogram(prometheus.HistogramOpts{
+			Namespace: ns,
+			Name:      "blob_used_bytes",
+			Help:      "Blob size in bytes being submitted.",
+			Buckets:   prometheus.LinearBuckets(0.0, eth.MaxBlobDataSize/13, 13),
 		}),
 
 		batcherTxEvs: opmetrics.NewEventVec(factory, ns, "", "batcher_tx", "BatcherTx", []string{"stage"}),
@@ -298,6 +308,10 @@ func (m *Metrics) RecordBatchTxSuccess() {
 
 func (m *Metrics) RecordBatchTxFailed() {
 	m.batcherTxEvs.Record(TxStageFailed)
+}
+
+func (m *Metrics) RecordBlobUsedBytes(num int) {
+	m.blobUsedBytes.Observe(float64(num))
 }
 
 // estimateBatchSize estimates the size of the batch
