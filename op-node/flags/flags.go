@@ -49,18 +49,19 @@ var (
 		Name:    "rpc.addr",
 		Usage:   "RPC listening address",
 		EnvVars: prefixEnvVars("RPC_ADDR"),
-		Value:   "127.0.0.1",
+		Value:   "0.0.0.0",
 	}
 	RPCListenPort = &cli.IntFlag{
 		Name:    "rpc.port",
 		Usage:   "RPC listening port",
 		EnvVars: prefixEnvVars("RPC_PORT"),
-		Value:   9545, // Note: op-service/rpc/cli.go uses 8545 as the default.
+		Value:   7000, // Note: op-service/rpc/cli.go uses 8545 as the default.
 	}
 	RPCEnableAdmin = &cli.BoolFlag{
 		Name:    "rpc.enable-admin",
 		Usage:   "Enable the admin API (experimental)",
 		EnvVars: prefixEnvVars("RPC_ENABLE_ADMIN"),
+		Value:   true,
 	}
 	RPCAdminPersistence = &cli.StringFlag{
 		Name:    "rpc.admin-state",
@@ -105,7 +106,7 @@ var (
 		Name:    "l1.http-poll-interval",
 		Usage:   "Polling interval for latest-block subscription when using an HTTP RPC provider. Ignored for other types of RPC endpoints.",
 		EnvVars: prefixEnvVars("L1_HTTP_POLL_INTERVAL"),
-		Value:   time.Second * 12,
+		Value:   time.Second * 3,
 	}
 	L2EngineJWTSecret = &cli.StringFlag{
 		Name:        "l2.jwt-secret",
@@ -120,7 +121,7 @@ var (
 		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
 		EnvVars:  prefixEnvVars("VERIFIER_L1_CONFS"),
 		Required: false,
-		Value:    0,
+		Value:    15,
 	}
 	SequencerEnabledFlag = &cli.BoolFlag{
 		Name:    "sequencer.enabled",
@@ -149,14 +150,14 @@ var (
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
 		EnvVars:  prefixEnvVars("SEQUENCER_L1_CONFS"),
 		Required: false,
-		Value:    4,
+		Value:    15,
 	}
 	L1EpochPollIntervalFlag = &cli.DurationFlag{
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
 		EnvVars:  prefixEnvVars("L1_EPOCH_POLL_INTERVAL"),
 		Required: false,
-		Value:    time.Second * 12 * 32,
+		Value:    time.Second * 3 * 15,
 	}
 	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{
 		Name:     "l1.runtime-config-reload-interval",
@@ -169,6 +170,7 @@ var (
 		Name:    "metrics.enabled",
 		Usage:   "Enable the metrics server",
 		EnvVars: prefixEnvVars("METRICS_ENABLED"),
+		Value:   true,
 	}
 	MetricsAddrFlag = &cli.StringFlag{
 		Name:    "metrics.addr",
@@ -186,6 +188,7 @@ var (
 		Name:    "pprof.enabled",
 		Usage:   "Enable the pprof server",
 		EnvVars: prefixEnvVars("PPROF_ENABLED"),
+		Value:   true,
 	}
 	PprofAddrFlag = &cli.StringFlag{
 		Name:    "pprof.addr",
@@ -238,7 +241,7 @@ var (
 		Usage:    "Enables or disables execution engine P2P sync",
 		EnvVars:  prefixEnvVars("L2_ENGINE_SYNC_ENABLED"),
 		Required: false,
-		Value:    false,
+		Value:    true,
 	}
 	SkipSyncStartCheck = &cli.BoolFlag{
 		Name: "l2.skip-sync-start-check",
@@ -246,7 +249,7 @@ var (
 			"This defers the L1-origin verification, and is recommended to use in when utilizing l2.engine-sync",
 		EnvVars:  prefixEnvVars("L2_SKIP_SYNC_START_CHECK"),
 		Required: false,
-		Value:    false,
+		Value:    true,
 	}
 	BetaExtraNetworks = &cli.BoolFlag{
 		Name:    "beta.extra-networks",
