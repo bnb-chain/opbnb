@@ -29,9 +29,7 @@ type Metricer interface {
 	// Record Tx metrics
 	txmetrics.TxMetricer
 
-	opmetrics.RPCMetricer
-
-	StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer
+	StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer
 
 	RecordL2BlocksProposed(l2ref eth.L2BlockRef)
 }
@@ -86,7 +84,7 @@ func (m *Metrics) Registry() *prometheus.Registry {
 	return m.registry
 }
 
-func (m *Metrics) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {
+func (m *Metrics) StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer {
 	return opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
 }
 

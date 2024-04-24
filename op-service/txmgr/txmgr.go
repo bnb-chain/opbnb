@@ -263,7 +263,7 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 	// If the gas limit is set, we can use that as the gas
 	if gasLimit == 0 {
 		// Calculate the intrinsic gas for the transaction
-		gas, err := m.backend.EstimateGas(ctx, bsc.ToLegacyCallMsg(ethereum.CallMsg{
+		gas, err := m.backend.EstimateGas(ctx, ethereum.CallMsg{
 			From:      m.cfg.From,
 			To:        candidate.To,
 			GasTipCap: gasTipCap,

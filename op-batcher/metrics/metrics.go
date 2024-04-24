@@ -5,14 +5,15 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
-	"github.com/ethereum-optimism/optimism/op-service/eth"
-	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
-	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
+	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 )
 
 const Namespace = "op_batcher"

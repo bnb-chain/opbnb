@@ -51,6 +51,13 @@ func NewL1Miner(t Testing, log log.Logger, genesis *core.Genesis) *L1Miner {
 	}
 }
 
+func NewL1MinerWithPort(t Testing, log log.Logger, genesis *core.Genesis, port int) *L1Miner {
+	rep := NewL1ReplicaWithPort(t, log, genesis, port)
+	return &L1Miner{
+		L1Replica: *rep,
+	}
+}
+
 func (s *L1Miner) BlobStore() derive.L1BlobsFetcher {
 	return s.blobStore
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -74,10 +73,6 @@ type ProposerService struct {
 // The service components are fully started, except for the driver,
 // which will not be submitting state (if it was configured to) until the Start part of the lifecycle.
 func ProposerServiceFromCLIConfig(ctx context.Context, version string, cfg *CLIConfig, log log.Logger) (*ProposerService, error) {
-	if err := opaws.KeyManager(context.Background(), ctx, opaws.OP_PROPOSER_SIGN_KEY); err != nil {
-		return err
-	}
-
 	var ps ProposerService
 	if err := ps.initFromCLIConfig(ctx, version, cfg, log); err != nil {
 		return nil, errors.Join(err, ps.Stop(ctx)) // try to clean up our failed initialization attempt

@@ -52,7 +52,7 @@ type BatcherService struct {
 	L1Client   client.Client
 
 	EndpointProvider dial.L2EndpointProvider
-	TxManager  txmgr.TxManager
+	TxManager        txmgr.TxManager
 	PlasmaDA         *plasma.DAClient
 
 	BatcherConfig
@@ -143,7 +143,7 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 		ethUrls := strings.Split(cfg.L2EthRpc, ",")
 		endpointProvider, err = dial.NewActiveL2EndpointProvider(ctx, ethUrls, rollupUrls, cfg.ActiveSequencerCheckDuration, dial.DefaultDialTimeout, bs.Log)
 	} else {
-		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc)
+		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc, bs.Metrics)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to build L2 endpoint provider: %w", err)
