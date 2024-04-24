@@ -49,7 +49,7 @@ var (
 		Name:    "rpc.addr",
 		Usage:   "RPC listening address",
 		EnvVars: prefixEnvVars("RPC_ADDR"),
-		Value:   "0.0.0.0",
+		Value:   "127.0.0.1",
 	}
 	RPCListenPort = &cli.IntFlag{
 		Name:    "rpc.port",
@@ -61,7 +61,6 @@ var (
 		Name:    "rpc.enable-admin",
 		Usage:   "Enable the admin API (experimental)",
 		EnvVars: prefixEnvVars("RPC_ENABLE_ADMIN"),
-		Value:   true,
 	}
 	RPCAdminPersistence = &cli.StringFlag{
 		Name:    "rpc.admin-state",
@@ -72,7 +71,6 @@ var (
 		Name:    "l1.trustrpc",
 		Usage:   "Trust the L1 RPC, sync faster at risk of malicious/buggy RPC providing bad or inconsistent L1 data",
 		EnvVars: prefixEnvVars("L1_TRUST_RPC"),
-		Value:   true,
 	}
 	L1RPCProviderKind = &cli.GenericFlag{
 		Name: "l1.rpckind",
@@ -171,7 +169,6 @@ var (
 		Name:    "metrics.enabled",
 		Usage:   "Enable the metrics server",
 		EnvVars: prefixEnvVars("METRICS_ENABLED"),
-		Value:   true,
 	}
 	MetricsAddrFlag = &cli.StringFlag{
 		Name:    "metrics.addr",
@@ -189,7 +186,6 @@ var (
 		Name:    "pprof.enabled",
 		Usage:   "Enable the pprof server",
 		EnvVars: prefixEnvVars("PPROF_ENABLED"),
-		Value:   true,
 	}
 	PprofAddrFlag = &cli.StringFlag{
 		Name:    "pprof.addr",
