@@ -107,13 +107,13 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.cfg.IsSnow(l2Parent.Time + ba.cfg.BlockTime) {
+	if ba.rollupCfg.IsSnow(l2Parent.Time + ba.rollupCfg.BlockTime) {
 		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
 		if err != nil {
 			return nil, err
 		}
-	} else if ba.cfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
-		l1BaseFee = bsc.BaseFeeByNetworks(ba.cfg.L2ChainID)
+	} else if ba.rollupCfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
+		l1BaseFee = bsc.BaseFeeByNetworks(ba.rollupCfg.L2ChainID)
 	} else {
 		_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
 		if err != nil {

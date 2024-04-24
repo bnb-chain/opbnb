@@ -381,8 +381,8 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/ethereum-optimism/go-ethereum-hdwallet v0.1.3 h1:RWHKLhCrQThMfch+QJ1Z8veEq5ZO3DfIhZ7xgRP9WTc=
 github.com/ethereum-optimism/go-ethereum-hdwallet v0.1.3/go.mod h1:QziizLAiF0KqyLdNJYD7O5cpDlaFMNZzlxYNcWsJUxs=
-github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240222155908-ab073f6aa74f h1:L2ub0d0iW2Nqwh1r9WxMqebgZf7rU+wHuVCv21uAGx8=
-github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240222155908-ab073f6aa74f/go.mod h1:7xh2awFQqsiZxFrHKTgEd+InVfDRrkKVUIuK8SAFHp0=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240306093353-c557df8e6f41 h1:WKJvsRyW/YNgyT0P2x5U530ITOY8Dv9TrZnbliqSXd8=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240306093353-c557df8e6f41/go.mod h1:7xh2awFQqsiZxFrHKTgEd+InVfDRrkKVUIuK8SAFHp0=
 github.com/ethereum/c-kzg-4844 v0.4.0 h1:3MS1s4JtA868KpJxroZoepdV0ZKBp3u/O5HcZ7R3nlY=
 github.com/ethereum/c-kzg-4844 v0.4.0/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/ethereum/go-ethereum v1.10.13/go.mod h1:W3yfrFyL9C1pHcwY5hmRHVDaorTiQxhYBkKyu5mEDHw=
@@ -1593,8 +1593,8 @@ github.com/wealdtech/go-eth2-types/v2 v2.5.2/go.mod h1:8lkNUbgklSQ4LZ2oMSuxSdR7W
 github.com/wealdtech/go-eth2-util v1.6.3/go.mod h1:0hFMj/qtio288oZFHmAbCnPQ9OB3c4WFzs5NVPKTY4k=
 github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.1.3/go.mod h1:qiIimacW5NhVRy8o+YxWo9YrecXqDAKKbL0+sOa0SJ4=
 github.com/wealdtech/go-eth2-wallet-types/v2 v2.8.2/go.mod h1:k6kmiKWSWBTd4OxFifTEkPaBLhZspnO2KFD5XJY9nqg=
-github.com/welkin22/op-geth v1.101308.2-opbnb h1:/MLtVte6Is0gmtg2puAF249XSsG8xNsDjPDs3f+GUfI=
-github.com/welkin22/op-geth v1.101308.2-opbnb/go.mod h1:OvmRX7Y/QVkkjs3elxFy+jmXfIOkhuMHmpEHljKI/IU=
+github.com/welkin22/op-geth v1.101308.2-opbnb2 h1:VRRSXyqw0zszivEBAcLuMi3uFZqunZzmAY0lNL95128=
+github.com/welkin22/op-geth v1.101308.2-opbnb2/go.mod h1:kwg6KPGU98pFj2ZZF7z45FsKJdhIrfaQ7SW1Kac1RvY=
 github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3/go.mod h1:XCsSkdKK4gwBMNrOCZWww0pX6AOt+2gYc5Z6jBRrNVg=
 github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1/go.mod h1:8UvriyWtv5Q5EOgjHaSseUEdkQfvwFv1I/In/O2M9gc=
 github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc/go.mod h1:bopw91TMyo8J3tvftk8xmU2kPmlrt4nScJQZU2hE5EM=

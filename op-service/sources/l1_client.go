@@ -150,7 +150,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
-					s.receiptsCache.RemoveAll()
+					s.recProvider.GetReceiptsCache().RemoveAll()
 					parentHash = common.Hash{}
 				default:
 					blockRef, err := s.L1BlockRefByLabel(ctx, eth.Unsafe)
@@ -193,7 +193,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 										time.Sleep(1 * time.Second)
 										continue
 									}
-									pair, ok := s.receiptsCache.Get(blockNumber, false)
+									pair, ok := s.recProvider.GetReceiptsCache().Get(blockNumber, false)
 									if ok && pair.blockHash == blockInfo.Hash {
 										blockInfoChan <- blockInfo
 										return
@@ -252,7 +252,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 
 func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
 	s.log.Debug("clear receipts cache before", "blockNumber", blockNumber)
-	s.receiptsCache.RemoveLessThan(blockNumber)
+	s.recProvider.GetReceiptsCache().RemoveLessThan(blockNumber)
 }
 
 func (s *L1Client) Close() {

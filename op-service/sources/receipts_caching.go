@@ -86,3 +86,7 @@ func (p *CachingReceiptsProvider) FetchReceipts(ctx context.Context, blockInfo e
 	p.deleteFetchingLock(block.Hash)
 	return r, nil, isFull
 }
+
+func (p *CachingReceiptsProvider) GetReceiptsCache() *caching.PreFetchCache[*ReceiptsHashPair] {
+	return p.cache
+}

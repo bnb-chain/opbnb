@@ -269,7 +269,7 @@ func (s *Driver) eventLoop() {
 			s.derivation.Reset()
 		} else if err != nil {
 			s.log.Error("Sequencer critical error", "err", err)
-			return
+			return err
 		}
 		planSequencerAction() // schedule the next sequencer action to keep the sequencing looping
 		return nil
@@ -352,7 +352,7 @@ func (s *Driver) eventLoop() {
 				continue
 			case respCh := <-s.stopSequencer:
 				if s.driverConfig.SequencerStopped {
-					respCh <- hashAndError{err: errors.New("sequencer not running")}
+					respCh <- hashAndError{err: ErrSequencerAlreadyStopped}
 				} else {
 					if err := s.sequencerNotifs.SequencerStopped(); err != nil {
 						respCh <- hashAndError{err: fmt.Errorf("sequencer start notification: %w", err)}
@@ -360,7 +360,10 @@ func (s *Driver) eventLoop() {
 					}
 					s.log.Warn("Sequencer has been stopped")
 					s.driverConfig.SequencerStopped = true
-					respCh <- hashAndError{hash: s.derivation.UnsafeL2Head().Hash}
+					// Cancel any inflight block building. If we don't cancel this, we can resume sequencing an old block
+					// even if we've received new unsafe heads in the interim, causing us to introduce a re-org.
+					s.sequencer.CancelBuildingBlock(s.driverCtx)
+					respCh <- hashAndError{hash: s.engineController.UnsafeL2Head().Hash}
 				}
 				continue
 			case respCh := <-s.sequencerActive:

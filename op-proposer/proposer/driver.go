@@ -304,7 +304,7 @@ func (l *L2OutputSubmitter) FetchOutput(ctx context.Context, block *big.Int) (*e
 
 // ProposeL2OutputTxData creates the transaction data for the ProposeL2Output function
 func (l *L2OutputSubmitter) ProposeL2OutputTxData(output *eth.OutputResponse) ([]byte, error) {
-	if l.allowNonFinalized {
+	if l.Cfg.AllowNonFinalized {
 		return proposeL2OutputTxData(l.l2ooABI, output, true)
 	}
 	return proposeL2OutputTxData(l.l2ooABI, output, false)
@@ -322,7 +322,7 @@ func proposeL2OutputTxData(abi *abi.ABI, output *eth.OutputResponse, withCurrent
 		output.OutputRoot,
 		new(big.Int).SetUint64(output.BlockRef.Number),
 		currentL1Hash,
-		new(big.Int).SetUint64(output.Status.CurrentL1.Number)
+		new(big.Int).SetUint64(output.Status.CurrentL1.Number),
 	)
 }
 

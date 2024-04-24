@@ -422,7 +422,7 @@ func (s *EthClient) Close() {
 }
 
 func (s *EthClient) bscFinalizedHeader(ctx context.Context, probabilisticFinalized int64) (eth.BlockInfo, error) {
-	var header *rpcHeader
+	var header *RPCHeader
 	err := s.client.CallContext(ctx, &header, "eth_getFinalizedHeader", probabilisticFinalized) // headers are just blocks without txs
 	if err != nil {
 		return nil, err

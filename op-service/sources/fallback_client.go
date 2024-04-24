@@ -272,8 +272,8 @@ func (l *FallbackClient) ChainID(ctx context.Context, rpc client.RPC) (*big.Int,
 	return (*big.Int)(&id), nil
 }
 
-func (l *FallbackClient) l1BlockRefByNumber(ctx context.Context, number uint64, newRpc client.RPC) (*rpcHeader, error) {
-	var header *rpcHeader
+func (l *FallbackClient) l1BlockRefByNumber(ctx context.Context, number uint64, newRpc client.RPC) (*RPCHeader, error) {
+	var header *RPCHeader
 	err := newRpc.CallContext(ctx, &header, "eth_getBlockByNumber", numberID(number).Arg(), false) // headers are just blocks without txs
 	if err != nil {
 		return nil, err

@@ -17,7 +17,7 @@ import (
 // This method returns a cliapp.LifecycleAction, to create an op-service CLI-lifecycle-managed L2Output-submitter
 func Main(version string) cliapp.LifecycleAction {
 	return func(cliCtx *cli.Context, _ context.CancelCauseFunc) (cliapp.Lifecycle, error) {
-		if err := opaws.KeyManager(context.Background(), ctx, opaws.OP_PROPOSER_SIGN_KEY); err != nil {
+		if err := opaws.KeyManager(context.Background(), cliCtx, opaws.OP_PROPOSER_SIGN_KEY); err != nil {
 			return nil, err
 		}
 
