@@ -324,9 +324,6 @@ func validateBlobSidecars (blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef)
 	return blobsMap, nil
 }
 
-
-
-
 func (s *L1Client) Close() {
 	close(s.done)
 	s.EthClient.Close()

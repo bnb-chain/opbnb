@@ -11,6 +11,7 @@ COPY ./op-bindings /app/op-bindings
 COPY ./op-node /app/op-node
 COPY ./op-service /app/op-service
 COPY ./op-aws-sdk /app/op-aws-sdk
+COPY ./op-plasma /app/op-plasma
 COPY ./go.mod /app/go.mod
 COPY ./go.sum /app/go.sum
 

@@ -74,9 +74,9 @@ type VersionInformation struct {
 }
 
 type BSCBlobTxSidecar struct {
-	Blobs       []Blob       `json:"blobs"`       // Blobs needed by the blob pool
-	Commitments []Bytes48    `json:"commitments"` // Commitments needed by the blob pool
-	Proofs      []Bytes48    `json:"proofs"`      // Proofs needed by the blob pool
+	Blobs       []Blob       `json:"blobs"`
+	Commitments []Bytes48    `json:"commitments"`
+	Proofs      []Bytes48    `json:"proofs"`
 }
 
 type BSCBlobSidecar struct {
