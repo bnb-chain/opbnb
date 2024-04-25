@@ -184,14 +184,14 @@ var (
 		Name:     "l1.http-poll-interval",
 		Usage:    "Polling interval for latest-block subscription when using an HTTP RPC provider. Ignored for other types of RPC endpoints.",
 		EnvVars:  prefixEnvVars("L1_HTTP_POLL_INTERVAL"),
-		Value:    time.Second * 12,
+		Value:    time.Second * 3,
 		Category: L1RPCCategory,
 	}
 	VerifierL1Confs = &cli.Uint64Flag{
 		Name:     "verifier.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
 		EnvVars:  prefixEnvVars("VERIFIER_L1_CONFS"),
-		Value:    0,
+		Value:    15,
 		Category: L1RPCCategory,
 	}
 	SequencerEnabledFlag = &cli.BoolFlag{
@@ -223,14 +223,14 @@ var (
 		Name:     "sequencer.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
 		EnvVars:  prefixEnvVars("SEQUENCER_L1_CONFS"),
-		Value:    4,
+		Value:    15,
 		Category: SequencerCategory,
 	}
 	L1EpochPollIntervalFlag = &cli.DurationFlag{
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
 		EnvVars:  prefixEnvVars("L1_EPOCH_POLL_INTERVAL"),
-		Value:    time.Second * 12 * 32,
+		Value:    time.Second * 3 * 15,
 		Category: L1RPCCategory,
 	}
 	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{
@@ -308,7 +308,7 @@ var (
 		Name:    "l2.engine-sync",
 		Usage:   "WARNING: Deprecated. Use --syncmode=execution-layer instead",
 		EnvVars: prefixEnvVars("L2_ENGINE_SYNC_ENABLED"),
-		Value:   false,
+		Value:   true,
 		Hidden:  true,
 	}
 	SkipSyncStartCheck = &cli.BoolFlag{
@@ -316,7 +316,7 @@ var (
 		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
 			"This defers the L1-origin verification, and is recommended to use in when utilizing l2.engine-sync",
 		EnvVars: prefixEnvVars("L2_SKIP_SYNC_START_CHECK"),
-		Value:   false,
+		Value:   true,
 		Hidden:  true,
 	}
 	BetaExtraNetworks = &cli.BoolFlag{

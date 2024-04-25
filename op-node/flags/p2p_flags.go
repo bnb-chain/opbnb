@@ -166,7 +166,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Name:     ListenTCPPortName,
 			Usage:    "TCP port to bind LibP2P to. Any available system port if set to 0.",
 			Required: false,
-			Value:    9222,
+			Value:    9003,
 			EnvVars:  p2pEnv(envPrefix, "LISTEN_TCP_PORT"),
 			Category: P2PCategory,
 		},
@@ -174,7 +174,7 @@ func P2PFlags(envPrefix string) []cli.Flag {
 			Name:     ListenUDPPortName,
 			Usage:    "UDP port to bind Discv5 to. Same as TCP port if left 0.",
 			Required: false,
-			Value:    0, // can simply match the TCP libp2p port
+			Value:    9003, // can simply match the TCP libp2p port
 			EnvVars:  p2pEnv(envPrefix, "LISTEN_UDP_PORT"),
 			Category: P2PCategory,
 		},
