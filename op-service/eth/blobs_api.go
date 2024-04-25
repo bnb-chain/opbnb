@@ -1,5 +1,11 @@
 package eth
 
+import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+)
+
 type BlobSidecar struct {
 	Blob          Blob         `json:"blob"`
 	Index         Uint64String `json:"index"`
@@ -66,3 +72,19 @@ type APIVersionResponse struct {
 type VersionInformation struct {
 	Version string `json:"version"`
 }
+
+type BSCBlobTxSidecar struct {
+	Blobs       []Blob       `json:"blobs"`       // Blobs needed by the blob pool
+	Commitments []Bytes48    `json:"commitments"` // Commitments needed by the blob pool
+	Proofs      []Bytes48    `json:"proofs"`      // Proofs needed by the blob pool
+}
+
+type BSCBlobSidecar struct {
+	BSCBlobTxSidecar
+	BlockNumber *big.Int    `json:"blockNumber"`
+	BlockHash   common.Hash `json:"blockHash"`
+	TxIndex     uint64      `json:"transactionIndex"`
+	TxHash      common.Hash `json:"transactionHash"`
+}
+
+type BSCBlobSidecars []*BSCBlobSidecar
