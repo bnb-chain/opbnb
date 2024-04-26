@@ -172,6 +172,7 @@ func fallbackClientWrap(ctx context.Context, logger log.Logger, urlList []string
 	})
 	rpcCfg := sources.L1ClientDefaultConfig(rollupCfg, cfg.L1TrustRPC, cfg.L1RPCKind)
 	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
+	rpcCfg.MaxConcurrentRequests = cfg.MaxConcurrency
 	return l1Node, rpcCfg, nil
 }
 
