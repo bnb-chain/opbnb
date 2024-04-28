@@ -180,7 +180,7 @@ var OPBNBTestnet = rollup.Config{
 var OPBNBQANet = rollup.Config{
 	Genesis: rollup.Genesis{
 		L1: eth.BlockID{
-			Hash:   common.HexToHash("0xed201904d66dcf479bd75821e9e3e76d52818be4290e54cd723497dd404ff82e"),
+			Hash:   common.HexToHash("0x74685f5b86e938c4fd51e4e1350a516ce5adf5078356e5055c04059730d1c2ed"),
 			Number: 366555,
 		},
 		L2: eth.BlockID{
