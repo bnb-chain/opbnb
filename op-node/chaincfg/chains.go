@@ -91,7 +91,7 @@ var NetworksByName = map[string]rollup.Config{
 var NetworksByChainId = map[string]rollup.Config{
 	"204":  OPBNBMainnet,
 	"5611": OPBNBTestnet,
-	"1322": OPBNBQANet,
+	"1484": OPBNBQANet,
 }
 
 func GetRollupConfigByNetwork(name string) (rollup.Config, error) {
@@ -180,16 +180,16 @@ var OPBNBTestnet = rollup.Config{
 var OPBNBQANet = rollup.Config{
 	Genesis: rollup.Genesis{
 		L1: eth.BlockID{
-			Hash:   common.HexToHash("0x3db93722c9951fe1da25dd652c6e2367674a97161df2acea322e915cab0d58ba"),
-			Number: 742038,
+			Hash:   common.HexToHash("0xed201904d66dcf479bd75821e9e3e76d52818be4290e54cd723497dd404ff82e"),
+			Number: 366555,
 		},
 		L2: eth.BlockID{
-			Hash:   common.HexToHash("0x1cba296441b55cf9b5b306b6aef43e68e9aeff2450d68c391dec448604cf3baf"),
+			Hash:   common.HexToHash("0x580889547f6ac1d303d01d028f558d379284173e5ca1ebf38dbbafdef3e5d81c"),
 			Number: 0,
 		},
-		L2Time: 1704856150,
+		L2Time: 1714271117,
 		SystemConfig: eth.SystemConfig{
-			BatcherAddr: common.HexToAddress("0xe309831c77d5fb5f189dd97c598e26e5c014f2d6"),
+			BatcherAddr: common.HexToAddress("0x0f92e2e0cf3d30d0cd1862c9ed4b6008bc4fcdee"),
 			Overhead:    eth.Bytes32(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000834")),
 			Scalar:      eth.Bytes32(common.HexToHash("0x00000000000000000000000000000000000000000000000000000000000f4240")),
 			GasLimit:    100000000,
@@ -200,13 +200,13 @@ var OPBNBQANet = rollup.Config{
 	SeqWindowSize:          14400,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(714),
-	L2ChainID:              big.NewInt(1322),
-	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001322"),
-	DepositContractAddress: common.HexToAddress("0xb7cdbce0b1f153b4cb2acc36aeb4d9d2cdda1132"),
-	L1SystemConfigAddress:  common.HexToAddress("0x6a2607255801095b23256a341b24d31275fe2438"),
+	L2ChainID:              big.NewInt(1484),
+	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001484"),
+	DepositContractAddress: common.HexToAddress("0x22150cdb37a280e40b13965a62134be2a2433f1c"),
+	L1SystemConfigAddress:  common.HexToAddress("0x6d01faabdf7405dcdeb251761d656f7e8538652b"),
 	RegolithTime:           u64Ptr(0),
-	// Fermat:              big.NewInt(3615117),
-	// TODO update timestamp
+	Fermat:                 big.NewInt(0),
+	// TODO update snow fork and other 4844 forks
 	SnowTime: nil,
 }
 
