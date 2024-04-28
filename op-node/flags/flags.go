@@ -308,7 +308,7 @@ var (
 		Name:    "l2.engine-sync",
 		Usage:   "WARNING: Deprecated. Use --syncmode=execution-layer instead",
 		EnvVars: prefixEnvVars("L2_ENGINE_SYNC_ENABLED"),
-		Value:   true,
+		Value:   false,
 		Hidden:  true,
 	}
 	SkipSyncStartCheck = &cli.BoolFlag{
@@ -316,7 +316,7 @@ var (
 		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
 			"This defers the L1-origin verification, and is recommended to use in when utilizing l2.engine-sync",
 		EnvVars: prefixEnvVars("L2_SKIP_SYNC_START_CHECK"),
-		Value:   true,
+		Value:   false,
 		Hidden:  true,
 	}
 	BetaExtraNetworks = &cli.BoolFlag{
