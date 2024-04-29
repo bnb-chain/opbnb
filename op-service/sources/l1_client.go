@@ -292,6 +292,7 @@ func (s *L1Client) getBlobSidecars(ctx context.Context, ref eth.L1BlockRef) (eth
 	if blobSidecars == nil {
 		return nil, ethereum.NotFound
 	}
+	s.log.Debug("receive blobSidecars", "blob", blobSidecars)
 	return blobSidecars, nil
 }
 
@@ -308,7 +309,7 @@ func validateBlobSidecars(blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef) 
 			return nil, fmt.Errorf("invalidate api response of tx %s, expect block hash %s, got %s", blobSidecar.TxHash, ref.Hash, blobSidecar.BlockHash)
 		}
 		if len(blobSidecar.Blobs) == 0 || len(blobSidecar.Blobs) != len(blobSidecar.Commitments) || len(blobSidecar.Blobs) != len(blobSidecar.Proofs) {
-			return nil, fmt.Errorf("invalidate api response of tx %s, len of blobs/commitments/proofs is not equal or is 0", blobSidecar.TxHash)
+			return nil, fmt.Errorf("invalidate api response of tx %s,idx:%d, len of blobs(%d)/commitments(%d)/proofs(%d) is not equal or is 0", blobSidecar.TxHash, blobSidecar.TxIndex, len(blobSidecar.Blobs), len(blobSidecar.Commitments), len(blobSidecar.Proofs))
 		}
 
 		for i := 0; i < len(blobSidecar.Blobs); i++ {
