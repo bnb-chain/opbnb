@@ -206,8 +206,10 @@ var OPBNBQANet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x6d01faabdf7405dcdeb251761d656f7e8538652b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(0),
-	// TODO update snow fork and other 4844 forks
-	SnowTime: nil,
+	SnowTime:               u64Ptr(1714384800), // Apr-29-2024 10:00 AM +UTC
+	CanyonTime:             u64Ptr(1714385400), // Apr-29-2024 10:10 AM +UTC
+	DeltaTime:              u64Ptr(1714386000), // Apr-29-2024 10:20 AM +UTC
+	EcotoneTime:            u64Ptr(1714386600), // Apr-29-2024 10:30 AM +UTC
 }
 
 func u64Ptr(v uint64) *uint64 {
