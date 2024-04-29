@@ -79,11 +79,11 @@ type BSCBlobTxSidecar struct {
 }
 
 type BSCBlobSidecar struct {
-	BSCBlobTxSidecar
-	BlockNumber *hexutil.Big    `json:"blockNumber"`
-	BlockHash   common.Hash     `json:"blockHash"`
-	TxIndex     *hexutil.Uint64 `json:"transactionIndex"`
-	TxHash      common.Hash     `json:"transactionHash"`
+	BSCBlobTxSidecar `json:"blobSidecar"`
+	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	BlockHash        common.Hash     `json:"blockHash"`
+	TxIndex          *hexutil.Uint64 `json:"txIndex"`
+	TxHash           common.Hash     `json:"txHash"`
 }
 
 type BSCBlobSidecars []*BSCBlobSidecar

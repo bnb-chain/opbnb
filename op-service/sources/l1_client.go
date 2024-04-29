@@ -292,7 +292,6 @@ func (s *L1Client) getBlobSidecars(ctx context.Context, ref eth.L1BlockRef) (eth
 	if blobSidecars == nil {
 		return nil, ethereum.NotFound
 	}
-	s.log.Debug("receive blobSidecars", "blob", blobSidecars)
 	return blobSidecars, nil
 }
 
