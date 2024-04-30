@@ -25,6 +25,7 @@ parser = argparse.ArgumentParser(description='Bedrock devnet launcher')
 parser.add_argument('--monorepo-dir', help='Directory of the monorepo', default=os.getcwd())
 parser.add_argument('--allocs', help='Only create the allocs and exit', type=bool, action=argparse.BooleanOptionalAction)
 parser.add_argument('--test', help='Tests the deployment, must already be deployed', type=bool, action=argparse.BooleanOptionalAction)
+parser.add_argument('--init', help='init BSC L1 devnet chain', type=bool, action=argparse.BooleanOptionalAction)
 
 log = logging.getLogger()
 
@@ -63,6 +64,9 @@ def main():
 
     monorepo_dir = os.path.abspath(args.monorepo_dir)
     devnet_dir = pjoin(monorepo_dir, '.devnet')
+    bsc_dir = pjoin(devnet_dir, 'bsc')
+    node_deploy_dir = pjoin(devnet_dir, 'node-deploy')
+    node_deploy_genesis_dir = pjoin(node_deploy_dir, 'genesis')
     contracts_bedrock_dir = pjoin(monorepo_dir, 'packages', 'contracts-bedrock')
     deployment_dir = pjoin(contracts_bedrock_dir, 'deployments', 'devnetL1')
     forge_dump_path = pjoin(contracts_bedrock_dir, 'Deploy-900.json')
@@ -77,6 +81,9 @@ def main():
     paths = Bunch(
       mono_repo_dir=monorepo_dir,
       devnet_dir=devnet_dir,
+      bsc_dir=bsc_dir,
+      node_deploy_dir=node_deploy_dir,
+      node_deploy_genesis_dir=node_deploy_genesis_dir,
       contracts_bedrock_dir=contracts_bedrock_dir,
       deployment_dir=deployment_dir,
       forge_dump_path=forge_dump_path,
@@ -105,6 +112,10 @@ def main():
 
     if args.allocs:
         devnet_l1_genesis(paths)
+        return
+
+    if args.init:
+        bsc_l1_init(paths)
         return
 
     git_commit = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()
@@ -204,9 +215,7 @@ def devnet_l1_genesis(paths):
 def deployL1ContractsForDeploy(paths):
     log.info('Starting L1.')
 
-    run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-        'PWD': paths.ops_bedrock_dir
-    })
+    run_command(['./start_cluster.sh','start'], cwd=paths.node_deploy_dir)
     wait_up(8545)
     wait_for_rpc_server('http://127.0.0.1:8545')
     time.sleep(3)
@@ -247,15 +256,16 @@ def deployL1ContractsForDeploy(paths):
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
-    log.info('Syncing contracts.')
-    run_command([
-        'forge', 'script', fqn, '--sig', 'sync()',
-        '--rpc-url', 'http://127.0.0.1:8545'
-    ], env={}, cwd=paths.contracts_bedrock_dir)
+#     log.info('Syncing contracts.')
+#     run_command([
+#         'forge', 'script', fqn, '--sig', 'sync()',
+#         '--rpc-url', 'http://127.0.0.1:8545'
+#     ], env={}, cwd=paths.contracts_bedrock_dir)
     log.info('Deployed L1 contracts.')
 
 # Bring up the devnet where the contracts are deployed to L1
 def devnet_deploy(paths):
+    bsc_l1_init(paths)
     init_devnet_l1_deploy_config(paths)
     l1env = dotenv_values('./ops-bedrock/l1.env')
     log.info(l1env)
@@ -286,7 +296,6 @@ def devnet_deploy(paths):
     deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
     deploy_config['proxyAdminOwner'] = l1_init_holder
     deploy_config['finalSystemOwner'] = l1_init_holder
-    deploy_config['portalGuardian'] = l1_init_holder
     deploy_config['governanceTokenOwner'] = l1_init_holder
     write_json(devnet_cfg_orig, deploy_config)
 
@@ -294,9 +303,7 @@ def devnet_deploy(paths):
         log.info('L1 contracts already deployed.')
         log.info('Starting L1.')
 
-        run_command(['docker-compose', 'up', '-d', 'l1'], cwd=paths.ops_bedrock_dir, env={
-            'PWD': paths.ops_bedrock_dir
-        })
+        run_command(['./start_cluster.sh','start'], cwd=paths.node_deploy_dir)
         wait_up(8545)
         wait_for_rpc_server('http://127.0.0.1:8545')
     else:
@@ -350,6 +357,44 @@ def devnet_deploy(paths):
     })
 
     log.info('Devnet ready.')
+
+def bsc_l1_init(paths):
+    l1env = dotenv_values('./ops-bedrock/l1.env')
+    log.info(l1env)
+    l1_init_holder = l1env['INIT_HOLDER']
+    l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
+    if os.path.exists(paths.bsc_dir):
+        log.info('bsc path exists, skip git clone')
+    else:
+        run_command(['git','clone','https://github.com/bnb-chain/bsc.git'], cwd=paths.devnet_dir)
+        run_command(['git','checkout','v1.4.5'], cwd=paths.bsc_dir)
+        run_command(['make','geth'], cwd=paths.bsc_dir)
+        run_command(['go','build','-o', './build/bin/bootnode', './cmd/bootnode'], cwd=paths.bsc_dir)
+    if os.path.exists(paths.node_deploy_dir):
+        log.info('node-deploy path exists, skip git clone')
+    else:
+        run_command(['git','clone','https://github.com/bnb-chain/node-deploy.git'], cwd=paths.devnet_dir)
+        run_command(['git','checkout','27e7ca669a27c8fd259eeb88ba33ef5a1b4ac182'], cwd=paths.node_deploy_dir)
+        run_command(['git','submodule','update','--init','--recursive'], cwd=paths.node_deploy_dir)
+        run_command(['pip3','install','-r','requirements.txt'], cwd=paths.node_deploy_dir)
+        run_command(['npm','install'], cwd=paths.node_deploy_genesis_dir)
+        run_command(['forge','install','--no-git','--no-commit','foundry-rs/forge-std@v1.7.3'], cwd=paths.node_deploy_genesis_dir)
+        run_command(['poetry','install'], cwd=paths.node_deploy_genesis_dir)
+        with open(pjoin(paths.node_deploy_dir,'.env'), 'r') as file:
+            file_content = file.read()
+        file_content = file_content.replace('0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186', l1_init_holder)
+        file_content = file_content.replace('59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8', l1_init_holder_prv)
+        with open(pjoin(paths.node_deploy_dir,'.env'), 'w') as file:
+            file.write(file_content)
+
+    shutil.copy(pjoin(paths.bsc_dir,'build','bin','geth'), pjoin(paths.node_deploy_dir,'bin','geth'))
+    shutil.copy(pjoin(paths.bsc_dir,'build','bin','bootnode'), pjoin(paths.node_deploy_dir,'bin','bootnode'))
+    if os.path.exists(pjoin(paths.node_deploy_dir,'.local')):
+        log.info('already init .local config file, skip init script')
+    else:
+        run_command(['chmod','+x','start_cluster.sh'], cwd=paths.node_deploy_dir)
+        run_command(['./start_cluster.sh','reset'], cwd=paths.node_deploy_dir)
+        run_command(['./start_cluster.sh','stop'], cwd=paths.node_deploy_dir)
 
 def wait_for_rpc_server(url):
     log.info(f'Waiting for RPC server at {url}')

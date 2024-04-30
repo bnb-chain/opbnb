@@ -21,21 +21,6 @@ services:
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-stack-go:devnet
     entrypoint: ["echo", "build complete"]
 
-  l1:
-    build:
-      context: .
-      dockerfile: Dockerfile.l1
-    ports:
-      - "8545:8545"
-      - "7060:6060"
-    env_file:
-      - ./l1.env
-    user: root
-    volumes:
-      - "l1_data:/db"
-      - "./l1-entrypoint.sh:/l1-entrypoint.sh"
-    entrypoint: /l1-entrypoint.sh
-
   l2:
     build:
       context: .
@@ -57,7 +42,6 @@ services:
   op-node:
     depends_on:
       - op_stack_go_builder
-      - l1
       - l2
     build:
       context: ../
@@ -68,7 +52,7 @@ services:
     command: >
       op-node
       --l1.trustrpc
-      --l1=http://l1:8545
+      --l1=http://host.docker.internal:8545
       --l2=http://l2:8551
       --l2.jwt-secret=/config/test-jwt-secret.txt
       --sequencer.enabled
@@ -91,8 +75,11 @@ services:
       --pprof.enabled
       --rpc.enable-admin
       --log.level=debug
+      --sequencer.priority
+      --l1.max-concurrency=20
     ports:
       - "7545:8545"
+      - "8545:9545"
       - "7300:7300"
       - "6060:6060"
     volumes:
@@ -105,7 +92,6 @@ services:
   op-proposer:
     depends_on:
       - op_stack_go_builder
-      - l1
       - l2
       - op-node
     build:
@@ -119,7 +105,7 @@ services:
       - "7302:7300"
       - "6546:8545"
     environment:
-      OP_PROPOSER_L1_ETH_RPC: http://l1:8545
+      OP_PROPOSER_L1_ETH_RPC: http://host.docker.internal:8545
       OP_PROPOSER_ROLLUP_RPC: http://op-node:8545
       OP_PROPOSER_POLL_INTERVAL: 1s
       OP_PROPOSER_NUM_CONFIRMATIONS: 4
@@ -140,7 +126,6 @@ services:
   op-batcher:
     depends_on:
       - op_stack_go_builder
-      - l1
       - l2
       - op-node
     build:
@@ -154,7 +139,7 @@ services:
       - "7301:7300"
       - "6545:8545"
     environment:
-      OP_BATCHER_L1_ETH_RPC: http://l1:8545
+      OP_BATCHER_L1_ETH_RPC: http://host.docker.internal:8545
       OP_BATCHER_L2_ETH_RPC: http://l2:8545
       OP_BATCHER_ROLLUP_RPC: http://op-node:8545
       OP_BATCHER_MAX_L1_TX_SIZE_BYTES: 120000
@@ -162,7 +147,7 @@ services:
       OP_BATCHER_TARGET_NUM_FRAMES: 30
       OP_BATCHER_APPROX_COMPR_RATIO: "0.4"
       OP_BATCHER_MAX_CHANNEL_DURATION: 20
-      OP_BATCHER_POLL_INTERVAL: 1s
+      OP_BATCHER_POLL_INTERVAL: 5s
       OP_BATCHER_SAFE_ABORT_NONCE_TOO_LOW_COUNT: 3
       OP_BATCHER_NUM_CONFIRMATIONS: 4
       OP_BATCHER_TXMGR_RECEIPT_QUERY_INTERVAL: 1s
@@ -175,12 +160,13 @@ services:
       OP_BATCHER_BATCH_TYPE: 0
       OP_BATCHER_LOG_TERMINAL: "true"
       OP_BATCHER_SUB_SAFETY_MARGIN: 30 # SWS is 15, ChannelTimeout is 40
-      OP_BATCHER_MAX_PENDING_TX: 100
+      OP_BATCHER_MAX_PENDING_TX: 40
+      OP_BATCHER_TXMGR_MIN_TIP_CAP: 0
+      OP_BATCHER_TXMGR_MIN_BASEFEE: 0
 
   op-challenger:
     depends_on:
       - op_stack_go_builder
-      - l1
       - l2
       - op-node
     build:
@@ -210,13 +196,3 @@ services:
       OP_CHALLENGER_HD_PATH: "m/44'/60'/0'/0/4"
       OP_CHALLENGER_NUM_CONFIRMATIONS: 1
 
-  artifact-server:
-    depends_on:
-      - l1
-    image: nginx:1.25-alpine
-    ports:
-      - "8080:80"
-    volumes:
-      - "${PWD}/../.devnet/:/usr/share/nginx/html/:ro"
-    security_opt:
-      - "no-new-privileges:true"
