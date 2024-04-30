@@ -1,9 +1,8 @@
 package eth
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type BlobSidecar struct {
@@ -74,17 +73,17 @@ type VersionInformation struct {
 }
 
 type BSCBlobTxSidecar struct {
-	Blobs       []Blob       `json:"blobs"`
-	Commitments []Bytes48    `json:"commitments"`
-	Proofs      []Bytes48    `json:"proofs"`
+	Blobs       []Blob    `json:"blobs"`
+	Commitments []Bytes48 `json:"commitments"`
+	Proofs      []Bytes48 `json:"proofs"`
 }
 
 type BSCBlobSidecar struct {
-	BSCBlobTxSidecar
-	BlockNumber *big.Int    `json:"blockNumber"`
-	BlockHash   common.Hash `json:"blockHash"`
-	TxIndex     uint64      `json:"transactionIndex"`
-	TxHash      common.Hash `json:"transactionHash"`
+	BSCBlobTxSidecar `json:"blobSidecar"`
+	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	BlockHash        common.Hash     `json:"blockHash"`
+	TxIndex          *hexutil.Uint64 `json:"txIndex"`
+	TxHash           common.Hash     `json:"txHash"`
 }
 
 type BSCBlobSidecars []*BSCBlobSidecar

@@ -295,23 +295,23 @@ func (s *L1Client) getBlobSidecars(ctx context.Context, ref eth.L1BlockRef) (eth
 	return blobSidecars, nil
 }
 
-func validateBlobSidecars (blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef) (map[common.Hash]*eth.Blob, error) {
+func validateBlobSidecars(blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef) (map[common.Hash]*eth.Blob, error) {
 	if len(blobSidecars) == 0 {
 		return nil, fmt.Errorf("invalidate api response, blob sidecars of block %s are empty", ref.Hash)
 	}
 	blobsMap := make(map[common.Hash]*eth.Blob)
 	for _, blobSidecar := range blobSidecars {
-		if blobSidecar.BlockNumber.Cmp(big.NewInt(0).SetUint64(ref.Number)) != 0 {
-			return nil, fmt.Errorf("invalidate api response of tx %s, expect block number %d, got %d", blobSidecar.TxHash, ref.Number, blobSidecar.BlockNumber.Uint64())
+		if blobSidecar.BlockNumber.ToInt().Cmp(big.NewInt(0).SetUint64(ref.Number)) != 0 {
+			return nil, fmt.Errorf("invalidate api response of tx %s, expect block number %d, got %d", blobSidecar.TxHash, ref.Number, blobSidecar.BlockNumber.ToInt().Uint64())
 		}
 		if blobSidecar.BlockHash.Cmp(ref.Hash) != 0 {
 			return nil, fmt.Errorf("invalidate api response of tx %s, expect block hash %s, got %s", blobSidecar.TxHash, ref.Hash, blobSidecar.BlockHash)
 		}
 		if len(blobSidecar.Blobs) == 0 || len(blobSidecar.Blobs) != len(blobSidecar.Commitments) || len(blobSidecar.Blobs) != len(blobSidecar.Proofs) {
-			return nil, fmt.Errorf("invalidate api response of tx %s, len of blobs/commitments/proofs is not equal or is 0", blobSidecar.TxHash)
+			return nil, fmt.Errorf("invalidate api response of tx %s,idx:%d, len of blobs(%d)/commitments(%d)/proofs(%d) is not equal or is 0", blobSidecar.TxHash, blobSidecar.TxIndex, len(blobSidecar.Blobs), len(blobSidecar.Commitments), len(blobSidecar.Proofs))
 		}
 
-		for i:=0; i<len(blobSidecar.Blobs); i++ {
+		for i := 0; i < len(blobSidecar.Blobs); i++ {
 			// confirm blob data is valid by verifying its proof against the commitment
 			if err := eth.VerifyBlobProof(&blobSidecar.Blobs[i], kzg4844.Commitment(blobSidecar.Commitments[i]), kzg4844.Proof(blobSidecar.Proofs[i])); err != nil {
 				return nil, fmt.Errorf("blob of tx %s at index %d failed verification: %w", blobSidecar.TxHash, i, err)
