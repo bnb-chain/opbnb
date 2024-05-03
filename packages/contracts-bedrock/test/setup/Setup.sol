@@ -188,5 +188,7 @@ contract Setup {
         vm.label(Predeploys.GOVERNANCE_TOKEN, "GovernanceToken");
         vm.label(Predeploys.EAS, "EAS");
         vm.label(Predeploys.SCHEMA_REGISTRY, "SchemaRegistry");
+        // labelPredeploy(Predeploys.WETH);
+
     }
 }

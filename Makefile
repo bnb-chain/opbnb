@@ -140,6 +140,10 @@ devnet-init: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --init
 .PHONY: devnet-init
 
+devnet-start-bsc:
+	if [ -f "./.devnet/node-deploy/start_cluster.sh" ]; then ./.devnet/node-deploy/start_cluster.sh start; fi
+.PHONY: devnet-start-bsc
+
 devnet-test: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --test
 .PHONY: devnet-test

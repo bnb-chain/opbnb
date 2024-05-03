@@ -358,6 +358,9 @@ contract DeploymentSummary is DeploymentSummaryCode {
         slot = hex"0000000000000000000000000000000000000000000000000000000000000032";
         value = hex"000000000000000000000000deb1e9a6be7baf84208bb6e10ac9f9bbe1d70809";
         vm.store(l1StandardBridgeProxyAddress, slot, value);
+        slot = hex"0000000000000000000000000000000000000000000000000000000000000033";
+        value = hex"0000000000000000000000001c23a6d89f95ef3148bcda8e242cab145bf9c0e4";
+        vm.store(l1StandardBridgeProxyAddress, slot, value);
         slot = hex"0000000000000000000000000000000000000000000000000000000000000003";
         value = hex"00000000000000000000000020a42a5a785622c6ba2576b2d6e924aa82bfa11d";
         vm.store(l1StandardBridgeProxyAddress, slot, value);
@@ -420,6 +423,9 @@ contract DeploymentSummary is DeploymentSummaryCode {
         vm.store(l1CrossDomainMessengerProxyAddress, slot, value);
         slot = hex"00000000000000000000000000000000000000000000000000000000000000fc";
         value = hex"000000000000000000000000978e3286eb805934215a88694d80b09aded68d90";
+        vm.store(l1CrossDomainMessengerProxyAddress, slot, value);
+        slot = hex"00000000000000000000000000000000000000000000000000000000000000fd";
+        value = hex"0000000000000000000000001c23a6d89f95ef3148bcda8e242cab145bf9c0e4";
         vm.store(l1CrossDomainMessengerProxyAddress, slot, value);
         slot = hex"00000000000000000000000000000000000000000000000000000000000000cc";
         value = hex"000000000000000000000000000000000000000000000000000000000000dead";

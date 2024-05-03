@@ -158,22 +158,6 @@ contract OptimismPortal2 is Initializable, ResourceMetering, ISemver {
         __ResourceMetering_init();
     }
 
-    /// @notice Getter function for the contract of the SystemConfig on this chain.
-    ///         Public getter is legacy and will be removed in the future. Use `systemConfig()` instead.
-    /// @return Contract of the SystemConfig on this chain.
-    /// @custom:legacy
-    function SYSTEM_CONFIG() external view returns (SystemConfig) {
-        return systemConfig;
-    }
-
-    /// @notice Getter function for the address of the guardian.
-    ///         Public getter is legacy and will be removed in the future. Use `SuperchainConfig.guardian()` instead.
-    /// @return Address of the guardian.
-    /// @custom:legacy
-    function GUARDIAN() external view returns (address) {
-        return guardian();
-    }
-
     /// @notice Getter function for the address of the guardian.
     ///         Public getter is legacy and will be removed in the future. Use `SuperchainConfig.guardian()` instead.
     /// @return Address of the guardian.

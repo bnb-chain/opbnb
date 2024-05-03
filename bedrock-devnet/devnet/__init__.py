@@ -360,14 +360,14 @@ def bsc_l1_init(paths):
     if os.path.exists(paths.bsc_dir):
         log.info('bsc path exists, skip git clone')
     else:
-        run_command(['git','clone','https://github.com/bnb-chain/bsc.git'], cwd=paths.devnet_dir)
+        run_command(['git','clone','--depth', '1', '--branch', 'v1.4.5', 'https://github.com/bnb-chain/bsc.git'], cwd=paths.devnet_dir)
         run_command(['git','checkout','v1.4.5'], cwd=paths.bsc_dir)
         run_command(['make','geth'], cwd=paths.bsc_dir)
         run_command(['go','build','-o', './build/bin/bootnode', './cmd/bootnode'], cwd=paths.bsc_dir)
     if os.path.exists(paths.node_deploy_dir):
         log.info('node-deploy path exists, skip git clone')
     else:
-        run_command(['git','clone','https://github.com/bnb-chain/node-deploy.git'], cwd=paths.devnet_dir)
+        run_command(['git','clone', 'https://github.com/bnb-chain/node-deploy.git'], cwd=paths.devnet_dir)
         run_command(['git','checkout','27e7ca669a27c8fd259eeb88ba33ef5a1b4ac182'], cwd=paths.node_deploy_dir)
         run_command(['git','submodule','update','--init','--recursive'], cwd=paths.node_deploy_dir)
         run_command(['pip3','install','-r','requirements.txt'], cwd=paths.node_deploy_dir)
@@ -378,8 +378,15 @@ def bsc_l1_init(paths):
             file_content = file.read()
         file_content = file_content.replace('0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186', l1_init_holder)
         file_content = file_content.replace('59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8', l1_init_holder_prv)
+        file_content = file_content.replace('DefaultExtraReserveForBlobRequests=32', 'DefaultExtraReserveForBlobRequests=524288')
+        file_content = file_content.replace('MinBlocksForBlobRequests=576', 'MinBlocksForBlobRequests=524288')
         with open(pjoin(paths.node_deploy_dir,'.env'), 'w') as file:
             file.write(file_content)
+        with open(pjoin(paths.node_deploy_dir,'config.toml'), 'r') as file:
+          file_content = file.read()
+        file_content = file_content.replace('Level = "info"', 'Level = "trace"')
+        with open(pjoin(paths.node_deploy_dir,'config.toml'), 'w') as file:
+          file.write(file_content)
 
     shutil.copy(pjoin(paths.bsc_dir,'build','bin','geth'), pjoin(paths.node_deploy_dir,'bin','geth'))
     shutil.copy(pjoin(paths.bsc_dir,'build','bin','bootnode'), pjoin(paths.node_deploy_dir,'bin','bootnode'))
