@@ -91,7 +91,7 @@ var NetworksByName = map[string]rollup.Config{
 var NetworksByChainId = map[string]rollup.Config{
 	"204":  OPBNBMainnet,
 	"5611": OPBNBTestnet,
-	"1484": OPBNBQANet,
+	"2484": OPBNBQANet,
 }
 
 func GetRollupConfigByNetwork(name string) (rollup.Config, error) {
@@ -180,16 +180,16 @@ var OPBNBTestnet = rollup.Config{
 var OPBNBQANet = rollup.Config{
 	Genesis: rollup.Genesis{
 		L1: eth.BlockID{
-			Hash:   common.HexToHash("0x74685f5b86e938c4fd51e4e1350a516ce5adf5078356e5055c04059730d1c2ed"),
-			Number: 366555,
+			Hash:   common.HexToHash("0xd8b84c6811ad3eb68ad578e12312f797d84c59a97993a1f230409c1644fcb3d2"),
+			Number: 373422,
 		},
 		L2: eth.BlockID{
-			Hash:   common.HexToHash("0x580889547f6ac1d303d01d028f558d379284173e5ca1ebf38dbbafdef3e5d81c"),
+			Hash:   common.HexToHash("0xe182e685b1ec05ca55f2374cb3a190d1ae8f3e196acb55a69efd61536fc3983f"),
 			Number: 0,
 		},
-		L2Time: 1714271117,
+		L2Time: 1714291718,
 		SystemConfig: eth.SystemConfig{
-			BatcherAddr: common.HexToAddress("0x0f92e2e0cf3d30d0cd1862c9ed4b6008bc4fcdee"),
+			BatcherAddr: common.HexToAddress("0xbd6353a2e43a0d8eaa370b2eceb80481bc5c4094"),
 			Overhead:    eth.Bytes32(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000834")),
 			Scalar:      eth.Bytes32(common.HexToHash("0x00000000000000000000000000000000000000000000000000000000000f4240")),
 			GasLimit:    100000000,
@@ -200,16 +200,16 @@ var OPBNBQANet = rollup.Config{
 	SeqWindowSize:          14400,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(714),
-	L2ChainID:              big.NewInt(1484),
+	L2ChainID:              big.NewInt(2484),
 	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001484"),
-	DepositContractAddress: common.HexToAddress("0x22150cdb37a280e40b13965a62134be2a2433f1c"),
-	L1SystemConfigAddress:  common.HexToAddress("0x6d01faabdf7405dcdeb251761d656f7e8538652b"),
+	DepositContractAddress: common.HexToAddress("0xb22e158785dbfb055edddb24ad97b4e7c51a6624"),
+	L1SystemConfigAddress:  common.HexToAddress("0xbf05c7e8ac1bd5ed042618762a7442f726ecae0b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(0),
-	SnowTime:               u64Ptr(1714384800), // Apr-29-2024 10:00 AM +UTC
-	CanyonTime:             u64Ptr(1714385400), // Apr-29-2024 10:10 AM +UTC
-	DeltaTime:              u64Ptr(1714386000), // Apr-29-2024 10:20 AM +UTC
-	EcotoneTime:            u64Ptr(1714386600), // Apr-29-2024 10:30 AM +UTC
+	SnowTime:               u64Ptr(1714993200), // May-06-2024 11:00 AM +UTC
+	CanyonTime:             u64Ptr(1714993800), // May-06-2024 11:10 AM +UTC
+	DeltaTime:              u64Ptr(1714994400), // May-06-2024 11:20 AM +UTC
+	EcotoneTime:            u64Ptr(1714995000), // May-06-2024 11:30 AM +UTC
 }
 
 func u64Ptr(v uint64) *uint64 {
