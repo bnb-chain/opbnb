@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.3.3
+
+This is a minor release and upgrading is optional.
+
+### User Facing Changes
+
+To simplify the process of starting op-node for users, default configurations for opBNB mainnet and testnet have been added. Users can now select the network configuration by setting `--network=opBNBMainnet` or `--network=opBNBTestnet`. Check details in PR #179.
+
+### Partial Changelog
+
+- #179: feature(op-node): simplify op-node start
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.3.3
+
+### Full Changelog
+
+https://github.com/bnb-chain/opbnb/compare/v0.3.2...v0.3.3
+
 ## v0.3.2
 
 This is a hardfork release for the opBNB Mainnet called Snow. It will be activated at April 15, 2024, at 6 AM UTC.
