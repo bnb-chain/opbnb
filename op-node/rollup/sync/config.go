@@ -70,6 +70,6 @@ type Config struct {
 	// Note: We probably need to detect the condition that snap sync has not complete when we do a restart prior to running sync-start if we are doing
 	// snap sync with a genesis finalization data.
 	SkipSyncStartCheck bool `json:"skip_sync_start_check"`
-	// gap for engine-sync
-	EngineSyncGap int `json:"engine_sync_gap"`
+	// gap for trigger el-sync
+	ELSyncGap int `json:"el_trigger_gap"`
 }

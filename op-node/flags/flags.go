@@ -214,9 +214,9 @@ var (
 		Category: SequencerCategory,
 	}
 	SequencerPriorityFlag = &cli.BoolFlag{
-		Name:    "sequencer.priority",
-		Usage:   "Enable sequencer step takes precedence over other steps.",
-		EnvVars: prefixEnvVars("SEQUENCER_PRIORITY"),
+		Name:     "sequencer.priority",
+		Usage:    "Enable sequencer step takes precedence over other steps.",
+		EnvVars:  prefixEnvVars("SEQUENCER_PRIORITY"),
 		Category: SequencerCategory,
 	}
 	SequencerL1Confs = &cli.Uint64Flag{
@@ -303,6 +303,12 @@ var (
 		EnvVars:  prefixEnvVars("SAFEDB_PATH"),
 		Category: OperationsCategory,
 	}
+	ELSyncGap = &cli.IntFlag{
+		Name:    "el-trigger.gap",
+		Usage:   "gap to trigger el-sync",
+		Value:   1200,
+		EnvVars: prefixEnvVars("EL_TRIGGER_GAP"),
+	}
 	/* Deprecated Flags */
 	L2EngineSyncEnabled = &cli.BoolFlag{
 		Name:    "l2.engine-sync",
@@ -310,12 +316,6 @@ var (
 		EnvVars: prefixEnvVars("L2_ENGINE_SYNC_ENABLED"),
 		Value:   false,
 		Hidden:  true,
-	}
-	EngineSyncGap = &cli.IntFlag{
-		Name:    "l2.engine-sync.gap",
-		Usage:   "gap to trigger engine-sync",
-		Value:   1000,
-		EnvVars: prefixEnvVars("L2_ENGINE_SYNC_GAP"),
 	}
 
 	SkipSyncStartCheck = &cli.BoolFlag{
@@ -381,6 +381,7 @@ var optionalFlags = []cli.Flag{
 	BeaconCheckIgnore,
 	BeaconFetchAllSidecars,
 	SyncModeFlag,
+	ELSyncGap,
 	RPCListenAddr,
 	RPCListenPort,
 	L1TrustRPC,
@@ -417,7 +418,6 @@ var optionalFlags = []cli.Flag{
 
 var DeprecatedFlags = []cli.Flag{
 	L2EngineSyncEnabled,
-	EngineSyncGap,
 	SkipSyncStartCheck,
 	BetaExtraNetworks,
 	BackupL2UnsafeSyncRPC,
