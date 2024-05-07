@@ -1,59 +1,81 @@
 package fault
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
-	"github.com/ethereum-optimism/optimism/op-challenger/config"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/claims"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/contracts"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/preimages"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/responder"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
-	"github.com/ethereum-optimism/optimism/op-service/txmgr"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 type actor func(ctx context.Context) error
 
 type GameInfo interface {
-	GetGameStatus(context.Context) (gameTypes.GameStatus, error)
+	GetStatus(context.Context) (gameTypes.GameStatus, error)
 	GetClaimCount(context.Context) (uint64, error)
 }
 
-type GamePlayer struct {
-	act                     actor
-	agreeWithProposedOutput bool
-	loader                  GameInfo
-	logger                  log.Logger
-	status                  gameTypes.GameStatus
+type SyncValidator interface {
+	ValidateNodeSynced(ctx context.Context, gameL1Head eth.BlockID) error
 }
 
-type resourceCreator func(addr common.Address, gameDepth uint64, dir string) (types.TraceProvider, types.OracleUpdater, error)
+type L1HeaderSource interface {
+	HeaderByHash(context.Context, common.Hash) (*gethTypes.Header, error)
+}
+
+type GamePlayer struct {
+	act                actor
+	loader             GameInfo
+	logger             log.Logger
+	syncValidator      SyncValidator
+	prestateValidators []Validator
+	status             gameTypes.GameStatus
+	gameL1Head         eth.BlockID
+}
+
+type GameContract interface {
+	preimages.PreimageGameContract
+	responder.GameContract
+	claims.BondContract
+	GameInfo
+	ClaimLoader
+	GetStatus(ctx context.Context) (gameTypes.GameStatus, error)
+	GetMaxGameDepth(ctx context.Context) (types.Depth, error)
+	GetOracle(ctx context.Context) (*contracts.PreimageOracleContract, error)
+	GetL1Head(ctx context.Context) (common.Hash, error)
+}
+
+type resourceCreator func(ctx context.Context, logger log.Logger, gameDepth types.Depth, dir string) (types.TraceAccessor, error)
 
 func NewGamePlayer(
 	ctx context.Context,
+	cl types.ClockReader,
 	logger log.Logger,
 	m metrics.Metricer,
-	cfg *config.Config,
 	dir string,
 	addr common.Address,
-	txMgr txmgr.TxManager,
-	client bind.ContractCaller,
+	txSender gameTypes.TxSender,
+	loader GameContract,
+	syncValidator SyncValidator,
+	validators []Validator,
 	creator resourceCreator,
+	l1HeaderSource L1HeaderSource,
+	selective bool,
+	claimants []common.Address,
 ) (*GamePlayer, error) {
 	logger = logger.New("game", addr)
-	contract, err := bindings.NewFaultDisputeGameCaller(addr, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to bind the fault dispute game contract: %w", err)
-	}
 
-	loader := NewLoader(contract)
-
-	status, err := loader.GetGameStatus(ctx)
+	status, err := loader.GetStatus(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch game status: %w", err)
 	}
@@ -61,10 +83,10 @@ func NewGamePlayer(
 		logger.Info("Game already resolved", "status", status)
 		// Game is already complete so skip creating the trace provider, loading game inputs etc.
 		return &GamePlayer{
-			logger:                  logger,
-			loader:                  loader,
-			agreeWithProposedOutput: cfg.AgreeWithProposedOutput,
-			status:                  status,
+			logger:             logger,
+			loader:             loader,
+			prestateValidators: validators,
+			status:             status,
 			// Act function does nothing because the game is already complete
 			act: func(ctx context.Context) error {
 				return nil
@@ -72,32 +94,62 @@ func NewGamePlayer(
 		}, nil
 	}
 
-	gameDepth, err := loader.FetchGameDepth(ctx)
+	gameDepth, err := loader.GetMaxGameDepth(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the game depth: %w", err)
 	}
 
-	provider, updater, err := creator(addr, gameDepth, dir)
+	accessor, err := creator(ctx, logger, gameDepth, dir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace provider: %w", err)
+		return nil, fmt.Errorf("failed to create trace accessor: %w", err)
 	}
 
-	if err := ValidateAbsolutePrestate(ctx, provider, loader); err != nil {
-		return nil, fmt.Errorf("failed to validate absolute prestate: %w", err)
+	oracle, err := loader.GetOracle(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load oracle: %w", err)
 	}
 
-	responder, err := responder.NewFaultResponder(logger, txMgr, addr)
+	l1HeadHash, err := loader.GetL1Head(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load game L1 head: %w", err)
+	}
+	l1Header, err := l1HeaderSource.HeaderByHash(ctx, l1HeadHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load L1 header %v: %w", l1HeadHash, err)
+	}
+	l1Head := eth.HeaderBlockID(l1Header)
+
+	minLargePreimageSize, err := oracle.MinLargePreimageSize(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load min large preimage size: %w", err)
+	}
+	direct := preimages.NewDirectPreimageUploader(logger, txSender, loader)
+	large := preimages.NewLargePreimageUploader(logger, cl, txSender, oracle)
+	uploader := preimages.NewSplitPreimageUploader(direct, large, minLargePreimageSize)
+	responder, err := responder.NewFaultResponder(logger, txSender, loader, uploader, oracle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the responder: %w", err)
 	}
 
+	agent := NewAgent(m, loader, gameDepth, accessor, responder, logger, selective, claimants)
 	return &GamePlayer{
-		act:                     NewAgent(m, loader, int(gameDepth), provider, responder, updater, cfg.AgreeWithProposedOutput, logger).Act,
-		agreeWithProposedOutput: cfg.AgreeWithProposedOutput,
-		loader:                  loader,
-		logger:                  logger,
-		status:                  status,
+		act:                agent.Act,
+		loader:             loader,
+		logger:             logger,
+		status:             status,
+		gameL1Head:         l1Head,
+		syncValidator:      syncValidator,
+		prestateValidators: validators,
 	}, nil
+}
+
+func (g *GamePlayer) ValidatePrestate(ctx context.Context) error {
+	for _, validator := range g.prestateValidators {
+		if err := validator.Validate(ctx); err != nil {
+			return fmt.Errorf("failed to validate prestate: %w", err)
+		}
+	}
+	return nil
 }
 
 func (g *GamePlayer) Status() gameTypes.GameStatus {
@@ -110,13 +162,20 @@ func (g *GamePlayer) ProgressGame(ctx context.Context) gameTypes.GameStatus {
 		g.logger.Trace("Skipping completed game")
 		return g.status
 	}
+	if err := g.syncValidator.ValidateNodeSynced(ctx, g.gameL1Head); errors.Is(err, ErrNotInSync) {
+		g.logger.Warn("Local node not sufficiently up to date", "err", err)
+		return g.status
+	} else if err != nil {
+		g.logger.Error("Could not check local node was in sync", "err", err)
+		return g.status
+	}
 	g.logger.Trace("Checking if actions are required")
 	if err := g.act(ctx); err != nil {
 		g.logger.Error("Error when acting on game", "err", err)
 	}
-	status, err := g.loader.GetGameStatus(ctx)
+	status, err := g.loader.GetStatus(ctx)
 	if err != nil {
-		g.logger.Warn("Unable to retrieve game status", "err", err)
+		g.logger.Error("Unable to retrieve game status", "err", err)
 		return gameTypes.GameStatusInProgress
 	}
 	g.logGameStatus(ctx, status)
@@ -134,35 +193,5 @@ func (g *GamePlayer) logGameStatus(ctx context.Context, status gameTypes.GameSta
 		g.logger.Info("Game info", "claims", claimCount, "status", status)
 		return
 	}
-	var expectedStatus gameTypes.GameStatus
-	if g.agreeWithProposedOutput {
-		expectedStatus = gameTypes.GameStatusChallengerWon
-	} else {
-		expectedStatus = gameTypes.GameStatusDefenderWon
-	}
-	if expectedStatus == status {
-		g.logger.Info("Game won", "status", status)
-	} else {
-		g.logger.Error("Game lost", "status", status)
-	}
-}
-
-type PrestateLoader interface {
-	FetchAbsolutePrestateHash(ctx context.Context) (common.Hash, error)
-}
-
-// ValidateAbsolutePrestate validates the absolute prestate of the fault game.
-func ValidateAbsolutePrestate(ctx context.Context, trace types.TraceProvider, loader PrestateLoader) error {
-	providerPrestateHash, err := trace.AbsolutePreStateCommitment(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get the trace provider's absolute prestate: %w", err)
-	}
-	onchainPrestate, err := loader.FetchAbsolutePrestateHash(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get the onchain absolute prestate: %w", err)
-	}
-	if !bytes.Equal(providerPrestateHash[:], onchainPrestate[:]) {
-		return fmt.Errorf("trace provider's absolute prestate does not match onchain absolute prestate: Provider: %s | Chain %s", providerPrestateHash.Hex(), onchainPrestate.Hex())
-	}
-	return nil
+	g.logger.Info("Game resolved", "status", status)
 }

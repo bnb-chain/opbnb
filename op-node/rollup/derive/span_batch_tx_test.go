@@ -12,16 +12,18 @@ import (
 )
 
 type spanBatchTxTest struct {
-	name   string
-	trials int
-	mkTx   func(rng *rand.Rand, signer types.Signer) *types.Transaction
+	name      string
+	trials    int
+	mkTx      func(rng *rand.Rand, signer types.Signer) *types.Transaction
+	protected bool
 }
 
 func TestSpanBatchTxConvert(t *testing.T) {
 	cases := []spanBatchTxTest{
-		{"legacy tx", 32, testutils.RandomLegacyTx},
-		{"access list tx", 32, testutils.RandomAccessListTx},
-		{"dynamic fee tx", 32, testutils.RandomDynamicFeeTx},
+		{"unprotected legacy tx", 32, testutils.RandomLegacyTx, false},
+		{"legacy tx", 32, testutils.RandomLegacyTx, true},
+		{"access list tx", 32, testutils.RandomAccessListTx, true},
+		{"dynamic fee tx", 32, testutils.RandomDynamicFeeTx, true},
 	}
 
 	for i, testCase := range cases {
@@ -29,6 +31,9 @@ func TestSpanBatchTxConvert(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(0x1331 + i)))
 			chainID := big.NewInt(rng.Int63n(1000))
 			signer := types.NewLondonSigner(chainID)
+			if !testCase.protected {
+				signer = types.HomesteadSigner{}
+			}
 
 			for txIdx := 0; txIdx < testCase.trials; txIdx++ {
 				tx := testCase.mkTx(rng, signer)
@@ -54,9 +59,10 @@ func TestSpanBatchTxConvert(t *testing.T) {
 
 func TestSpanBatchTxRoundTrip(t *testing.T) {
 	cases := []spanBatchTxTest{
-		{"legacy tx", 32, testutils.RandomLegacyTx},
-		{"access list tx", 32, testutils.RandomAccessListTx},
-		{"dynamic fee tx", 32, testutils.RandomDynamicFeeTx},
+		{"unprotected legacy tx", 32, testutils.RandomLegacyTx, false},
+		{"legacy tx", 32, testutils.RandomLegacyTx, true},
+		{"access list tx", 32, testutils.RandomAccessListTx, true},
+		{"dynamic fee tx", 32, testutils.RandomDynamicFeeTx, true},
 	}
 
 	for i, testCase := range cases {
@@ -64,6 +70,9 @@ func TestSpanBatchTxRoundTrip(t *testing.T) {
 			rng := rand.New(rand.NewSource(int64(0x1332 + i)))
 			chainID := big.NewInt(rng.Int63n(1000))
 			signer := types.NewLondonSigner(chainID)
+			if !testCase.protected {
+				signer = types.HomesteadSigner{}
+			}
 
 			for txIdx := 0; txIdx < testCase.trials; txIdx++ {
 				tx := testCase.mkTx(rng, signer)
@@ -87,6 +96,7 @@ func TestSpanBatchTxRoundTrip(t *testing.T) {
 type spanBatchDummyTxData struct{}
 
 func (txData *spanBatchDummyTxData) txType() byte { return types.DepositTxType }
+
 func TestSpanBatchTxInvalidTxType(t *testing.T) {
 	// span batch never contain deposit tx
 	depositTx := types.NewTx(&types.DepositTx{})
@@ -102,7 +112,7 @@ func TestSpanBatchTxInvalidTxType(t *testing.T) {
 func TestSpanBatchTxDecodeInvalid(t *testing.T) {
 	var sbtx spanBatchTx
 	_, err := sbtx.decodeTyped([]byte{})
-	require.EqualError(t, err, "typed transaction too short")
+	require.ErrorIs(t, err, ErrTypedTxTooShort)
 
 	tx := types.NewTx(&types.LegacyTx{})
 	txEncoded, err := tx.MarshalBinary()

@@ -2,14 +2,15 @@ package outputs
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
@@ -18,44 +19,33 @@ import (
 var (
 	prestateBlock       = uint64(100)
 	poststateBlock      = uint64(200)
-	gameDepth           = uint64(7) // 128 leaf nodes
+	gameDepth           = types.Depth(7) // 128 leaf nodes
 	prestateOutputRoot  = common.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	firstOutputRoot     = common.HexToHash("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
 	poststateOutputRoot = common.HexToHash("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+	errNoOutputAtBlock  = errors.New("no output at block")
 )
 
 func TestGet(t *testing.T) {
-	t.Run("PrePrestateErrors", func(t *testing.T) {
-		provider, _ := setupWithTestData(t, 0, poststateBlock)
-		_, err := provider.Get(context.Background(), types.NewPosition(1, common.Big0))
-		require.ErrorAs(t, fmt.Errorf("no output at block %d", 1), &err)
-	})
-
 	t.Run("ErrorsTraceIndexOutOfBounds", func(t *testing.T) {
-		deepGame := uint64(64)
+		deepGame := types.Depth(164)
 		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock, deepGame)
 		pos := types.NewPosition(0, big.NewInt(0))
 		_, err := provider.Get(context.Background(), pos)
-		require.ErrorAs(t, fmt.Errorf("trace index %v is greater than max uint64", pos.TraceIndex(int(deepGame))), &err)
-	})
-
-	t.Run("MisconfiguredPoststateErrors", func(t *testing.T) {
-		provider, _ := setupWithTestData(t, 0, 0)
-		_, err := provider.Get(context.Background(), types.NewPosition(1, common.Big0))
-		require.ErrorAs(t, fmt.Errorf("no output at block %d", 0), &err)
+		require.ErrorIs(t, err, ErrIndexTooBig)
 	})
 
 	t.Run("FirstBlockAfterPrestate", func(t *testing.T) {
 		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock)
-		value, err := provider.Get(context.Background(), types.NewPositionFromGIndex(big.NewInt(128)))
+		value, err := provider.Get(context.Background(), types.NewPosition(gameDepth, big.NewInt(0)))
 		require.NoError(t, err)
 		require.Equal(t, firstOutputRoot, value)
 	})
 
 	t.Run("MissingOutputAtBlock", func(t *testing.T) {
 		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock)
-		_, err := provider.Get(context.Background(), types.NewPositionFromGIndex(big.NewInt(129)))
-		require.ErrorAs(t, fmt.Errorf("no output at block %d", prestateBlock+2), &err)
+		_, err := provider.Get(context.Background(), types.NewPosition(gameDepth, big.NewInt(1)))
+		require.ErrorIs(t, err, errNoOutputAtBlock)
 	})
 
 	t.Run("PostStateBlock", func(t *testing.T) {
@@ -73,36 +63,96 @@ func TestGet(t *testing.T) {
 	})
 }
 
-func TestAbsolutePreStateCommitment(t *testing.T) {
-	t.Run("FailedToFetchOutput", func(t *testing.T) {
-		provider, rollupClient := setupWithTestData(t, prestateBlock, poststateBlock)
-		rollupClient.errorsOnPrestateFetch = true
-		_, err := provider.AbsolutePreStateCommitment(context.Background())
-		require.ErrorAs(t, fmt.Errorf("no output at block %d", prestateBlock), &err)
-	})
+func TestHonestBlockNumber(t *testing.T) {
+	tests := []struct {
+		name        string
+		pos         types.Position
+		expected    uint64
+		maxSafeHead uint64
+	}{
+		{"FirstBlockAfterPrestate", types.NewPosition(gameDepth, big.NewInt(0)), prestateBlock + 1, math.MaxUint64},
+		{"PostStateBlock", types.NewPositionFromGIndex(big.NewInt(228)), poststateBlock, math.MaxUint64},
+		{"AfterPostStateBlock", types.NewPositionFromGIndex(big.NewInt(229)), poststateBlock, math.MaxUint64},
+		{"Root", types.NewPositionFromGIndex(big.NewInt(1)), poststateBlock, math.MaxUint64},
+		{"MiddleNode1", types.NewPosition(gameDepth-1, big.NewInt(2)), 106, math.MaxUint64},
+		{"MiddleNode2", types.NewPosition(gameDepth-1, big.NewInt(3)), 108, math.MaxUint64},
+		{"Leaf1", types.NewPosition(gameDepth, big.NewInt(1)), prestateBlock + 2, math.MaxUint64},
+		{"Leaf2", types.NewPosition(gameDepth, big.NewInt(2)), prestateBlock + 3, math.MaxUint64},
 
-	t.Run("ReturnsCorrectPrestateOutput", func(t *testing.T) {
-		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock)
-		value, err := provider.AbsolutePreStateCommitment(context.Background())
-		require.NoError(t, err)
-		require.Equal(t, value, prestateOutputRoot)
+		{"RestrictedHead-UnderLimit", types.NewPosition(gameDepth, big.NewInt(48)), prestateBlock + 49, prestateBlock + 50},
+		{"RestrictedHead-EqualLimit", types.NewPosition(gameDepth, big.NewInt(49)), prestateBlock + 50, prestateBlock + 50},
+		{"RestrictedHead-OverLimit", types.NewPosition(gameDepth, big.NewInt(50)), prestateBlock + 50, prestateBlock + 50},
+		{"RestrictedHead-PastPostState", types.NewPosition(gameDepth, big.NewInt(1000)), prestateBlock + 50, prestateBlock + 50},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			provider, stubRollupClient := setupWithTestData(t, prestateBlock, poststateBlock)
+			stubRollupClient.maxSafeHead = test.maxSafeHead
+			actual, err := provider.HonestBlockNumber(context.Background(), test.pos)
+			require.NoError(t, err)
+			require.Equal(t, test.expected, actual)
+		})
+	}
+
+	t.Run("ErrorsTraceIndexOutOfBounds", func(t *testing.T) {
+		deepGame := types.Depth(164)
+		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock, deepGame)
+		pos := types.NewPosition(0, big.NewInt(0))
+		_, err := provider.HonestBlockNumber(context.Background(), pos)
+		require.ErrorIs(t, err, ErrIndexTooBig)
+	})
+}
+
+func TestClaimedBlockNumber(t *testing.T) {
+	tests := []struct {
+		name        string
+		pos         types.Position
+		expected    uint64
+		maxSafeHead uint64
+	}{
+		{"FirstBlockAfterPrestate", types.NewPosition(gameDepth, big.NewInt(0)), prestateBlock + 1, math.MaxUint64},
+		{"PostStateBlock", types.NewPositionFromGIndex(big.NewInt(228)), poststateBlock, math.MaxUint64},
+		{"AfterPostStateBlock", types.NewPositionFromGIndex(big.NewInt(229)), poststateBlock, math.MaxUint64},
+		{"Root", types.NewPositionFromGIndex(big.NewInt(1)), poststateBlock, math.MaxUint64},
+		{"MiddleNode1", types.NewPosition(gameDepth-1, big.NewInt(2)), 106, math.MaxUint64},
+		{"MiddleNode2", types.NewPosition(gameDepth-1, big.NewInt(3)), 108, math.MaxUint64},
+		{"Leaf1", types.NewPosition(gameDepth, big.NewInt(1)), prestateBlock + 2, math.MaxUint64},
+		{"Leaf2", types.NewPosition(gameDepth, big.NewInt(2)), prestateBlock + 3, math.MaxUint64},
+
+		{"RestrictedHead-UnderLimit", types.NewPosition(gameDepth, big.NewInt(48)), prestateBlock + 49, prestateBlock + 50},
+		{"RestrictedHead-EqualLimit", types.NewPosition(gameDepth, big.NewInt(49)), prestateBlock + 50, prestateBlock + 50},
+		{"RestrictedHead-OverLimit", types.NewPosition(gameDepth, big.NewInt(50)), prestateBlock + 51, prestateBlock + 50},
+		{"RestrictedHead-PastPostState", types.NewPosition(gameDepth, big.NewInt(300)), poststateBlock, prestateBlock + 50},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			provider, stubRollupClient := setupWithTestData(t, prestateBlock, poststateBlock)
+			stubRollupClient.maxSafeHead = test.maxSafeHead
+			actual, err := provider.ClaimedBlockNumber(test.pos)
+			require.NoError(t, err)
+			require.Equal(t, test.expected, actual)
+		})
+	}
+
+	t.Run("ErrorsTraceIndexOutOfBounds", func(t *testing.T) {
+		deepGame := types.Depth(164)
+		provider, _ := setupWithTestData(t, prestateBlock, poststateBlock, deepGame)
+		pos := types.NewPosition(0, big.NewInt(0))
+		_, err := provider.ClaimedBlockNumber(pos)
+		require.ErrorIs(t, err, ErrIndexTooBig)
 	})
 }
 
 func TestGetStepData(t *testing.T) {
 	provider, _ := setupWithTestData(t, prestateBlock, poststateBlock)
 	_, _, _, err := provider.GetStepData(context.Background(), types.NewPosition(1, common.Big0))
-	require.ErrorIs(t, err, GetStepDataErr)
+	require.ErrorIs(t, err, ErrGetStepData)
 }
 
-func TestAbsolutePreState(t *testing.T) {
-	provider, _ := setupWithTestData(t, prestateBlock, poststateBlock)
-	_, err := provider.AbsolutePreState(context.Background())
-	require.ErrorIs(t, err, AbsolutePreStateErr)
-}
-
-func setupWithTestData(t *testing.T, prestateBlock, poststateBlock uint64, customGameDepth ...uint64) (*OutputTraceProvider, *stubRollupClient) {
-	rollupClient := stubRollupClient{
+func setupWithTestData(t *testing.T, prestateBlock, poststateBlock uint64, customGameDepth ...types.Depth) (*OutputTraceProvider, *stubRollupClient) {
+	rollupClient := &stubRollupClient{
 		outputs: map[uint64]*eth.OutputResponse{
 			prestateBlock: {
 				OutputRoot: eth.Bytes32(prestateOutputRoot),
@@ -114,29 +164,40 @@ func setupWithTestData(t *testing.T, prestateBlock, poststateBlock uint64, custo
 				OutputRoot: eth.Bytes32(poststateOutputRoot),
 			},
 		},
+		maxSafeHead: math.MaxUint64,
 	}
 	inputGameDepth := gameDepth
 	if len(customGameDepth) > 0 {
 		inputGameDepth = customGameDepth[0]
 	}
 	return &OutputTraceProvider{
-		logger:         testlog.Logger(t, log.LvlInfo),
-		rollupClient:   &rollupClient,
+		logger:         testlog.Logger(t, log.LevelInfo),
+		rollupProvider: rollupClient,
 		prestateBlock:  prestateBlock,
 		poststateBlock: poststateBlock,
 		gameDepth:      inputGameDepth,
-	}, &rollupClient
+	}, rollupClient
 }
 
 type stubRollupClient struct {
 	errorsOnPrestateFetch bool
 	outputs               map[uint64]*eth.OutputResponse
+	maxSafeHead           uint64
 }
 
-func (s *stubRollupClient) OutputAtBlock(ctx context.Context, blockNum uint64) (*eth.OutputResponse, error) {
+func (s *stubRollupClient) OutputAtBlock(_ context.Context, blockNum uint64) (*eth.OutputResponse, error) {
 	output, ok := s.outputs[blockNum]
 	if !ok || s.errorsOnPrestateFetch {
-		return nil, fmt.Errorf("no output at block %d", blockNum)
+		return nil, fmt.Errorf("%w: %d", errNoOutputAtBlock, blockNum)
 	}
 	return output, nil
+}
+
+func (s *stubRollupClient) SafeHeadAtL1Block(_ context.Context, l1BlockNum uint64) (*eth.SafeHeadResponse, error) {
+	return &eth.SafeHeadResponse{
+		SafeHead: eth.BlockID{
+			Number: s.maxSafeHead,
+			Hash:   common.Hash{0x11},
+		},
+	}, nil
 }

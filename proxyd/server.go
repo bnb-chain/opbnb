@@ -42,8 +42,10 @@ const (
 	defaultWSHandshakeTimeout    = 10 * time.Second
 	defaultWSReadTimeout         = 2 * time.Minute
 	defaultWSWriteTimeout        = 10 * time.Second
+	defaultCacheTtl              = 1 * time.Hour
 	maxRequestBodyLogLen         = 2000
 	defaultMaxUpstreamBatchSize  = 10
+	defaultRateLimitHeader       = "X-Forwarded-For"
 )
 
 var emptyArrayResponse = json.RawMessage("[]")
@@ -73,6 +75,7 @@ type Server struct {
 	wsServer               *http.Server
 	cache                  RPCCache
 	srvMu                  sync.Mutex
+	rateLimitHeader        string
 }
 
 type limiterFunc func(method string) bool
@@ -168,6 +171,11 @@ func NewServer(
 		senderLim = limiterFactory(time.Duration(senderRateLimitConfig.Interval), senderRateLimitConfig.Limit, "senders")
 	}
 
+	rateLimitHeader := defaultRateLimitHeader
+	if rateLimitConfig.IPHeaderOverride != "" {
+		rateLimitHeader = rateLimitConfig.IPHeaderOverride
+	}
+
 	return &Server{
 		BackendGroups:        backendGroups,
 		wsBackendGroup:       wsBackendGroup,
@@ -192,6 +200,7 @@ func NewServer(
 		allowedChainIds:        senderRateLimitConfig.AllowedChainIds,
 		limExemptOrigins:       limExemptOrigins,
 		limExemptUserAgents:    limExemptUserAgents,
+		rateLimitHeader:        rateLimitHeader,
 	}, nil
 }
 
@@ -427,6 +436,16 @@ func (s *Server) handleBatchRPC(ctx context.Context, reqs []json.RawMessage, isL
 			continue
 		}
 
+		// Simple health check
+		if len(reqs) == 1 && parsedReq.Method == proxydHealthzMethod {
+			res := &RPCRes{
+				ID:      parsedReq.ID,
+				JSONRPC: JSONRPCVersion,
+				Result:  "OK",
+			}
+			return []*RPCRes{res}, false, "", nil
+		}
+
 		if err := ValidateRPCReq(parsedReq); err != nil {
 			RecordRPCError(ctx, BackendProxyd, MethodUnknown, err)
 			responses[i] = NewRPCErrorRes(nil, err)
@@ -608,7 +627,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 func (s *Server) populateContext(w http.ResponseWriter, r *http.Request) context.Context {
 	vars := mux.Vars(r)
 	authorization := vars["authorization"]
-	xff := r.Header.Get("X-Forwarded-For")
+	xff := r.Header.Get(s.rateLimitHeader)
 	if xff == "" {
 		ipPort := strings.Split(r.RemoteAddr, ":")
 		if len(ipPort) == 2 {
@@ -669,7 +688,7 @@ func (s *Server) isGlobalLimit(method string) bool {
 func (s *Server) rateLimitSender(ctx context.Context, req *RPCReq) error {
 	var params []string
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		log.Debug("error unmarshaling raw transaction params", "err", err, "req_Id", GetReqID(ctx))
+		log.Debug("error unmarshalling raw transaction params", "err", err, "req_Id", GetReqID(ctx))
 		return ErrParseErr
 	}
 

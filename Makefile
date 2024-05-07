@@ -20,18 +20,20 @@ build-ts: submodules
 	if [ -n "$$NVM_DIR" ]; then \
 		. $$NVM_DIR/nvm.sh && nvm use; \
 	fi
-	pnpm install
+	pnpm install:ci
+	pnpm prepare
 	pnpm build
 .PHONY: build-ts
 
 ci-builder:
 	docker build -t ci-builder -f ops/docker/ci-builder/Dockerfile .
+.PHONY: ci-builder
 
 golang-docker:
 	# We don't use a buildx builder here, and just load directly into regular docker, for convenience.
 	GIT_COMMIT=$$(git rev-parse HEAD) \
 	GIT_DATE=$$(git show -s --format='%ct') \
-	IMAGE_TAGS=$$GIT_COMMIT,latest \
+	IMAGE_TAGS=$$(git rev-parse HEAD),latest \
 	docker buildx bake \
 			--progress plain \
 			--load \
@@ -39,12 +41,17 @@ golang-docker:
 			op-node op-batcher op-proposer op-challenger
 .PHONY: golang-docker
 
+contracts-bedrock-docker:
+	IMAGE_TAGS=$$(git rev-parse HEAD),latest \
+	docker buildx bake \
+			--progress plain \
+			--load \
+			-f docker-bake.hcl \
+		  contracts-bedrock
+.PHONY: contracts-bedrock-docker
+
 submodules:
-	# CI will checkout submodules on its own (and fails on these commands)
-	if [ -z "$$GITHUB_ENV" ]; then \
-		git submodule init; \
-		git submodule update --recursive; \
-	fi
+	git submodule update --init --recursive
 .PHONY: submodules
 
 op-bindings:
@@ -75,6 +82,10 @@ op-challenger:
 	make -C ./op-challenger op-challenger
 .PHONY: op-challenger
 
+op-dispute-mon:
+	make -C ./op-dispute-mon op-dispute-mon
+.PHONY: op-dispute-mon
+
 op-program:
 	make -C ./op-program op-program
 .PHONY: op-program
@@ -83,10 +94,15 @@ cannon:
 	make -C ./cannon cannon
 .PHONY: cannon
 
+reproducible-prestate:
+	make -C ./op-program reproducible-prestate
+.PHONY: reproducible-prestate
+
 cannon-prestate: op-program cannon
 	#./cannon/bin/cannon load-elf --path op-program/bin/op-program-client.elf --out op-program/bin/prestate.json --meta op-program/bin/meta.json
 	#./cannon/bin/cannon run --proof-at '=0' --stop-at '=1' --input op-program/bin/prestate.json --meta op-program/bin/meta.json --proof-fmt 'op-program/bin/%d.json' --output ""
 	#mv op-program/bin/0.json op-program/bin/prestate-proof.json
+.PHONY: cannon-prestate
 
 mod-tidy:
 	# Below GOPRIVATE line allows mod-tidy to be run immediately after
@@ -95,6 +111,7 @@ mod-tidy:
 	#
 	# See https://proxy.golang.org/ for more info.
 	export GOPRIVATE="github.com/ethereum-optimism" && go mod tidy
+	make -C ./op-ufm mod-tidy
 .PHONY: mod-tidy
 
 clean:
@@ -105,7 +122,7 @@ nuke: clean devnet-clean
 	git clean -Xdf
 .PHONY: nuke
 
-pre-devnet:
+pre-devnet: submodules
 	@if ! [ -x "$(command -v geth)" ]; then \
 		make install-geth; \
 	fi
@@ -118,9 +135,6 @@ pre-devnet:
 devnet-up: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
-
-# alias for devnet-up
-devnet-up-deploy: devnet-up
 
 devnet-test: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --test
@@ -140,10 +154,11 @@ devnet-clean:
 
 devnet-allocs: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --allocs
+.PHONY: devnet-allocs
 
 devnet-logs:
 	@(cd ./ops-bedrock && docker compose logs -f)
-	.PHONY: devnet-logs
+.PHONY: devnet-logs
 
 test-unit:
 	make -C ./op-node test
@@ -167,6 +182,7 @@ semgrep:
 clean-node-modules:
 	rm -rf node_modules
 	rm -rf packages/**/node_modules
+.PHONY: clean-node-modules
 
 tag-bedrock-go-modules:
 	./ops/scripts/tag-bedrock-go-modules.sh $(BEDROCK_TAGS_REMOTE) $(VERSION)
@@ -178,14 +194,14 @@ update-op-geth:
 
 bedrock-markdown-links:
 	docker run --init -it -v `pwd`:/input lycheeverse/lychee --verbose --no-progress --exclude-loopback \
-		--exclude twitter.com --exclude explorer.optimism.io --exclude linux-mips.org \
+		--exclude twitter.com --exclude explorer.optimism.io --exclude linux-mips.org --exclude vitalik.ca \
 		--exclude-mail /input/README.md "/input/specs/**/*.md"
+.PHONY: bedrock-markdown-links
 
 install-geth:
 	./ops/scripts/geth-version-checker.sh && \
 	 	(echo "Geth versions match, not installing geth..."; true) || \
  		(echo "Versions do not match, installing geth!"; \
- 			go install -v github.com/ethereum/go-ethereum/cmd/geth@$(shell cat .gethrc); \
+ 			go install -v github.com/ethereum/go-ethereum/cmd/geth@$(shell jq -r .geth < versions.json); \
  			echo "Installed geth!"; true)
 .PHONY: install-geth
-

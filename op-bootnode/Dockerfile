@@ -10,6 +10,8 @@ COPY ./op-bootnode /app/op-bootnode
 COPY ./op-bindings /app/op-bindings
 COPY ./op-node /app/op-node
 COPY ./op-service /app/op-service
+COPY ./op-plasma /app/op-plasma
+COPY ./op-conductor /app/op-conductor
 COPY ./op-aws-sdk /app/op-aws-sdk
 COPY ./go.mod /app/go.mod
 COPY ./go.sum /app/go.sum

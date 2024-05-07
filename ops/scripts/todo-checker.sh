@@ -50,15 +50,15 @@ for arg in "$@"; do
 done
 
 # Use ripgrep to search for the pattern in all files within the repo
-todos=$(rg -o --with-filename -n -g '!ops/scripts/todo-checker.sh' 'TODO\(([^)]+)\): [^,;]*')
+todos=$(rg -o --with-filename -i -n -g '!ops/scripts/todo-checker.sh' 'TODO\(([^)]+)\): [^,;]*')
 
 # Check each TODO comment in the repo
 IFS=$'\n' # Set Internal Field Separator to newline for iteration
 for todo in $todos; do
     # Extract the text inside the parenthesis
-    FILE=$(echo $todo | awk -F':' '{print $1}')
-    LINE_NUM=$(echo $todo | awk -F':' '{print $2}')
-    ISSUE_REFERENCE=$(echo $todo | sed -n 's/.*TODO(\([^)]*\)).*/\1/p')
+    FILE=$(echo "$todo" | awk -F':' '{print $1}')
+    LINE_NUM=$(echo "$todo" | awk -F':' '{print $2}')
+    ISSUE_REFERENCE=$(echo "$todo" | sed -n 's/.*TODO(\([^)]*\)).*/\1/p')
 
     # Parse the format of the TODO comment. There are 3 supported formats:
     # * TODO(<issue_number>): <description> (Default org & repo: "ethereum-optimism/monorepo")

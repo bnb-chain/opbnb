@@ -16,12 +16,13 @@ import (
 var ErrMaxFrameSizeTooSmall = errors.New("maxSize is too small to fit the fixed frame overhead")
 var ErrNotDepositTx = errors.New("first transaction in block is not a deposit tx")
 var ErrTooManyRLPBytes = errors.New("batch would cause RLP bytes to go over limit")
+var ErrChannelOutAlreadyClosed = errors.New("channel-out already closed")
 
 // FrameV0OverHeadSize is the absolute minimum size of a frame.
 // This is the fixed overhead frame size, calculated as specified
 // in the [Frame Format] specs: 16 + 2 + 4 + 1 = 23 bytes.
 //
-// [Frame Format]: https://github.com/ethereum-optimism/optimism/blob/develop/specs/derivation.md#frame-format
+// [Frame Format]: https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/derivation.md#frame-format
 const FrameV0OverHeadSize = 23
 
 var CompressorFullErr = errors.New("compressor is full")
@@ -51,7 +52,7 @@ type Compressor interface {
 type ChannelOut interface {
 	ID() ChannelID
 	Reset() error
-	AddBlock(*types.Block) (uint64, error)
+	AddBlock(*rollup.Config, *types.Block) (uint64, error)
 	AddSingularBatch(*SingularBatch, uint64) (uint64, error)
 	InputBytes() int
 	ReadyBytes() int
@@ -117,12 +118,12 @@ func (co *SingularChannelOut) Reset() error {
 // and an error if there is a problem adding the block. The only sentinel error
 // that it returns is ErrTooManyRLPBytes. If this error is returned, the channel
 // should be closed and a new one should be made.
-func (co *SingularChannelOut) AddBlock(block *types.Block) (uint64, error) {
+func (co *SingularChannelOut) AddBlock(rollupCfg *rollup.Config, block *types.Block) (uint64, error) {
 	if co.closed {
-		return 0, errors.New("already closed")
+		return 0, ErrChannelOutAlreadyClosed
 	}
 
-	batch, l1Info, err := BlockToSingularBatch(block)
+	batch, l1Info, err := BlockToSingularBatch(rollupCfg, block)
 	if err != nil {
 		return 0, err
 	}
@@ -139,7 +140,7 @@ func (co *SingularChannelOut) AddBlock(block *types.Block) (uint64, error) {
 // the batch data with AddBlock.
 func (co *SingularChannelOut) AddSingularBatch(batch *SingularBatch, _ uint64) (uint64, error) {
 	if co.closed {
-		return 0, errors.New("already closed")
+		return 0, ErrChannelOutAlreadyClosed
 	}
 
 	// We encode to a temporary buffer to determine the encoded length to
@@ -183,7 +184,7 @@ func (co *SingularChannelOut) FullErr() error {
 
 func (co *SingularChannelOut) Close() error {
 	if co.closed {
-		return errors.New("already closed")
+		return ErrChannelOutAlreadyClosed
 	}
 	co.closed = true
 	return co.compress.Close()
@@ -222,7 +223,11 @@ func (co *SingularChannelOut) OutputFrame(w *bytes.Buffer, maxSize uint64) (uint
 }
 
 // BlockToSingularBatch transforms a block into a batch object that can easily be RLP encoded.
-func BlockToSingularBatch(block *types.Block) (*SingularBatch, L1BlockInfo, error) {
+func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*SingularBatch, *L1BlockInfo, error) {
+	if len(block.Transactions()) == 0 {
+		return nil, nil, fmt.Errorf("block %v has no transactions", block.Hash())
+	}
+
 	opaqueTxs := make([]hexutil.Bytes, 0, len(block.Transactions()))
 	for i, tx := range block.Transactions() {
 		if tx.Type() == types.DepositTxType {
@@ -230,18 +235,16 @@ func BlockToSingularBatch(block *types.Block) (*SingularBatch, L1BlockInfo, erro
 		}
 		otx, err := tx.MarshalBinary()
 		if err != nil {
-			return nil, L1BlockInfo{}, fmt.Errorf("could not encode tx %v in block %v: %w", i, tx.Hash(), err)
+			return nil, nil, fmt.Errorf("could not encode tx %v in block %v: %w", i, tx.Hash(), err)
 		}
 		opaqueTxs = append(opaqueTxs, otx)
 	}
-	if len(block.Transactions()) == 0 {
-		return nil, L1BlockInfo{}, fmt.Errorf("block %v has no transactions", block.Hash())
-	}
+
 	l1InfoTx := block.Transactions()[0]
 	if l1InfoTx.Type() != types.DepositTxType {
-		return nil, L1BlockInfo{}, ErrNotDepositTx
+		return nil, nil, ErrNotDepositTx
 	}
-	l1Info, err := L1InfoDepositTxData(l1InfoTx.Data())
+	l1Info, err := L1BlockInfoFromBytes(rollupCfg, block.Time(), l1InfoTx.Data())
 	if err != nil {
 		return nil, l1Info, fmt.Errorf("could not parse the L1 Info deposit: %w", err)
 	}
@@ -319,10 +322,10 @@ func createEmptyFrame(id ChannelID, frame uint64, readyBytes int, closed bool, m
 
 	// Copy data from the local buffer into the frame data buffer
 	maxDataSize := maxSize - FrameV0OverHeadSize
-	if maxDataSize > uint64(readyBytes) {
+	if maxDataSize >= uint64(readyBytes) {
 		maxDataSize = uint64(readyBytes)
 		// If we are closed & will not spill past the current frame
-		// mark it is the final frame of the channel.
+		// mark it as the final frame of the channel.
 		if closed {
 			f.IsLast = true
 		}

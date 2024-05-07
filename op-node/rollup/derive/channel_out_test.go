@@ -2,13 +2,21 @@ package derive
 
 import (
 	"bytes"
+	"io"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ethereum-optimism/optimism/op-node/rollup"
+)
+
+var (
+	rollupCfg rollup.Config
 )
 
 // basic implementation of the Compressor interface that does no compression
@@ -40,7 +48,7 @@ func TestChannelOutAddBlock(t *testing.T) {
 			},
 			nil,
 		)
-		_, err := cout.AddBlock(block)
+		_, err := cout.AddBlock(&rollupCfg, block)
 		require.Error(t, err)
 		require.Equal(t, ErrNotDepositTx, err)
 	})
@@ -60,6 +68,27 @@ func TestOutputFrameSmallMaxSize(t *testing.T) {
 		require.ErrorIs(t, err, ErrMaxFrameSizeTooSmall)
 		require.Zero(t, fid)
 	}
+}
+
+func TestOutputFrameNoEmptyLastFrame(t *testing.T) {
+	cout, err := NewChannelOut(SingularBatchType, &nonCompressor{}, nil)
+	require.NoError(t, err)
+
+	rng := rand.New(rand.NewSource(0x543331))
+	chainID := big.NewInt(rng.Int63n(1000))
+	txCount := 1
+	singularBatch := RandomSingularBatch(rng, txCount, chainID)
+
+	written, err := cout.AddSingularBatch(singularBatch, 0)
+	require.NoError(t, err)
+
+	require.NoError(t, cout.Close())
+
+	var buf bytes.Buffer
+	// Output a frame which needs exactly `written` bytes. This frame is expected to be the last frame.
+	_, err = cout.OutputFrame(&buf, written+FrameV0OverHeadSize)
+	require.ErrorIs(t, err, io.EOF)
+
 }
 
 // TestRLPByteLimit ensures that stream encoder is properly limiting the length.
@@ -152,6 +181,6 @@ func TestForceCloseTxData(t *testing.T) {
 
 func TestBlockToBatchValidity(t *testing.T) {
 	block := new(types.Block)
-	_, _, err := BlockToSingularBatch(block)
+	_, _, err := BlockToSingularBatch(&rollupCfg, block)
 	require.ErrorContains(t, err, "has no transactions")
 }

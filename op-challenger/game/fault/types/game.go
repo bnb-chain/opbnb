@@ -3,15 +3,9 @@ package types
 import (
 	"errors"
 	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
-	// ErrClaimExists is returned when a claim already exists in the game state.
-	ErrClaimExists = errors.New("claim exists in game state")
-
 	// ErrClaimNotFound is returned when a claim does not exist in the game state.
 	ErrClaimNotFound = errors.New("claim not found in game state")
 )
@@ -33,60 +27,52 @@ type Game interface {
 	IsDuplicate(claim Claim) bool
 
 	// AgreeWithClaimLevel returns if the game state agrees with the provided claim level.
-	AgreeWithClaimLevel(claim Claim) bool
+	AgreeWithClaimLevel(claim Claim, agreeWithRootClaim bool) bool
 
-	MaxDepth() uint64
-}
+	MaxDepth() Depth
 
-type claimID common.Hash
-
-func computeClaimID(claim Claim) claimID {
-	return claimID(crypto.Keccak256Hash(
-		claim.Position.ToGIndex().Bytes(),
-		claim.Value.Bytes(),
-		big.NewInt(int64(claim.ParentContractIndex)).Bytes(),
-	))
+	// AncestorWithTraceIndex finds the ancestor of claim with trace index idx if present.
+	// Returns the claim and true if the ancestor is found, or Claim{}, false if not.
+	AncestorWithTraceIndex(claim Claim, idx *big.Int) (Claim, bool)
 }
 
 // gameState is a struct that represents the state of a dispute game.
 // The game state implements the [Game] interface.
 type gameState struct {
-	agreeWithProposedOutput bool
 	// claims is the list of claims in the same order as the contract
 	claims   []Claim
-	claimIDs map[claimID]bool
-	depth    uint64
+	claimIDs map[ClaimID]bool
+	depth    Depth
 }
 
 // NewGameState returns a new game state.
 // The provided [Claim] is used as the root node.
-func NewGameState(agreeWithProposedOutput bool, claims []Claim, depth uint64) *gameState {
-	claimIDs := make(map[claimID]bool)
+func NewGameState(claims []Claim, depth Depth) *gameState {
+	claimIDs := make(map[ClaimID]bool)
 	for _, claim := range claims {
-		claimIDs[computeClaimID(claim)] = true
+		claimIDs[claim.ID()] = true
 	}
 	return &gameState{
-		agreeWithProposedOutput: agreeWithProposedOutput,
-		claims:                  claims,
-		claimIDs:                claimIDs,
-		depth:                   depth,
+		claims:   claims,
+		claimIDs: claimIDs,
+		depth:    depth,
 	}
 }
 
 // AgreeWithClaimLevel returns if the game state agrees with the provided claim level.
-func (g *gameState) AgreeWithClaimLevel(claim Claim) bool {
+func (g *gameState) AgreeWithClaimLevel(claim Claim, agreeWithRootClaim bool) bool {
 	isOddLevel := claim.Depth()%2 == 1
 	// If we agree with the proposed output, we agree with odd levels
 	// If we disagree with the proposed output, we agree with the root claim level & even levels
-	if g.agreeWithProposedOutput {
-		return isOddLevel
-	} else {
+	if agreeWithRootClaim {
 		return !isOddLevel
+	} else {
+		return isOddLevel
 	}
 }
 
 func (g *gameState) IsDuplicate(claim Claim) bool {
-	return g.claimIDs[computeClaimID(claim)]
+	return g.claimIDs[claim.ID()]
 }
 
 func (g *gameState) Claims() []Claim {
@@ -94,7 +80,7 @@ func (g *gameState) Claims() []Claim {
 	return append([]Claim(nil), g.claims...)
 }
 
-func (g *gameState) MaxDepth() uint64 {
+func (g *gameState) MaxDepth() Depth {
 	return g.depth
 }
 
@@ -123,4 +109,20 @@ func (g *gameState) getParent(claim Claim) *Claim {
 	}
 	parent := g.claims[claim.ParentContractIndex]
 	return &parent
+}
+
+func (g *gameState) AncestorWithTraceIndex(claim Claim, idx *big.Int) (Claim, bool) {
+	for {
+		if claim.Position.TraceIndex(g.depth).Cmp(idx) == 0 {
+			return claim, true
+		}
+		if claim.IsRoot() {
+			return Claim{}, false
+		}
+		next := g.getParent(claim)
+		if next == nil {
+			return Claim{}, false
+		}
+		claim = *next
+	}
 }

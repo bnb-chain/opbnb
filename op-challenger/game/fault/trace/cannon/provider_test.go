@@ -25,7 +25,7 @@ import (
 var testData embed.FS
 
 func PositionFromTraceIndex(provider *CannonTraceProvider, idx *big.Int) types.Position {
-	return types.NewPosition(int(provider.gameDepth), idx)
+	return types.NewPosition(provider.gameDepth, idx)
 }
 
 func TestGet(t *testing.T) {
@@ -84,9 +84,9 @@ func TestGetStepData(t *testing.T) {
 		provider, generator := setupWithTestData(t, dataDir, prestate)
 		value, proof, data, err := provider.GetStepData(context.Background(), PositionFromTraceIndex(provider, new(big.Int)))
 		require.NoError(t, err)
-		expected := common.Hex2Bytes("b8f068de604c85ea0e2acd437cdb47add074a2d70b81d018390c504b71fe26f400000000000000000000000000000000000000000000000000000000000000000000000000")
+		expected := common.FromHex("b8f068de604c85ea0e2acd437cdb47add074a2d70b81d018390c504b71fe26f400000000000000000000000000000000000000000000000000000000000000000000000000")
 		require.Equal(t, expected, value)
-		expectedProof := common.Hex2Bytes("08028e3c0000000000000000000000003c01000a24210b7c00200008000000008fa40004")
+		expectedProof := common.FromHex("08028e3c0000000000000000000000003c01000a24210b7c00200008000000008fa40004")
 		require.Equal(t, expectedProof, proof)
 		// TODO: Need to add some oracle data
 		require.Nil(t, data)
@@ -124,7 +124,7 @@ func TestGetStepData(t *testing.T) {
 
 		require.EqualValues(t, generator.proof.StateData, preimage)
 		require.EqualValues(t, generator.proof.ProofData, proof)
-		expectedData := types.NewPreimageOracleData(0, generator.proof.OracleKey, generator.proof.OracleValue, generator.proof.OracleOffset)
+		expectedData := types.NewPreimageOracleData(generator.proof.OracleKey, generator.proof.OracleValue, generator.proof.OracleOffset)
 		require.EqualValues(t, expectedData, data)
 	})
 
@@ -207,63 +207,13 @@ func TestGetStepData(t *testing.T) {
 		provider, generator := setupWithTestData(t, dataDir, prestate)
 		value, proof, data, err := provider.GetStepData(context.Background(), PositionFromTraceIndex(provider, big.NewInt(2)))
 		require.NoError(t, err)
-		expected := common.Hex2Bytes("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+		expected := common.FromHex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
 		require.Equal(t, expected, value)
-		expectedProof := common.Hex2Bytes("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
+		expectedProof := common.FromHex("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
 		require.Equal(t, expectedProof, proof)
 		require.Empty(t, generator.generated)
 		require.Nil(t, data)
 	})
-}
-
-func TestAbsolutePreState(t *testing.T) {
-	dataDir := t.TempDir()
-
-	prestate := "state.json"
-
-	t.Run("StateUnavailable", func(t *testing.T) {
-		provider, _ := setupWithTestData(t, "/dir/does/not/exist", prestate)
-		_, err := provider.AbsolutePreState(context.Background())
-		require.ErrorIs(t, err, os.ErrNotExist)
-	})
-
-	t.Run("InvalidStateFile", func(t *testing.T) {
-		setupPreState(t, dataDir, "invalid.json")
-		provider, _ := setupWithTestData(t, dataDir, prestate)
-		_, err := provider.AbsolutePreState(context.Background())
-		require.ErrorContains(t, err, "invalid mipsevm state")
-	})
-
-	t.Run("ExpectedAbsolutePreState", func(t *testing.T) {
-		setupPreState(t, dataDir, "state.json")
-		provider, _ := setupWithTestData(t, dataDir, prestate)
-		preState, err := provider.AbsolutePreState(context.Background())
-		require.NoError(t, err)
-		state := mipsevm.State{
-			Memory:         mipsevm.NewMemory(),
-			PreimageKey:    common.HexToHash("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
-			PreimageOffset: 0,
-			PC:             0,
-			NextPC:         1,
-			LO:             0,
-			HI:             0,
-			Heap:           0,
-			ExitCode:       0,
-			Exited:         false,
-			Step:           0,
-			Registers:      [32]uint32{},
-		}
-		require.Equal(t, []byte(state.EncodeWitness()), preState)
-	})
-}
-
-func setupPreState(t *testing.T, dataDir string, filename string) {
-	srcDir := filepath.Join("test_data")
-	path := filepath.Join(srcDir, filename)
-	file, err := testData.ReadFile(path)
-	require.NoErrorf(t, err, "reading %v", path)
-	err = os.WriteFile(filepath.Join(dataDir, "state.json"), file, 0o644)
-	require.NoErrorf(t, err, "writing %v", path)
 }
 
 func setupTestData(t *testing.T) (string, string) {
@@ -285,7 +235,7 @@ func setupTestData(t *testing.T) (string, string) {
 func setupWithTestData(t *testing.T, dataDir string, prestate string) (*CannonTraceProvider, *stubGenerator) {
 	generator := &stubGenerator{}
 	return &CannonTraceProvider{
-		logger:    testlog.Logger(t, log.LvlInfo),
+		logger:    testlog.Logger(t, log.LevelInfo),
 		dir:       dataDir,
 		generator: generator,
 		prestate:  filepath.Join(dataDir, prestate),

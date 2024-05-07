@@ -10,6 +10,7 @@ import time
 import requests
 import shutil
 import http.client
+import gzip
 from multiprocessing import Process, Queue
 import concurrent.futures
 from collections import namedtuple
@@ -26,6 +27,11 @@ parser.add_argument('--allocs', help='Only create the allocs and exit', type=boo
 parser.add_argument('--test', help='Tests the deployment, must already be deployed', type=bool, action=argparse.BooleanOptionalAction)
 
 log = logging.getLogger()
+
+# Global environment variables
+DEVNET_NO_BUILD = os.getenv('DEVNET_NO_BUILD') == "true"
+DEVNET_FPAC = os.getenv('DEVNET_FPAC') == "true"
+DEVNET_PLASMA = os.getenv('DEVNET_PLASMA') == "true"
 
 class Bunch:
     def __init__(self, **kwds):
@@ -59,6 +65,7 @@ def main():
     devnet_dir = pjoin(monorepo_dir, '.devnet')
     contracts_bedrock_dir = pjoin(monorepo_dir, 'packages', 'contracts-bedrock')
     deployment_dir = pjoin(contracts_bedrock_dir, 'deployments', 'devnetL1')
+    forge_dump_path = pjoin(contracts_bedrock_dir, 'Deploy-900.json')
     op_node_dir = pjoin(args.monorepo_dir, 'op-node')
     ops_bedrock_dir = pjoin(monorepo_dir, 'ops-bedrock')
     deploy_config_dir = pjoin(contracts_bedrock_dir, 'deploy-config')
@@ -72,6 +79,7 @@ def main():
       devnet_dir=devnet_dir,
       contracts_bedrock_dir=contracts_bedrock_dir,
       deployment_dir=deployment_dir,
+      forge_dump_path=forge_dump_path,
       l1_deployments_path=pjoin(deployment_dir, '.deploy'),
       deploy_config_dir=deploy_config_dir,
       devnet_config_path=devnet_config_path,
@@ -160,6 +168,11 @@ def init_devnet_l1_deploy_config(paths, update_timestamp=False):
     deploy_config = read_json(paths.devnet_config_template_path)
     if update_timestamp:
         deploy_config['l1GenesisBlockTimestamp'] = '{:#x}'.format(int(time.time()))
+    if DEVNET_FPAC:
+        deploy_config['useFaultProofs'] = True
+        deploy_config['faultGameMaxDuration'] = 10
+    if DEVNET_PLASMA:
+        deploy_config['usePlasma'] = True
     write_json(paths.devnet_config_path, deploy_config)
 
 def devnet_l1_genesis(paths):
@@ -307,9 +320,9 @@ def devnet_deploy(paths):
             'go', 'run', 'cmd/main.go', 'genesis', 'l2',
             '--l1-rpc', 'http://localhost:8545',
             '--deploy-config', paths.devnet_config_path,
-            '--deployment-dir', paths.deployment_dir,
-            '--outfile.l2', pjoin(paths.devnet_dir, 'genesis-l2.json'),
-            '--outfile.rollup', pjoin(paths.devnet_dir, 'rollup.json')
+            '--l1-deployments', paths.addresses_json_path,
+            '--outfile.l2', paths.genesis_l2_path,
+            '--outfile.rollup', paths.rollup_config_path
         ], cwd=paths.op_node_dir)
 
     if os.path.exists(devnet_cfg_backup):
@@ -319,6 +332,7 @@ def devnet_deploy(paths):
     rollup_config = read_json(paths.rollup_config_path)
     addresses = read_json(paths.addresses_json_path)
 
+    # Start the L2.
     log.info('Bringing up L2.')
     run_command(['docker', 'compose', 'up', '-d', 'l2'], cwd=paths.ops_bedrock_dir, env={
         'PWD': paths.ops_bedrock_dir
@@ -336,31 +350,6 @@ def devnet_deploy(paths):
     })
 
     log.info('Devnet ready.')
-
-
-def eth_accounts(url):
-    log.info(f'Fetch eth_accounts {url}')
-    conn = http.client.HTTPConnection(url)
-    headers = {'Content-type': 'application/json'}
-    body = '{"id":2, "jsonrpc":"2.0", "method": "eth_accounts", "params":[]}'
-    conn.request('POST', '/', body, headers)
-    response = conn.getresponse()
-    data = response.read().decode()
-    conn.close()
-    return data
-
-
-def debug_dumpBlock(url):
-    log.info(f'Fetch debug_dumpBlock {url}')
-    conn = http.client.HTTPConnection(url)
-    headers = {'Content-type': 'application/json'}
-    body = '{"id":3, "jsonrpc":"2.0", "method": "debug_dumpBlock", "params":["latest"]}'
-    conn.request('POST', '/', body, headers)
-    response = conn.getresponse()
-    data = response.read().decode()
-    conn.close()
-    return data
-
 
 def wait_for_rpc_server(url):
     log.info(f'Waiting for RPC server at {url}')
@@ -386,12 +375,6 @@ CommandPreset = namedtuple('Command', ['name', 'args', 'cwd', 'timeout'])
 
 
 def devnet_test(paths):
-    # Check the L2 config
-    run_command(
-        ['go', 'run', 'cmd/check-l2/main.go', '--l2-rpc-url', 'http://localhost:9545', '--l1-rpc-url', 'http://localhost:8545'],
-        cwd=paths.ops_chain_ops,
-    )
-
     # Run the two commands with different signers, so the ethereum nonce management does not conflict
     # And do not use devnet system addresses, to avoid breaking fee-estimation or nonce values.
     run_commands([
