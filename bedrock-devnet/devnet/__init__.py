@@ -277,6 +277,7 @@ def devnet_deploy(paths):
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
+    devnet_cfg_final = pjoin(paths.devnet_dir, 'devnetL1.json')
     shutil.copy(devnet_cfg_orig, devnet_cfg_backup)
     deploy_config = read_json(devnet_cfg_orig)
     deploy_config['l1ChainID'] = int(bscChainId,10)
@@ -317,6 +318,7 @@ def devnet_deploy(paths):
     deploy_config['l1GenesisBlockTimestamp'] = l1BlockTimestamp
     deploy_config['l1StartingBlockTag'] = l1BlockTag
     write_json(devnet_cfg_orig, deploy_config)
+    write_json(devnet_cfg_final, deploy_config)
 
     if os.path.exists(paths.genesis_l2_path):
         log.info('L2 genesis and rollup configs already generated.')
