@@ -45,14 +45,15 @@ type ExecEngine interface {
 }
 
 type EngineController struct {
-	engine     ExecEngine // Underlying execution engine RPC
-	log        log.Logger
-	metrics    Metrics
-	syncMode   sync.Mode
-	syncStatus syncStatusEnum
-	rollupCfg  *rollup.Config
-	elStart    time.Time
-	clock      clock.Clock
+	engine       ExecEngine // Underlying execution engine RPC
+	log          log.Logger
+	metrics      Metrics
+	syncMode     sync.Mode
+	elTriggerGap int
+	syncStatus   syncStatusEnum
+	rollupCfg    *rollup.Config
+	elStart      time.Time
+	clock        clock.Clock
 
 	// Block Head State
 	unsafeHead       eth.L2BlockRef
@@ -75,20 +76,21 @@ type EngineController struct {
 	safeAttrs    *AttributesWithParent
 }
 
-func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncMode sync.Mode) *EngineController {
+func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncMode sync.Mode, elTriggerGap int) *EngineController {
 	syncStatus := syncStatusCL
 	if syncMode == sync.ELSync {
 		syncStatus = syncStatusWillStartEL
 	}
 
 	return &EngineController{
-		engine:     engine,
-		log:        log,
-		metrics:    metrics,
-		rollupCfg:  rollupCfg,
-		syncMode:   syncMode,
-		syncStatus: syncStatus,
-		clock:      clock.SystemClock,
+		engine:       engine,
+		log:          log,
+		metrics:      metrics,
+		rollupCfg:    rollupCfg,
+		syncMode:     syncMode,
+		elTriggerGap: elTriggerGap,
+		syncStatus:   syncStatus,
+		clock:        clock.SystemClock,
 	}
 }
 
@@ -328,7 +330,8 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	if e.syncStatus == syncStatusWillStartEL {
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
 		isTransitionBlock := e.rollupCfg.Genesis.L2.Number != 0 && b.Hash == e.rollupCfg.Genesis.L2.Hash
-		if errors.Is(err, ethereum.NotFound) || isTransitionBlock {
+		isGapSyncNeeded := ref.Number-e.UnsafeL2Head().Number > 200
+		if errors.Is(err, ethereum.NotFound) || isTransitionBlock || isGapSyncNeeded {
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")
 			e.elStart = e.clock.Now()
