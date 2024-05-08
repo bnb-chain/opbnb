@@ -5,7 +5,6 @@ version: '3.4'
 # service.
 
 volumes:
-  l1_data:
   l2_data:
   op_log:
 
@@ -144,7 +143,7 @@ services:
       OP_BATCHER_ROLLUP_RPC: http://op-node:8545
       OP_BATCHER_MAX_L1_TX_SIZE_BYTES: 120000
       OP_BATCHER_TARGET_L1_TX_SIZE_BYTES: 100000
-      OP_BATCHER_TARGET_NUM_FRAMES: 30
+      OP_BATCHER_TARGET_NUM_FRAMES: 6
       OP_BATCHER_APPROX_COMPR_RATIO: "0.4"
       OP_BATCHER_MAX_CHANNEL_DURATION: 20
       OP_BATCHER_POLL_INTERVAL: 5s
@@ -157,12 +156,13 @@ services:
       OP_BATCHER_PPROF_ENABLED: "true"
       OP_BATCHER_METRICS_ENABLED: "true"
       OP_BATCHER_RPC_ENABLE_ADMIN: "true"
-      OP_BATCHER_BATCH_TYPE: 0
+      OP_BATCHER_BATCH_TYPE: 1
       OP_BATCHER_LOG_TERMINAL: "true"
       OP_BATCHER_SUB_SAFETY_MARGIN: 30 # SWS is 15, ChannelTimeout is 40
       OP_BATCHER_MAX_PENDING_TX: 40
       OP_BATCHER_TXMGR_MIN_TIP_CAP: 0
       OP_BATCHER_TXMGR_MIN_BASEFEE: 0
+      OP_BATCHER_DATA_AVAILABILITY_TYPE: "blobs"
 
   op-challenger:
     depends_on:

@@ -6,7 +6,7 @@ It allows us to quickly start the devnet locally (with L1 network as BSC network
 
 # requirement
 
-docker, nodejs 16+, yarn, foundry, python2, python3, pnpm
+docker, nodejs 16+, yarn, foundry, python3, pnpm, poetry, go, jq
 
 Tips:
 
