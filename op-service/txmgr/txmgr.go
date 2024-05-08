@@ -293,7 +293,9 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 		if blobBaseFee == nil {
 			return nil, fmt.Errorf("expected non-nil blobBaseFee")
 		}
-		blobFeeCap := calcBlobFeeCap(blobBaseFee)
+		// no need to calcBlobFeeCap, prefer raw blobBaseFee
+		// blobFeeCap := calcBlobFeeCap(blobBaseFee)
+		blobFeeCap := blobBaseFee
 		message := &types.BlobTx{
 			To:         *candidate.To,
 			Data:       candidate.TxData,
@@ -441,7 +443,7 @@ func (m *SimpleTxManager) sendTx(ctx context.Context, tx *types.Transaction) (*t
 				m.txLogger(tx, false).Warn("TxManager closed, aborting transaction submission")
 				return nil, ErrClosed
 			}
-			tx = publishAndWait(tx, true)
+			tx = publishAndWait(tx, false)
 
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -507,6 +509,12 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 		case errStringMatch(err, core.ErrNonceTooLow):
 			l.Warn("nonce too low", "err", err)
 			m.metr.TxPublished("nonce_too_low")
+		case errStringMatch(err, core.ErrNonceTooHigh):
+			l.Warn("nonce too high", "err", err)
+			m.metr.TxPublished("nonce_too_high")
+			bumpFeesImmediately = false // retry without fee bump
+			time.Sleep(time.Second)
+			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()
 			l.Warn("transaction send cancelled", "err", err)
@@ -783,6 +791,13 @@ func (m *SimpleTxManager) checkLimits(tip, baseFee, bumpedTip, bumpedFee *big.In
 }
 
 func (m *SimpleTxManager) checkBlobFeeLimits(blobBaseFee, bumpedBlobFee *big.Int) error {
+	// If above limit, do not send transaction
+	if limit := m.cfg.BlobGasPriceLimit; limit != nil && limit.Cmp(bumpedBlobFee) == -1 {
+		return fmt.Errorf(
+			"bumped blob fee %v is over blob gas price limit value: %v",
+			bumpedBlobFee, m.cfg.BlobGasPriceLimit)
+	}
+
 	// If below threshold, don't apply multiplier limit. Note we use same threshold parameter here
 	// used for non-blob fee limiting.
 	if thr := m.cfg.FeeLimitThreshold; thr != nil && thr.Cmp(bumpedBlobFee) == 1 {
