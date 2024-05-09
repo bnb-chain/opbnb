@@ -135,7 +135,7 @@ func (fn testAttrBuilderFn) PreparePayloadAttributes(ctx context.Context, l2Pare
 	return fn(ctx, l2Parent, epoch)
 }
 
-func (fn testAttrBuilderFn) CachePayloadByHash(payload *eth.ExecutionPayload) bool {
+func (fn testAttrBuilderFn) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
 	return true
 }
 

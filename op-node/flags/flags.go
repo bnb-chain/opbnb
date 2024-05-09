@@ -214,9 +214,9 @@ var (
 		Category: SequencerCategory,
 	}
 	SequencerPriorityFlag = &cli.BoolFlag{
-		Name:    "sequencer.priority",
-		Usage:   "Enable sequencer step takes precedence over other steps.",
-		EnvVars: prefixEnvVars("SEQUENCER_PRIORITY"),
+		Name:     "sequencer.priority",
+		Usage:    "Enable sequencer step takes precedence over other steps.",
+		EnvVars:  prefixEnvVars("SEQUENCER_PRIORITY"),
 		Category: SequencerCategory,
 	}
 	SequencerL1Confs = &cli.Uint64Flag{
