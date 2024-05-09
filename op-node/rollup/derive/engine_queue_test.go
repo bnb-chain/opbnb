@@ -1025,7 +1025,6 @@ func TestBlockBuildingRace(t *testing.T) {
 	}
 	eng.ExpectForkchoiceUpdate(postFc, nil, postFcRes, nil)
 
-	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Now complete the job, as external user of the engine
 	_, _, err = eq.ConfirmPayload(context.Background(), async.NoOpGossiper{}, &conductor.NoOpConductor{})
 	require.NoError(t, err)
@@ -1306,11 +1305,13 @@ func TestPlasmaFinalityData(t *testing.T) {
 	l2parent := refA1
 
 	ec.SetSafeHead(l2parent)
+	l1F.ExpectClearReceiptsCacheBefore(l2parent.L1Origin.Number)
 	require.NoError(t, eq.postProcessSafeL2())
 
 	// advance over 200 l1 origins each time incrementing new l2 safe heads
 	// and post processing.
 	for i := uint64(0); i < 200; i++ {
+		l1F.ExpectClearReceiptsCacheBefore(l2parent.L1Origin.Number)
 		require.NoError(t, eq.postProcessSafeL2())
 
 		l1parent = eth.L1BlockRef{
@@ -1331,6 +1332,7 @@ func TestPlasmaFinalityData(t *testing.T) {
 				SequenceNumber: j,
 			}
 			ec.SetSafeHead(l2parent)
+			l1F.ExpectClearReceiptsCacheBefore(l2parent.L1Origin.Number)
 			require.NoError(t, eq.postProcessSafeL2())
 		}
 	}
