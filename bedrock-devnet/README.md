@@ -12,6 +12,9 @@ Tips:
 
 Install Foundry by following [the instructions located here](https://getfoundry.sh/).
 
+Please make sure your Foundry version matches the one described in versions.json.
+If they do not match, please use a command such as `foundryup -C xxxxxx` to modify it.
+
 # usage
 First, execute `pnpm install` and `pnpm build` commands in the root directory.
 
