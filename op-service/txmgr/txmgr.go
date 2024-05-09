@@ -442,7 +442,7 @@ func (m *SimpleTxManager) sendTx(ctx context.Context, tx *types.Transaction) (*t
 				m.txLogger(tx, false).Warn("TxManager closed, aborting transaction submission")
 				return nil, ErrClosed
 			}
-			tx = publishAndWait(tx, false)
+			tx = publishAndWait(tx, true)
 
 		case <-ctx.Done():
 			return nil, ctx.Err()
