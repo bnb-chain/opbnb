@@ -191,7 +191,7 @@ func (t *TxMetrics) RecordBlobBaseFee(blobBaseFee *big.Int) {
 }
 
 func (t *TxMetrics) RecordBlobsNumber(number int) {
-	t.blobBaseFee.Set(float64(number))
+	t.blobsNumber.Set(float64(number))
 }
 
 func (t *TxMetrics) RecordTipCap(tipcap *big.Int) {
