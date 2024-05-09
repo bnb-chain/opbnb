@@ -47,9 +47,9 @@ type BatcherConfig struct {
 // BatcherService represents a full batch-submitter instance and its resources,
 // and conforms to the op-service CLI Lifecycle interface.
 type BatcherService struct {
-	Log        log.Logger
-	Metrics    metrics.Metricer
-	L1Client   client.Client
+	Log      log.Logger
+	Metrics  metrics.Metricer
+	L1Client client.Client
 
 	EndpointProvider dial.L2EndpointProvider
 	TxManager        txmgr.TxManager
