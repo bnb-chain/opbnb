@@ -512,7 +512,7 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 			l.Warn("nonce too high", "err", err)
 			m.metr.TxPublished("nonce_too_high")
 			bumpFeesImmediately = false // retry without fee bump
-			time.Sleep(time.Second)
+			time.Sleep(100*time.Millisecond)
 			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()
@@ -553,6 +553,9 @@ func (m *SimpleTxManager) waitForTx(ctx context.Context, tx *types.Transaction, 
 	}
 	select {
 	case receiptChan <- receipt:
+		if blobHashes := tx.BlobHashes(); blobHashes != nil {
+			m.metr.RecordBlobsNumber(len(blobHashes))
+		}
 		m.metr.RecordTxConfirmationLatency(time.Since(t).Milliseconds())
 	default:
 	}
