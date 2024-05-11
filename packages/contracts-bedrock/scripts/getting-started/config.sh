@@ -23,23 +23,24 @@ reqenv "L1_RPC_URL"
 block=$(cast block finalized --rpc-url "$L1_RPC_URL")
 timestamp=$(echo "$block" | awk '/timestamp/ { print $2 }')
 blockhash=$(echo "$block" | awk '/hash/ { print $2 }')
+l1chainId=$(cast chain-id --rpc-url "$L1_RPC_URL")
 
 # Generate the config file
 config=$(cat << EOL
 {
   "l1StartingBlockTag": "$blockhash",
 
-  "l1ChainID": 11155111,
-  "l2ChainID": 42069,
-  "l2BlockTime": 2,
-  "l1BlockTime": 12,
+  "l1ChainID": $l1chainId,
+  "l2ChainID": 901,
+  "l2BlockTime": 1,
+  "l1BlockTime": 3,
 
   "maxSequencerDrift": 600,
   "sequencerWindowSize": 3600,
   "channelTimeout": 300,
 
   "p2pSequencerAddress": "$GS_SEQUENCER_ADDRESS",
-  "batchInboxAddress": "0xff00000000000000000000000000000000042069",
+  "batchInboxAddress": "0xff00000000000000000000000000000000000901",
   "batchSenderAddress": "$GS_BATCHER_ADDRESS",
 
   "l2OutputOracleSubmissionInterval": 120,
@@ -98,6 +99,18 @@ config=$(cat << EOL
 
   "preimageOracleMinProposalSize": 1800000,
   "preimageOracleChallengePeriod": 86400,
+  "fermat": 0,
+  "fundDevAccounts": true,
+  "proofMaturityDelaySeconds": 12,
+  "disputeGameFinalityDelaySeconds": 6,
+  "respectedGameType": 0,
+  "useFaultProofs": false,
+  "usePlasma": false,
+  "daChallengeWindow": 160,
+  "daResolveWindow": 160,
+  "daBondSize": 1000000,
+  "daResolverRefundPercentage": 0,
+  "faultGameWithdrawalDelay": 604800
 }
 EOL
 )
