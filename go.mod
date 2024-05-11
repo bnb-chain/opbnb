@@ -110,7 +110,7 @@ require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/gballet/go-verkle v0.1.1-0.20231031103413-a67434b50f46 // indirect
-	github.com/getsentry/sentry-go v0.18.0 // indirect
+	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -253,7 +253,7 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.13.8 => github.com/welkin22/op-geth v1.101308.2-opbnb2
+replace github.com/ethereum/go-ethereum v1.13.8 => github.com/bnb-chain/op-geth v0.4.0-alpha
 
 replace github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v1.0.0
 
