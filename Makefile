@@ -136,15 +136,21 @@ devnet-up: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
 
+devnet-init: pre-devnet
+	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --init
+.PHONY: devnet-init
+
 devnet-test: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --test
 .PHONY: devnet-test
 
 devnet-down:
 	@(cd ./ops-bedrock && GENESIS_TIMESTAMP=$(shell date +%s) docker compose stop)
+	if [ -f "./.devnet/node-deploy/start_cluster.sh" ]; then ./.devnet/node-deploy/start_cluster.sh stop; fi
 .PHONY: devnet-down
 
 devnet-clean:
+	if [ -f "./.devnet/node-deploy/start_cluster.sh" ]; then ./.devnet/node-deploy/start_cluster.sh stop; fi
 	rm -rf ./packages/contracts-bedrock/deployments/devnetL1
 	rm -rf ./.devnet
 	cd ./ops-bedrock && docker compose down
