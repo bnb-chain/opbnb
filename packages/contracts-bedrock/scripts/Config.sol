@@ -94,7 +94,7 @@ library Config {
             return "optimism-goerli";
         } else if (chainid == Chains.OPMainnet) {
             return "optimism-mainnet";
-        } else if (chainid == Chains.LocalDevnet || chainid == Chains.GethDevnet) {
+        } else if (chainid == Chains.LocalDevnet || chainid == Chains.GethDevnet || chainid == Chains.BscDevnet) {
             return "devnetL1";
         } else if (chainid == Chains.Hardhat) {
             return "hardhat";
