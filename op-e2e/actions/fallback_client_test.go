@@ -40,7 +40,7 @@ func setupFallbackClientTest(t Testing, sd *e2eutils.SetupData, log log.Logger, 
 	l2Cl, err := sources.NewEngineClient(engine.RPCClient(), log, nil, sources.EngineClientDefaultConfig(sd.RollupCfg))
 	require.NoError(t, err)
 
-	sequencer := NewL2Sequencer(t, log, l1F, l2Cl, sd.RollupCfg, 0)
+	sequencer := NewL2Sequencer(t, log, l1F, l1F, nil, l2Cl, sd.RollupCfg, 0)
 	return miner, l1_2, l1_3, engine, sequencer, fallbackClient.(*sources.FallbackClient)
 }
 
