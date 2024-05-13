@@ -100,6 +100,7 @@ config=$(cat << EOL
   "preimageOracleMinProposalSize": 1800000,
   "preimageOracleChallengePeriod": 86400,
   "fermat": 0,
+  "snowTimeOffset": "0x0",
   "fundDevAccounts": true,
   "proofMaturityDelaySeconds": 12,
   "disputeGameFinalityDelaySeconds": 6,
