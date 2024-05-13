@@ -19,6 +19,7 @@ func (*NoopTxMetrics) RecordTxConfirmationLatency(int64) {}
 func (*NoopTxMetrics) TxConfirmed(*types.Receipt)        {}
 func (*NoopTxMetrics) TxPublished(string)                {}
 func (*NoopTxMetrics) RecordBaseFee(*big.Int)            {}
+func (*NoopTxMetrics) RecordBlobBaseFee(*big.Int)        {}
 func (*NoopTxMetrics) RecordTipCap(*big.Int)             {}
 func (*NoopTxMetrics) RPCError()                         {}
 func (m *NoopTxMetrics) RecordL1UrlSwitchEvt(url string) {}

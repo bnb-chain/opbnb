@@ -45,5 +45,7 @@ func (*noopMetrics) RecordBlobUsedBytes(int) {}
 func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, common.Address) io.Closer {
 	return nil
 }
+func (*noopMetrics) RecordBlobsNumber(number int) {}
+
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
 }
