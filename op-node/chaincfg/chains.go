@@ -173,8 +173,10 @@ var OPBNBTestnet = rollup.Config{
 	L1SystemConfigAddress:  common.HexToAddress("0x406ac857817708eaf4ca3a82317ef4ae3d1ea23b"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(12113000), // Nov-03-2023 06 AM +UTC
-	// TODO update timestamp
-	SnowTime: nil,
+	SnowTime:               u64Ptr(1715752800),   // May-15-2024 06:00 AM +UTC
+	CanyonTime:             u64Ptr(1715753400),   // May-15-2024 06:10 AM +UTC
+	DeltaTime:              u64Ptr(1715754000),   // May-15-2024 06:20 AM +UTC
+	EcotoneTime:            u64Ptr(1715754600),   // May-15-2024 06:30 AM +UTC
 }
 
 var OPBNBQANet = rollup.Config{
