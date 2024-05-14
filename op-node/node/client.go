@@ -29,6 +29,7 @@ type L1EndpointSetup interface {
 	// The results of the RPC client may be trusted for faster processing, or strictly validated.
 	// The kind of the RPC may be non-basic, to optimize RPC usage.
 	Setup(ctx context.Context, log log.Logger, rollupCfg *rollup.Config) (cl client.RPC, rpcCfg *sources.L1ClientConfig, err error)
+	SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error)
 	Check() error
 }
 
@@ -162,6 +163,37 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 	return l1Node, rpcCfg, nil
 }
 
+func (cfg *L1EndpointConfig) SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error) {
+	rpcClients := make([]client.RPC, 0)
+
+	opts := []client.RPCOption{
+		client.WithHttpPollInterval(cfg.HttpPollInterval),
+		client.WithDialBackoff(10),
+	}
+	if cfg.RateLimit != 0 {
+		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
+	}
+	isMultiUrl, urlList := service_client.MultiUrlParse(cfg.L1NodeAddr)
+
+	if isMultiUrl {
+		for _, url := range urlList {
+			rpcClient, err := client.NewRPC(ctx, log, url, opts...)
+			if err != nil {
+				return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", url, err)
+			}
+			rpcClients = append(rpcClients, rpcClient)
+		}
+	} else {
+		rpcClient, err := client.NewRPC(ctx, log, cfg.L1NodeAddr, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", cfg.L1NodeAddr, err)
+		}
+		rpcClients = append(rpcClients, rpcClient)
+	}
+
+	return rpcClients, nil
+}
+
 func fallbackClientWrap(ctx context.Context, logger log.Logger, urlList []string, cfg *L1EndpointConfig, rollupCfg *rollup.Config, opts ...client.RPCOption) (client.RPC, *sources.L1ClientConfig, error) {
 	l1Node, err := client.NewRPC(ctx, logger, urlList[0], opts...)
 	if err != nil {
@@ -187,6 +219,11 @@ var _ L1EndpointSetup = (*PreparedL1Endpoint)(nil)
 
 func (p *PreparedL1Endpoint) Setup(ctx context.Context, log log.Logger, rollupCfg *rollup.Config) (client.RPC, *sources.L1ClientConfig, error) {
 	return p.Client, sources.L1ClientDefaultConfig(rollupCfg, p.TrustRPC, p.RPCProviderKind), nil
+}
+
+func (p *PreparedL1Endpoint) SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error) {
+	// TODO add test
+	return nil, nil
 }
 
 func (cfg *PreparedL1Endpoint) Check() error {

@@ -309,6 +309,18 @@ func (n *OpNode) initRuntimeConfig(ctx context.Context, cfg *Config) error {
 	return nil
 }
 
+func (n *OpNode) initL1BlobClient(ctx context.Context, cfg *Config) (*sources.BSCBlobClient, error) {
+	rpcClients, err := cfg.L1.SetupBlobClient(ctx, n.log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup L1 blob client: %w", err)
+	}
+	instrumentedClients := make([]client.RPC, 0)
+	for _, rpc := range rpcClients {
+		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, n.metrics))
+	}
+	return sources.NewBSCBlobClient(instrumentedClients), nil
+}
+
 func (n *OpNode) initL1BeaconAPI(ctx context.Context, cfg *Config) error {
 	// BSC use L1 client to fetch blobs
 	return nil
@@ -412,7 +424,13 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	} else {
 		n.safeDB = safedb.Disabled
 	}
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA)
+
+	bscBlobClient, err := n.initL1BlobClient(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to init bsc blob client: %w", err)
+	}
+
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, bscBlobClient, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA)
 	return nil
 }
 
