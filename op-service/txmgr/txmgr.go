@@ -293,7 +293,9 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 		if blobBaseFee == nil {
 			return nil, fmt.Errorf("expected non-nil blobBaseFee")
 		}
-		blobFeeCap := calcBlobFeeCap(blobBaseFee)
+		// no need to calcBlobFeeCap, prefer raw blobBaseFee
+		// blobFeeCap := calcBlobFeeCap(blobBaseFee)
+		blobFeeCap := blobBaseFee
 		message := &types.BlobTx{
 			To:         *candidate.To,
 			Data:       candidate.TxData,
@@ -317,7 +319,6 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 		}
 	}
 	return m.signWithNextNonce(ctx, txMessage) // signer sets the nonce field of the tx
-
 }
 
 // MakeSidecar builds & returns the BlobTxSidecar and corresponding blob hashes from the raw blob
@@ -507,6 +508,12 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 		case errStringMatch(err, core.ErrNonceTooLow):
 			l.Warn("nonce too low", "err", err)
 			m.metr.TxPublished("nonce_too_low")
+		case errStringMatch(err, core.ErrNonceTooHigh):
+			l.Warn("nonce too high", "err", err)
+			m.metr.TxPublished("nonce_too_high")
+			bumpFeesImmediately = false // retry without fee bump
+			time.Sleep(100*time.Millisecond)
+			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()
 			l.Warn("transaction send cancelled", "err", err)
@@ -546,6 +553,9 @@ func (m *SimpleTxManager) waitForTx(ctx context.Context, tx *types.Transaction, 
 	}
 	select {
 	case receiptChan <- receipt:
+		if blobHashes := tx.BlobHashes(); blobHashes != nil {
+			m.metr.RecordBlobsNumber(len(blobHashes))
+		}
 		m.metr.RecordTxConfirmationLatency(time.Since(t).Milliseconds())
 	default:
 	}
@@ -599,6 +609,11 @@ func (m *SimpleTxManager) queryReceipt(ctx context.Context, txHash common.Hash, 
 	}
 
 	m.metr.RecordBaseFee(tip.BaseFee)
+	if tip.ExcessBlobGas != nil {
+		blobFee := eip4844.CalcBlobFee(*tip.ExcessBlobGas)
+		m.metr.RecordBlobBaseFee(blobFee)
+	}
+
 	m.l.Debug("Transaction mined, checking confirmations", "tx", txHash,
 		"block", eth.ReceiptBlockID(receipt), "tip", eth.HeaderBlockID(tip),
 		"numConfirmations", m.cfg.NumConfirmations)
@@ -753,6 +768,7 @@ func (m *SimpleTxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *b
 	var blobFee *big.Int
 	if head.ExcessBlobGas != nil {
 		blobFee = eip4844.CalcBlobFee(*head.ExcessBlobGas)
+		m.metr.RecordBlobBaseFee(blobFee)
 	}
 	return tip, baseFee, blobFee, nil
 }
@@ -783,6 +799,13 @@ func (m *SimpleTxManager) checkLimits(tip, baseFee, bumpedTip, bumpedFee *big.In
 }
 
 func (m *SimpleTxManager) checkBlobFeeLimits(blobBaseFee, bumpedBlobFee *big.Int) error {
+	// If above limit, do not send transaction
+	if limit := m.cfg.BlobGasPriceLimit; limit != nil && limit.Cmp(bumpedBlobFee) == -1 {
+		return fmt.Errorf(
+			"bumped blob fee %v is over blob gas price limit value: %v",
+			bumpedBlobFee, m.cfg.BlobGasPriceLimit)
+	}
+
 	// If below threshold, don't apply multiplier limit. Note we use same threshold parameter here
 	// used for non-blob fee limiting.
 	if thr := m.cfg.FeeLimitThreshold; thr != nil && thr.Cmp(bumpedBlobFee) == 1 {

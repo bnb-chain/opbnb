@@ -6,11 +6,14 @@ It allows us to quickly start the devnet locally (with L1 network as BSC network
 
 # requirement
 
-docker, nodejs 16+, yarn, foundry, python2, python3, pnpm
+docker, nodejs 16+, yarn, foundry, python3, pnpm, poetry, go, jq
 
 Tips:
 
 Install Foundry by following [the instructions located here](https://getfoundry.sh/).
+
+Please make sure your Foundry version matches the one described in versions.json.
+If they do not match, please use a command such as `foundryup -C xxxxxx` to modify it.
 
 # usage
 First, execute `pnpm install` and `pnpm build` commands in the root directory.
