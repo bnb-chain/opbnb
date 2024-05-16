@@ -225,6 +225,9 @@ type DeployConfig struct {
 	FundDevAccounts bool `json:"fundDevAccounts"`
 	// opBNB fermat hard fork
 	Fermat *big.Int `json:"fermat,omitempty"`
+	// SnowTimeOffset is the number of seconds after genesis block that snow hard fork activates.
+	// Set it to 0 to activate at genesis. Nil to disable snow fork.
+	SnowTimeOffset *hexutil.Uint64 `json:"snowTimeOffset,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -553,6 +556,17 @@ func (d *DeployConfig) InteropTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+func (d *DeployConfig) SnowTime(genesisTime uint64) *uint64 {
+	if d.SnowTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.SnowTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
 // RollupConfig converts a DeployConfig to a rollup.Config
 func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHash common.Hash, l2GenesisBlockNumber uint64) (*rollup.Config, error) {
 	if d.OptimismPortalProxy == (common.Address{}) {
@@ -600,6 +614,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		DAChallengeWindow:      d.DAChallengeWindow,
 		DAResolveWindow:        d.DAResolveWindow,
 		Fermat:                 d.Fermat,
+		SnowTime:               d.SnowTime(l1StartBlock.Time()),
 	}, nil
 }
 
