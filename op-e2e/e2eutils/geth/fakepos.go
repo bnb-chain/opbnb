@@ -23,6 +23,7 @@ import (
 
 type Beacon interface {
 	StoreBlobsBundle(slot uint64, bundle *engine.BlobsBundleV1) error
+	LoadBlobsBundle(slot uint64) (*engine.BlobsBundleV1, error)
 }
 
 // fakePoS is a testing-only utility to attach to Geth,

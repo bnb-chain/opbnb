@@ -11,6 +11,7 @@ import (
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching/rpcblock"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/urfave/cli/v2"
 )
 
@@ -42,7 +43,7 @@ func ListClaims(ctx *cli.Context) error {
 	}
 	defer l1Client.Close()
 
-	caller := batching.NewMultiCaller(l1Client.Client(), batching.DefaultBatchSize)
+	caller := batching.NewMultiCaller(l1Client.(*ethclient.Client).Client(), batching.DefaultBatchSize)
 	contract, err := contracts.NewFaultDisputeGameContract(gameAddr, caller)
 	if err != nil {
 		return fmt.Errorf("failed to create dispute game bindings: %w", err)
