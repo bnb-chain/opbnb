@@ -6,6 +6,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/op-service/bsc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
@@ -59,6 +60,7 @@ func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
 	deployConfig.ChannelTimeout = tp.ChannelTimeout
 	deployConfig.L1BlockTime = tp.L1BlockTime
 	deployConfig.UsePlasma = tp.UsePlasma
+	deployConfig.L1GenesisBlockBaseFeePerGas = (*hexutil.Big)(bsc.DefaultBaseFee)
 	ApplyDeployConfigForks(deployConfig)
 
 	require.NoError(t, deployConfig.Check())

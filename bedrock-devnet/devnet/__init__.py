@@ -190,27 +190,16 @@ def devnet_l1_genesis(paths):
     log.info('Generating L1 genesis state')
     init_devnet_l1_deploy_config(paths)
 
-    geth = subprocess.Popen([
-        'geth', '--dev', '--http', '--http.api', 'eth,debug',
-        '--verbosity', '4', '--gcmode', 'archive', '--dev.gaslimit', '30000000',
-        '--rpc.allow-unprotected-txs'
-    ])
+    fqn = 'scripts/Deploy.s.sol:Deploy'
+    run_command([
+        'forge', 'script', '--chain-id', '900', fqn, "--sig", "runWithStateDump()"
+    ], env={}, cwd=paths.contracts_bedrock_dir)
 
-    try:
-        forge = ChildProcess(deploy_contracts, paths)
-        forge.start()
-        forge.join()
-        err = forge.get_error()
-        if err:
-            raise Exception(f"Exception occurred in child process: {err}")
+    forge_dump = read_json(paths.forge_dump_path)
+    write_json(paths.allocs_path, { "accounts": forge_dump })
+    os.remove(paths.forge_dump_path)
 
-        res = debug_dumpBlock('127.0.0.1:8545')
-        response = json.loads(res)
-        allocs = response['result']
-
-        write_json(paths.allocs_path, allocs)
-    finally:
-        geth.terminate()
+    shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
 def deployL1ContractsForDeploy(paths):
     log.info('Starting L1.')

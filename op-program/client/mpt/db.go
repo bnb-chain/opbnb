@@ -87,7 +87,7 @@ func (p *DB) AncientSize(kind string) (uint64, error) {
 }
 
 func (p *DB) ReadAncients(fn func(ethdb.AncientReaderOp) error) (err error) {
-	panic("not supported")
+	return nil
 }
 
 func (p *DB) ModifyAncients(f func(ethdb.AncientWriteOp) error) (int64, error) {

@@ -18,7 +18,8 @@ func ReadTrie(root common.Hash, getPreimage func(key common.Hash) []byte) []hexu
 	odb := &DB{db: Hooks{
 		Get: func(key []byte) []byte {
 			if len(key) != 32 {
-				panic(fmt.Errorf("expected 32 byte key query, but got %d bytes: %x", len(key), key))
+				//panic(fmt.Errorf("expected 32 byte key query, but got %d bytes: %x", len(key), key))
+				return []byte{}
 			}
 			return getPreimage(*(*[32]byte)(key))
 		},
