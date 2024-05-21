@@ -43,7 +43,7 @@ func (s *BSCBlobClient) GetBlobs(ctx context.Context, ref eth.L1BlockRef, hashes
 	for i, indexedBlobHash := range hashes {
 		blob, ok := validatedBlobs[indexedBlobHash.Hash]
 		if !ok {
-			return nil, fmt.Errorf("blob sidecars fetched from rpc mismatched with expected hash %s for L1BlockRef %s", indexedBlobHash.Hash, ref)
+			return nil, fmt.Errorf("blob sidecars fetched from rpc mismatched with expected hash %s for L1BlockRef %s :%w", indexedBlobHash.Hash, ref, ethereum.NotFound)
 		}
 		blobs[i] = blob
 	}
@@ -75,7 +75,7 @@ func (s *BSCBlobClient) GetBlobSidecars(ctx context.Context, ref eth.L1BlockRef)
 
 func validateBlobSidecars(blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef) (map[common.Hash]*eth.Blob, error) {
 	if len(blobSidecars) == 0 {
-		return nil, fmt.Errorf("invalidate api response, blob sidecars of block %s are empty", ref.Hash)
+		return nil, fmt.Errorf("invalidate api response, blob sidecars of block %s are empty: %w", ref.Hash, ethereum.NotFound)
 	}
 	blobsMap := make(map[common.Hash]*eth.Blob)
 	for _, blobSidecar := range blobSidecars {
@@ -83,7 +83,7 @@ func validateBlobSidecars(blobSidecars eth.BSCBlobSidecars, ref eth.L1BlockRef) 
 			return nil, fmt.Errorf("invalidate api response of tx %s, expect block number %d, got %d", blobSidecar.TxHash, ref.Number, blobSidecar.BlockNumber.ToInt().Uint64())
 		}
 		if blobSidecar.BlockHash.Cmp(ref.Hash) != 0 {
-			return nil, fmt.Errorf("invalidate api response of tx %s, expect block hash %s, got %s", blobSidecar.TxHash, ref.Hash, blobSidecar.BlockHash)
+			return nil, fmt.Errorf("invalidate api response of tx %s, expect block hash %s, got %s :%w", blobSidecar.TxHash, ref.Hash, blobSidecar.BlockHash, ethereum.NotFound)
 		}
 		if len(blobSidecar.Blobs) == 0 || len(blobSidecar.Blobs) != len(blobSidecar.Commitments) || len(blobSidecar.Blobs) != len(blobSidecar.Proofs) {
 			return nil, fmt.Errorf("invalidate api response of tx %s,idx:%d, len of blobs(%d)/commitments(%d)/proofs(%d) is not equal or is 0", blobSidecar.TxHash, blobSidecar.TxIndex, len(blobSidecar.Blobs), len(blobSidecar.Commitments), len(blobSidecar.Proofs))

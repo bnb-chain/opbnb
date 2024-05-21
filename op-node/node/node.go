@@ -304,6 +304,18 @@ func (n *OpNode) initRuntimeConfig(ctx context.Context, cfg *Config) error {
 	return nil
 }
 
+func (n *OpNode) initL1BlobClient(ctx context.Context, cfg *Config) (*sources.BSCBlobClient, error) {
+	rpcClients, err := cfg.L1.SetupBlobClient(ctx, n.log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup L1 blob client: %w", err)
+	}
+	instrumentedClients := make([]client.RPC, 0)
+	for _, rpc := range rpcClients {
+		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, n.metrics))
+	}
+	return sources.NewBSCBlobClient(instrumentedClients), nil
+}
+
 func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
 	rpcClient, rpcCfg, err := cfg.L2.Setup(ctx, n.log, &cfg.Rollup)
 	if err != nil {
