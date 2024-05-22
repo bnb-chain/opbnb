@@ -185,11 +185,6 @@ func (p *PreparedL1Endpoint) Setup(ctx context.Context, log log.Logger, rollupCf
 	return p.Client, sources.L1ClientDefaultConfig(rollupCfg, p.TrustRPC, p.RPCProviderKind), nil
 }
 
-func (p *PreparedL1Endpoint) SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error) {
-	// TODO add test
-	return nil, nil
-}
-
 func (cfg *PreparedL1Endpoint) Check() error {
 	if cfg.Client == nil {
 		return errors.New("rpc client cannot be nil")

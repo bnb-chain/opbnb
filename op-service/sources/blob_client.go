@@ -14,7 +14,7 @@ import (
 )
 
 type BSCBlobClient struct {
-	// BSCBlobClient will rotate client.RPC in pool whenever a client runs into an error while fetching blobs
+	// BSCBlobClient will rotate client.RPC in pool whenever a client runs into an error or return nil while fetching blobs
 	pool *ClientPool[client.RPC]
 }
 

@@ -383,6 +383,7 @@ var (
 
 var requiredFlags = []cli.Flag{
 	L1NodeAddr,
+	L1BlobNodeAddr,
 	L2EngineAddr,
 	L2EngineJWTSecret,
 }
@@ -402,6 +403,8 @@ var optionalFlags = []cli.Flag{
 	L1RPCMaxBatchSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
+	L1BlobRPCRateLimit,
+	L1BlobRPCMaxBatchSize,
 	VerifierL1Confs,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
