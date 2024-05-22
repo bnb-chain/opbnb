@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/client"
-	service_client "github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -29,15 +28,11 @@ type L1EndpointSetup interface {
 	// The results of the RPC client may be trusted for faster processing, or strictly validated.
 	// The kind of the RPC may be non-basic, to optimize RPC usage.
 	Setup(ctx context.Context, log log.Logger, rollupCfg *rollup.Config) (cl client.RPC, rpcCfg *sources.L1ClientConfig, err error)
-	SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error)
 	Check() error
 }
 
-type L1BeaconEndpointSetup interface {
-	Setup(ctx context.Context, log log.Logger) (cl sources.BeaconClient, fb []sources.BlobSideCarsFetcher, err error)
-	// ShouldIgnoreBeaconCheck returns true if the Beacon-node version check should not halt startup.
-	ShouldIgnoreBeaconCheck() bool
-	ShouldFetchAllSidecars() bool
+type L1BlobEndpointSetup interface {
+	Setup(ctx context.Context, log log.Logger) ([]client.RPC, error)
 	Check() error
 }
 
@@ -148,7 +143,7 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
 	}
 
-	isMultiUrl, urlList := service_client.MultiUrlParse(cfg.L1NodeAddr)
+	isMultiUrl, urlList := client.MultiUrlParse(cfg.L1NodeAddr)
 	if isMultiUrl {
 		return fallbackClientWrap(ctx, log, urlList, cfg, rollupCfg, opts...)
 	}
@@ -161,37 +156,6 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
 	rpcCfg.MaxConcurrentRequests = cfg.MaxConcurrency
 	return l1Node, rpcCfg, nil
-}
-
-func (cfg *L1EndpointConfig) SetupBlobClient(ctx context.Context, log log.Logger) ([]client.RPC, error) {
-	rpcClients := make([]client.RPC, 0)
-
-	opts := []client.RPCOption{
-		client.WithHttpPollInterval(cfg.HttpPollInterval),
-		client.WithDialBackoff(10),
-	}
-	if cfg.RateLimit != 0 {
-		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
-	}
-	isMultiUrl, urlList := service_client.MultiUrlParse(cfg.L1NodeAddr)
-
-	if isMultiUrl {
-		for _, url := range urlList {
-			rpcClient, err := client.NewRPC(ctx, log, url, opts...)
-			if err != nil {
-				return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", url, err)
-			}
-			rpcClients = append(rpcClients, rpcClient)
-		}
-	} else {
-		rpcClient, err := client.NewRPC(ctx, log, cfg.L1NodeAddr, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", cfg.L1NodeAddr, err)
-		}
-		rpcClients = append(rpcClients, rpcClient)
-	}
-
-	return rpcClients, nil
 }
 
 func fallbackClientWrap(ctx context.Context, logger log.Logger, urlList []string, cfg *L1EndpointConfig, rollupCfg *rollup.Config, opts ...client.RPCOption) (client.RPC, *sources.L1ClientConfig, error) {
@@ -234,47 +198,60 @@ func (cfg *PreparedL1Endpoint) Check() error {
 	return nil
 }
 
-type L1BeaconEndpointConfig struct {
-	BeaconAddr             string // Address of L1 User Beacon-API endpoint to use (beacon namespace required)
-	BeaconHeader           string // Optional HTTP header for all requests to L1 Beacon
-	BeaconArchiverAddr     string // Address of L1 User Beacon-API Archive endpoint to use for expired blobs (beacon namespace required)
-	BeaconCheckIgnore      bool   // When false, halt startup if the beacon version endpoint fails
-	BeaconFetchAllSidecars bool   // Whether to fetch all blob sidecars and filter locally
+type L1BlobEndpointConfig struct {
+	// Address of L1 blob node endpoint to use, multiple alternative addresses separated by commas are supported, and will rotate when error
+	NodeAddrs string
+
+	// RateLimit specifies a self-imposed rate-limit on L1 requests. 0 is no rate-limit.
+	RateLimit float64
+
+	// BatchSize specifies the maximum batch-size, which also applies as L1 rate-limit burst amount (if set).
+	BatchSize int
 }
 
-var _ L1BeaconEndpointSetup = (*L1BeaconEndpointConfig)(nil)
+var _ L1BlobEndpointSetup = (*L1BlobEndpointConfig)(nil)
 
-func (cfg *L1BeaconEndpointConfig) Setup(ctx context.Context, log log.Logger) (cl sources.BeaconClient, fb []sources.BlobSideCarsFetcher, err error) {
-	var opts []client.BasicHTTPClientOption
-	if cfg.BeaconHeader != "" {
-		hdr, err := parseHTTPHeader(cfg.BeaconHeader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("parsing beacon header: %w", err)
-		}
-		opts = append(opts, client.WithHeader(hdr))
+func (cfg *L1BlobEndpointConfig) Check() error {
+	if cfg.NodeAddrs == "" {
+		return fmt.Errorf("empty L1 blob endpoint address")
 	}
-
-	a := client.NewBasicHTTPClient(cfg.BeaconAddr, log, opts...)
-	if cfg.BeaconArchiverAddr != "" {
-		b := client.NewBasicHTTPClient(cfg.BeaconArchiverAddr, log)
-		fb = append(fb, sources.NewBeaconHTTPClient(b))
+	if cfg.BatchSize < 1 || cfg.BatchSize > 500 {
+		return fmt.Errorf("batch size is invalid or unreasonable: %d", cfg.BatchSize)
 	}
-	return sources.NewBeaconHTTPClient(a), fb, nil
-}
-
-func (cfg *L1BeaconEndpointConfig) Check() error {
-	if cfg.BeaconAddr == "" && !cfg.BeaconCheckIgnore {
-		return errors.New("expected L1 Beacon API endpoint, but got none")
+	if cfg.RateLimit < 0 {
+		return fmt.Errorf("rate limit cannot be negative")
 	}
 	return nil
 }
 
-func (cfg *L1BeaconEndpointConfig) ShouldIgnoreBeaconCheck() bool {
-	return cfg.BeaconCheckIgnore
-}
+func (cfg *L1BlobEndpointConfig) Setup(ctx context.Context, log log.Logger) ([]client.RPC, error) {
+	rpcClients := make([]client.RPC, 0)
 
-func (cfg *L1BeaconEndpointConfig) ShouldFetchAllSidecars() bool {
-	return cfg.BeaconFetchAllSidecars
+	opts := []client.RPCOption{
+		client.WithDialBackoff(10),
+	}
+	if cfg.RateLimit != 0 {
+		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
+	}
+	isMultiUrl, urlList := client.MultiUrlParse(cfg.NodeAddrs)
+
+	if isMultiUrl {
+		for _, url := range urlList {
+			rpcClient, err := client.NewRPC(ctx, log, url, opts...)
+			if err != nil {
+				return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", url, err)
+			}
+			rpcClients = append(rpcClients, rpcClient)
+		}
+	} else {
+		rpcClient, err := client.NewRPC(ctx, log, cfg.NodeAddrs, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", cfg.NodeAddrs, err)
+		}
+		rpcClients = append(rpcClients, rpcClient)
+	}
+
+	return rpcClients, nil
 }
 
 func parseHTTPHeader(headerStr string) (http.Header, error) {

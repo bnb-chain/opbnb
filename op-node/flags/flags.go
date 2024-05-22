@@ -68,6 +68,12 @@ var (
 		EnvVars:  prefixEnvVars("L1_BEACON"),
 		Category: RollupCategory,
 	}
+	L1BlobNodeAddr = &cli.StringFlag{
+		Name:     "l1.blob",
+		Usage:    "Address of L1 blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC"),
+		Category: RollupCategory,
+	}
 	/* Optional Flags */
 	BeaconHeader = &cli.StringFlag{
 		Name:     "l1.beacon-header",
@@ -185,6 +191,20 @@ var (
 		Usage:    "Polling interval for latest-block subscription when using an HTTP RPC provider. Ignored for other types of RPC endpoints.",
 		EnvVars:  prefixEnvVars("L1_HTTP_POLL_INTERVAL"),
 		Value:    time.Second * 3,
+		Category: L1RPCCategory,
+	}
+	L1BlobRPCRateLimit = &cli.Float64Flag{
+		Name:     "l1.blob-rpc-rate-limit",
+		Usage:    "Optional self-imposed global rate-limit on L1 blob RPC requests, specified in requests / second. Disabled if set to 0.",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_RATE_LIMIT"),
+		Value:    0,
+		Category: L1RPCCategory,
+	}
+	L1BlobRPCMaxBatchSize = &cli.IntFlag{
+		Name:     "l1.blob-rpc-max-batch-size",
+		Usage:    "Maximum number of RPC requests to bundle",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_MAX_BATCH_SIZE"),
+		Value:    20,
 		Category: L1RPCCategory,
 	}
 	VerifierL1Confs = &cli.Uint64Flag{
