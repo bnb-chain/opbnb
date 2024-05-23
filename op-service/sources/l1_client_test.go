@@ -21,7 +21,7 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 		m := new(mockRPC)
 		ctx := context.Background()
 		clientLog := testlog.Logger(t, log.LvlDebug)
-		latestHead := &rpcHeader{
+		latestHead := &RPCHeader{
 			ParentHash:      randHash(),
 			UncleHash:       common.Hash{},
 			Coinbase:        common.Address{},
@@ -41,12 +41,12 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 			WithdrawalsRoot: nil,
 			Hash:            randHash(),
 		}
-		m.On("CallContext", ctx, new(*rpcHeader),
+		m.On("CallContext", ctx, new(*RPCHeader),
 			"eth_getBlockByNumber", []any{"latest", false}).Run(func(args mock.Arguments) {
-			*args[1].(**rpcHeader) = latestHead
+			*args[1].(**RPCHeader) = latestHead
 		}).Return([]error{nil})
 		for i := 81; i <= 90; i++ {
-			currentHead := &rpcHeader{
+			currentHead := &RPCHeader{
 				ParentHash:      randHash(),
 				UncleHash:       common.Hash{},
 				Coinbase:        common.Address{},
@@ -66,21 +66,21 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 				WithdrawalsRoot: nil,
 				Hash:            randHash(),
 			}
-			currentBlock := &rpcBlock{
-				rpcHeader:    *currentHead,
+			currentBlock := &RPCBlock{
+				RPCHeader:    *currentHead,
 				Transactions: []*types.Transaction{},
 			}
-			m.On("CallContext", ctx, new(*rpcHeader),
+			m.On("CallContext", ctx, new(*RPCHeader),
 				"eth_getBlockByNumber", []any{numberID(i).Arg(), false}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcHeader) = currentHead
+				*args[1].(**RPCHeader) = currentHead
 			}).Return([]error{nil})
-			m.On("CallContext", ctx, new(*rpcBlock),
+			m.On("CallContext", ctx, new(*RPCBlock),
 				"eth_getBlockByHash", []any{currentHead.Hash, true}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcBlock) = currentBlock
+				*args[1].(**RPCBlock) = currentBlock
 			}).Return([]error{nil})
 		}
 		for i := 91; i <= 100; i++ {
-			currentHead := &rpcHeader{
+			currentHead := &RPCHeader{
 				ParentHash:      randHash(),
 				UncleHash:       common.Hash{},
 				Coinbase:        common.Address{},
@@ -100,23 +100,23 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 				WithdrawalsRoot: nil,
 				Hash:            randHash(),
 			}
-			m.On("CallContext", ctx, new(*rpcHeader),
+			m.On("CallContext", ctx, new(*RPCHeader),
 				"eth_getBlockByNumber", []any{numberID(i).Arg(), false}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcHeader) = currentHead
+				*args[1].(**RPCHeader) = currentHead
 			}).Return([]error{nil})
-			currentBlock := &rpcBlock{
-				rpcHeader:    *currentHead,
+			currentBlock := &RPCBlock{
+				RPCHeader:    *currentHead,
 				Transactions: []*types.Transaction{},
 			}
-			m.On("CallContext", ctx, new(*rpcBlock),
+			m.On("CallContext", ctx, new(*RPCBlock),
 				"eth_getBlockByHash", []any{currentHead.Hash, true}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcBlock) = currentBlock
+				*args[1].(**RPCBlock) = currentBlock
 			}).Return([]error{nil})
 		}
 		var lastParentHeader common.Hash
 		var real100Hash common.Hash
 		for i := 76; i <= 100; i++ {
-			currentHead := &rpcHeader{
+			currentHead := &RPCHeader{
 				ParentHash:      lastParentHeader,
 				UncleHash:       common.Hash{},
 				Coinbase:        common.Address{},
@@ -140,17 +140,17 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 				real100Hash = currentHead.Hash
 			}
 			lastParentHeader = currentHead.Hash
-			m.On("CallContext", ctx, new(*rpcHeader),
+			m.On("CallContext", ctx, new(*RPCHeader),
 				"eth_getBlockByNumber", []any{numberID(i).Arg(), false}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcHeader) = currentHead
+				*args[1].(**RPCHeader) = currentHead
 			}).Return([]error{nil})
-			currentBlock := &rpcBlock{
-				rpcHeader:    *currentHead,
+			currentBlock := &RPCBlock{
+				RPCHeader:    *currentHead,
 				Transactions: []*types.Transaction{},
 			}
-			m.On("CallContext", ctx, new(*rpcBlock),
+			m.On("CallContext", ctx, new(*RPCBlock),
 				"eth_getBlockByHash", []any{currentHead.Hash, true}).Once().Run(func(args mock.Arguments) {
-				*args[1].(**rpcBlock) = currentBlock
+				*args[1].(**RPCBlock) = currentBlock
 			}).Return([]error{nil})
 		}
 		s, err := NewL1Client(m, clientLog, nil, L1ClientDefaultConfig(&rollup.Config{SeqWindowSize: 1000}, true, RPCKindBasic))
@@ -158,10 +158,10 @@ func TestGoOrUpdatePreFetchReceipts(t *testing.T) {
 		err2 := s.GoOrUpdatePreFetchReceipts(ctx, 81)
 		require.NoError(t, err2)
 		time.Sleep(1 * time.Second)
-		pair, ok := s.receiptsCache.Get(100, false)
+		pair, ok := s.recProvider.GetReceiptsCache().Get(100, false)
 		require.True(t, ok, "100 cache miss")
 		require.Equal(t, real100Hash, pair.blockHash, "block 100 hash is different,want:%s,but:%s", real100Hash, pair.blockHash)
-		_, ok2 := s.receiptsCache.Get(76, false)
+		_, ok2 := s.recProvider.GetReceiptsCache().Get(76, false)
 		require.True(t, ok2, "76 cache miss")
 	})
 }

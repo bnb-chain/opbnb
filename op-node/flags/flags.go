@@ -68,8 +68,8 @@ var (
 		EnvVars:  prefixEnvVars("L1_BEACON"),
 		Category: RollupCategory,
 	}
-	L1BlobNodeAddr = &cli.StringFlag{
-		Name:     "l1.blob",
+	L1BlobRpcAddr = &cli.StringFlag{
+		Name:     "l1.blob-rpc",
 		Usage:    "Address of L1 blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
 		EnvVars:  prefixEnvVars("L1_BLOB_RPC"),
 		Category: RollupCategory,
@@ -383,7 +383,7 @@ var (
 
 var requiredFlags = []cli.Flag{
 	L1NodeAddr,
-	L1BlobNodeAddr,
+	L1BlobRpcAddr,
 	L2EngineAddr,
 	L2EngineJWTSecret,
 }
