@@ -37,11 +37,12 @@ func setupFallbackClientTest(t Testing, sd *e2eutils.SetupData, log log.Logger, 
 	})
 	l1F, err := sources.NewL1Client(fallbackClient, log, nil, sources.L1ClientDefaultConfig(sd.RollupCfg, false, sources.RPCKindBasic))
 	require.NoError(t, err)
+	l1Blob := sources.NewBSCBlobClient([]client.RPC{rpc})
 	engine := NewL2Engine(t, log, sd.L2Cfg, sd.RollupCfg.Genesis.L1, jwtPath)
 	l2Cl, err := sources.NewEngineClient(engine.RPCClient(), log, nil, sources.EngineClientDefaultConfig(sd.RollupCfg))
 	require.NoError(t, err)
 
-	sequencer := NewL2Sequencer(t, log, l1F, l1F, plasma.Disabled, l2Cl, sd.RollupCfg, 0)
+	sequencer := NewL2Sequencer(t, log, l1F, l1Blob, plasma.Disabled, l2Cl, sd.RollupCfg, 0)
 	return miner, l1_2, l1_3, engine, sequencer, fallbackClient.(*sources.FallbackClient)
 }
 
