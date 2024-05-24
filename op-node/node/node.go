@@ -55,11 +55,11 @@ type OpNode struct {
 	l2Driver  *driver.Driver         // L2 Engine to Sync
 	l2Source  *sources.EngineClient  // L2 Execution Engine RPC bindings
 	l1Blob    *sources.BSCBlobClient // L1 Blob Client to fetch blobs
-	server    *rpcServer     // RPC server hosting the rollup-node API
-	p2pNode   *p2p.NodeP2P   // P2P node functionality
-	p2pSigner p2p.Signer     // p2p gogssip application messages will be signed with this signer
-	tracer    Tracer         // tracer to get events for testing/debugging
-	runCfg    *RuntimeConfig // runtime configurables
+	server    *rpcServer             // RPC server hosting the rollup-node API
+	p2pNode   *p2p.NodeP2P           // P2P node functionality
+	p2pSigner p2p.Signer             // p2p gogssip application messages will be signed with this signer
+	tracer    Tracer                 // tracer to get events for testing/debugging
+	runCfg    *RuntimeConfig         // runtime configurables
 
 	safeDB closableSafeDB
 
