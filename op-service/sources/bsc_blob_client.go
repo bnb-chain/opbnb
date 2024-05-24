@@ -61,7 +61,7 @@ func (s *BSCBlobClient) GetBlobSidecars(ctx context.Context, ref eth.L1BlockRef)
 			s.pool.MoveToNext()
 			errs = append(errs, err)
 		} else {
-			if blobSidecars == nil || len(blobSidecars) == 0 {
+			if len(blobSidecars) == 0 {
 				err = ethereum.NotFound
 				errs = append(errs, err)
 				s.pool.MoveToNext()
