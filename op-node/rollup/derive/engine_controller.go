@@ -32,6 +32,8 @@ const (
 	syncStatusFinishedEL                // EL sync is done & we should be performing consolidation
 )
 
+const DefaultElTriggerGap = 3600
+
 var errNoFCUNeeded = errors.New("no FCU call was needed")
 
 var _ EngineControl = (*EngineController)(nil)
@@ -76,9 +78,9 @@ type EngineController struct {
 	safeAttrs    *AttributesWithParent
 }
 
-func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncMode sync.Mode, elTriggerGap int) *EngineController {
+func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncConfig *sync.Config) *EngineController {
 	syncStatus := syncStatusCL
-	if syncMode == sync.ELSync {
+	if syncConfig.SyncMode == sync.ELSync {
 		syncStatus = syncStatusWillStartEL
 	}
 
@@ -87,8 +89,8 @@ func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rol
 		log:          log,
 		metrics:      metrics,
 		rollupCfg:    rollupCfg,
-		syncMode:     syncMode,
-		elTriggerGap: elTriggerGap,
+		syncMode:     syncConfig.SyncMode,
+		elTriggerGap: syncConfig.ELTriggerGap,
 		syncStatus:   syncStatus,
 		clock:        clock.SystemClock,
 	}
@@ -330,7 +332,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	if e.syncStatus == syncStatusWillStartEL {
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
 		isTransitionBlock := e.rollupCfg.Genesis.L2.Number != 0 && b.Hash == e.rollupCfg.Genesis.L2.Hash
-		isGapSyncNeeded := ref.Number-e.UnsafeL2Head().Number > 200
+		isGapSyncNeeded := ref.Number-e.UnsafeL2Head().Number > uint64(e.elTriggerGap)
 		if errors.Is(err, ethereum.NotFound) || isTransitionBlock || isGapSyncNeeded {
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")

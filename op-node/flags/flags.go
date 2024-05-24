@@ -303,10 +303,18 @@ var (
 		EnvVars:  prefixEnvVars("SAFEDB_PATH"),
 		Category: OperationsCategory,
 	}
-	ELSyncGap = &cli.IntFlag{
+
+	FastnodeMode = &cli.BoolFlag{
+		Name:    "fastnode",
+		Usage:   "Fastnode has a strong dependency on a specific synchronization mode during synchronization, so please set this flag when running fastnode.",
+		EnvVars: prefixEnvVars("FASTNODE"),
+		Value:   false,
+	}
+
+	ELTriggerGap = &cli.IntFlag{
 		Name:    "el-trigger.gap",
 		Usage:   "gap to trigger el-sync",
-		Value:   1200,
+		Value:   86400,
 		EnvVars: prefixEnvVars("EL_TRIGGER_GAP"),
 	}
 	/* Deprecated Flags */
@@ -317,7 +325,6 @@ var (
 		Value:   false,
 		Hidden:  true,
 	}
-
 	SkipSyncStartCheck = &cli.BoolFlag{
 		Name: "l2.skip-sync-start-check",
 		Usage: "Skip sanity check of consistency of L1 origins of the unsafe L2 blocks when determining the sync-starting point. " +
@@ -381,7 +388,8 @@ var optionalFlags = []cli.Flag{
 	BeaconCheckIgnore,
 	BeaconFetchAllSidecars,
 	SyncModeFlag,
-	ELSyncGap,
+	FastnodeMode,
+	ELTriggerGap,
 	RPCListenAddr,
 	RPCListenPort,
 	L1TrustRPC,
