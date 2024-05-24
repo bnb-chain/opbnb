@@ -35,7 +35,7 @@ func NewStaticL2EndpointProvider(ctx context.Context, log log.Logger, ethClientU
 	}
 	return &StaticL2EndpointProvider{
 		StaticL2RollupProvider: *rollupProvider,
-		ethClient:             client.NewInstrumentedClient(ethClient, metrics),
+		ethClient:              client.NewInstrumentedClient(ethClient, metrics),
 	}, nil
 }
 

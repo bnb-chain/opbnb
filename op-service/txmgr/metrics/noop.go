@@ -23,4 +23,4 @@ func (*NoopTxMetrics) RecordBlobBaseFee(*big.Int)        {}
 func (*NoopTxMetrics) RecordTipCap(*big.Int)             {}
 func (*NoopTxMetrics) RPCError()                         {}
 func (m *NoopTxMetrics) RecordL1UrlSwitchEvt(url string) {}
-func (m *NoopTxMetrics) RecordBlobsNumber(number int) {}
+func (m *NoopTxMetrics) RecordBlobsNumber(number int)    {}

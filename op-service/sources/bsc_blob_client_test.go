@@ -26,15 +26,15 @@ func makeTestBSCBlobSidecar(blockHash common.Hash, blobs []eth.Blob) ([]eth.Inde
 		proofs = append(proofs, eth.Bytes48(proof))
 		ibhs = append(ibhs, eth.IndexedBlobHash{
 			Index: uint64(i),
-			Hash: hash,
+			Hash:  hash,
 		})
 	}
 
 	sidecar := eth.BSCBlobSidecar{
-		BlockHash: blockHash,
+		BlockHash:   blockHash,
 		BlockNumber: &hexutil.Big{},
 		BSCBlobTxSidecar: eth.BSCBlobTxSidecar{
-			Blobs:          blobs,
+			Blobs:       blobs,
 			Commitments: commitments,
 			Proofs:      proofs,
 		},
@@ -86,7 +86,6 @@ func TestValidateBlobSidecars(t *testing.T) {
 	require.Error(t, err)
 }
 
-
 func TestBSCBlobClient(t *testing.T) {
 	blockHash := common.BytesToHash([]byte{1})
 	blobs := []eth.Blob{}
@@ -106,7 +105,7 @@ func TestBSCBlobClient(t *testing.T) {
 	ctx := context.Background()
 	m.On("CallContext", ctx, new(eth.BSCBlobSidecars),
 		"eth_getBlobSidecars", []any{"0x0"}).Run(func(args mock.Arguments) {
-			*args[1].(*eth.BSCBlobSidecars) = sidecars
+		*args[1].(*eth.BSCBlobSidecars) = sidecars
 	}).Return([]error{nil})
 	bscBlobClient := NewBSCBlobClient([]client.RPC{m})
 

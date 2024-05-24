@@ -1,9 +1,10 @@
 package bsc
 
 import (
-	lru "github.com/hashicorp/golang-lru/v2"
 	"math/big"
 	"sort"
+
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"

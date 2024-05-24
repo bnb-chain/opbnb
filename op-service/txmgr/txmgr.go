@@ -512,7 +512,7 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 			l.Warn("nonce too high", "err", err)
 			m.metr.TxPublished("nonce_too_high")
 			bumpFeesImmediately = false // retry without fee bump
-			time.Sleep(100*time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()

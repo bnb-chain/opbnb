@@ -13,7 +13,7 @@ import (
 
 type ReceiptsHashPair struct {
 	blockHash common.Hash
-	receipts       types.Receipts
+	receipts  types.Receipts
 }
 
 type ReceiptsProvider interface {
