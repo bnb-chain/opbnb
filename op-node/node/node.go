@@ -67,8 +67,6 @@ type OpNode struct {
 	pprofService *oppprof.Service
 	metricsSrv   *httputil.HTTPServer
 
-	beacon *sources.L1BeaconClient
-
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
 	resourcesCtx   context.Context
@@ -124,9 +122,6 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	}
 	if err := n.initL1(ctx, cfg); err != nil {
 		return fmt.Errorf("failed to init L1: %w", err)
-	}
-	if err := n.initL1BeaconAPI(ctx, cfg); err != nil {
-		return err
 	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
 		return fmt.Errorf("failed to init L2: %w", err)
@@ -307,71 +302,6 @@ func (n *OpNode) initRuntimeConfig(ctx context.Context, cfg *Config) error {
 		close(n.runtimeConfigReloaderDone)
 	}(n.resourcesCtx, cfg.RuntimeConfigReloadInterval) // this keeps running after initialization
 	return nil
-}
-
-func (n *OpNode) initL1BeaconAPI(ctx context.Context, cfg *Config) error {
-	// BSC use L1 client to fetch blobs
-	return nil
-
-	// If Ecotone upgrade is not scheduled yet, then there is no need for a Beacon API.
-	if cfg.Rollup.EcotoneTime == nil {
-		return nil
-	}
-	// Once the Ecotone upgrade is scheduled, we must have initialized the Beacon API settings.
-	if cfg.Beacon == nil {
-		return fmt.Errorf("missing L1 Beacon Endpoint configuration: this API is mandatory for Ecotone upgrade at t=%d", *cfg.Rollup.EcotoneTime)
-	}
-
-	// We always initialize a client. We will get an error on requests if the client does not work.
-	// This way the op-node can continue non-L1 functionality when the user chooses to ignore the Beacon API requirement.
-	beaconClient, fallbacks, err := cfg.Beacon.Setup(ctx, n.log)
-	if err != nil {
-		return fmt.Errorf("failed to setup L1 Beacon API client: %w", err)
-	}
-	beaconCfg := sources.L1BeaconClientConfig{
-		FetchAllSidecars: cfg.Beacon.ShouldFetchAllSidecars(),
-	}
-	n.beacon = sources.NewL1BeaconClient(beaconClient, beaconCfg, fallbacks...)
-
-	// Retry retrieval of the Beacon API version, to be more robust on startup against Beacon API connection issues.
-	beaconVersion, missingEndpoint, err := retry.Do2[string, bool](ctx, 5, retry.Exponential(), func() (string, bool, error) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-		defer cancel()
-		beaconVersion, err := n.beacon.GetVersion(ctx)
-		if err != nil {
-			if errors.Is(err, client.ErrNoEndpoint) {
-				return "", true, nil // don't return an error, we do not have to retry when there is a config issue.
-			}
-			return "", false, err
-		}
-		return beaconVersion, false, nil
-	})
-	if missingEndpoint {
-		// Allow the user to continue if they explicitly ignore the requirement of the endpoint.
-		if cfg.Beacon.ShouldIgnoreBeaconCheck() {
-			n.log.Warn("This endpoint is required for the Ecotone upgrade, but is missing, and configured to be ignored. " +
-				"The node may be unable to retrieve EIP-4844 blobs data.")
-			return nil
-		} else {
-			// If the client tells us the endpoint was not configured,
-			// then explain why we need it, and what the user can do to ignore this.
-			n.log.Error("The Ecotone upgrade requires a L1 Beacon API endpoint, to retrieve EIP-4844 blobs data. " +
-				"This can be ignored with the --l1.beacon.ignore option, " +
-				"but the node may be unable to sync from L1 without this endpoint.")
-			return errors.New("missing L1 Beacon API endpoint")
-		}
-	} else if err != nil {
-		if cfg.Beacon.ShouldIgnoreBeaconCheck() {
-			n.log.Warn("Failed to check L1 Beacon API version, but configuration ignores results. "+
-				"The node may be unable to retrieve EIP-4844 blobs data.", "err", err)
-			return nil
-		} else {
-			return fmt.Errorf("failed to check L1 Beacon API version: %w", err)
-		}
-	} else {
-		n.log.Info("Connected to L1 Beacon API, ready for EIP-4844 blobs retrieval.", "version", beaconVersion)
-		return nil
-	}
 }
 
 func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {

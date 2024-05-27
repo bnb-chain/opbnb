@@ -146,7 +146,7 @@ func (s *Service) initL1Client(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to dial L1: %w", err)
 	}
-	s.l1Client = l1Client
+	s.l1Client = l1Client.(*ethclient.Client)
 	return nil
 }
 

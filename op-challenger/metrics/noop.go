@@ -14,6 +14,8 @@ type NoopMetricsImpl struct {
 	txmetrics.NoopTxMetrics
 }
 
+func (i *NoopMetricsImpl) RecordBlobsNumber(_ int) {}
+
 func (i *NoopMetricsImpl) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {
 	return nil
 }

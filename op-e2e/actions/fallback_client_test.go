@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
+	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
@@ -40,7 +41,7 @@ func setupFallbackClientTest(t Testing, sd *e2eutils.SetupData, log log.Logger, 
 	l2Cl, err := sources.NewEngineClient(engine.RPCClient(), log, nil, sources.EngineClientDefaultConfig(sd.RollupCfg))
 	require.NoError(t, err)
 
-	sequencer := NewL2Sequencer(t, log, l1F, l2Cl, sd.RollupCfg, 0)
+	sequencer := NewL2Sequencer(t, log, l1F, l1F, plasma.Disabled, l2Cl, sd.RollupCfg, 0)
 	return miner, l1_2, l1_3, engine, sequencer, fallbackClient.(*sources.FallbackClient)
 }
 
@@ -50,7 +51,7 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 		MaxSequencerDrift:   300,
 		SequencerWindowSize: 200,
 		ChannelTimeout:      120,
-		L1BlockTime:         12,
+		L1BlockTime:         3,
 	}
 	dp := e2eutils.MakeDeployParams(t, p)
 	sd := e2eutils.Setup(t, dp, defaultAlloc)
@@ -87,8 +88,8 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 	require.NoError(t, errRpc)
 
 	l2BlockCount := 0
-	for i := 0; i < 6; i++ {
-		miner.ActL1StartBlock(12)(t)
+	for i := 0; i < 8; i++ {
+		miner.ActL1StartBlock(3)(t)
 		miner.ActL1EndBlock(t)
 		newBlock := miner.l1Chain.GetBlockByHash(miner.l1Chain.CurrentBlock().Hash())
 		_, err := l1_2.l1Chain.InsertChain([]*types.Block{newBlock})
@@ -106,12 +107,12 @@ func TestL1FallbackClient_SwitchUrl(gt *testing.T) {
 			makeL2BlockWithAliceTx()
 			//require.Equal(t, uint64(i), sequencer.SyncStatus().UnsafeL2.L1Origin.Number, "no L1 origin change before time matches")
 			l2BlockCount++
-			if l2BlockCount == 23 {
+			if l2BlockCount == 11 {
 				require.Equal(t, 1, fallbackClient.GetCurrentIndex(), "fallback client should switch url to second url")
 				errRpc2 := miner.RPCClient().CallContext(t.Ctx(), nil, "admin_startHTTP", "127.0.0.1", 8545, "*", "eth,net,web3,debug,admin,txpool", "*")
 				require.NoError(t, errRpc2)
 			}
-			if l2BlockCount == 34 {
+			if l2BlockCount == 17 {
 				require.Equal(t, 0, fallbackClient.GetCurrentIndex(), "fallback client should recover url to first url")
 			}
 			time.Sleep(500 * time.Millisecond)

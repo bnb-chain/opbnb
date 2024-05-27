@@ -42,7 +42,7 @@ func InitL1(chainID uint64, blockTime uint64, genesis *core.Genesis, c clock.Clo
 		HTTPModules: []string{"debug", "admin", "eth", "txpool", "net", "rpc", "web3", "personal", "engine"},
 	}
 
-	l1Node, l1Eth, err := createGethNode(false, nodeConfig, ethConfig, opts...)
+	l1Node, l1Eth, err := createGethNode(false, nodeConfig, ethConfig, beaconSrv, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -98,14 +98,14 @@ func InitL2(name string, l2ChainID *big.Int, genesis *core.Genesis, jwtPath stri
 		},
 	}
 	nodeConfig := defaultNodeConfig(fmt.Sprintf("l2-geth-%v", name), jwtPath)
-	return createGethNode(true, nodeConfig, ethConfig, opts...)
+	return createGethNode(true, nodeConfig, ethConfig, nil, opts...)
 }
 
 // createGethNode creates an in-memory geth node based on the configuration.
 // The private keys are added to the keystore and are unlocked.
 // If the node is l2, catalyst is enabled.
 // The node should be started and then closed when done.
-func createGethNode(l2 bool, nodeCfg *node.Config, ethCfg *ethconfig.Config, opts ...GethOption) (*node.Node, *eth.Ethereum, error) {
+func createGethNode(l2 bool, nodeCfg *node.Config, ethCfg *ethconfig.Config, beacon Beacon, opts ...GethOption) (*node.Node, *eth.Ethereum, error) {
 	for i, opt := range opts {
 		if err := opt(ethCfg, nodeCfg); err != nil {
 			return nil, nil, fmt.Errorf("failed to apply geth option %d: %w", i, err)
@@ -130,6 +130,9 @@ func createGethNode(l2 bool, nodeCfg *node.Config, ethCfg *ethconfig.Config, opt
 	utils.RegisterFilterAPI(n, backend.APIBackend, ethCfg)
 
 	n.RegisterAPIs(tracers.APIs(backend.APIBackend))
+	if beacon != nil {
+		n.RegisterAPIs(blobAPIs(beacon, backend.APIBackend))
+	}
 
 	// Enable catalyst if l2
 	if l2 {
