@@ -228,6 +228,9 @@ type DeployConfig struct {
 	// SnowTimeOffset is the number of seconds after genesis block that snow hard fork activates.
 	// Set it to 0 to activate at genesis. Nil to disable snow fork.
 	SnowTimeOffset *hexutil.Uint64 `json:"snowTimeOffset,omitempty"`
+	// HaberTimeOffset is the number of seconds after genesis block that haber hard fork activates.
+	// Set it to 0 to activate at genesis. Nil to disable haber fork.
+	HaberTimeOffset *hexutil.Uint64 `json:"haberTimeOffset,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -562,6 +565,17 @@ func (d *DeployConfig) SnowTime(genesisTime uint64) *uint64 {
 	}
 	v := uint64(0)
 	if offset := *d.SnowTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
+func (d *DeployConfig) HaberTime(genesisTime uint64) *uint64 {
+	if d.HaberTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.HaberTimeOffset; offset > 0 {
 		v = genesisTime + uint64(offset)
 	}
 	return &v
