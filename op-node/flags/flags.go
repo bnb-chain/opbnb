@@ -68,12 +68,6 @@ var (
 		EnvVars:  prefixEnvVars("L1_BEACON"),
 		Category: RollupCategory,
 	}
-	L1BlobRpcAddr = &cli.StringFlag{
-		Name:     "l1.blob-rpc",
-		Usage:    "Address of L1 blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
-		EnvVars:  prefixEnvVars("L1_BLOB_RPC"),
-		Category: RollupCategory,
-	}
 	/* Optional Flags */
 	BeaconHeader = &cli.StringFlag{
 		Name:     "l1.beacon-header",
@@ -193,17 +187,24 @@ var (
 		Value:    time.Second * 3,
 		Category: L1RPCCategory,
 	}
-	L1BlobRPCRateLimit = &cli.Float64Flag{
-		Name:     "l1.blob-rpc-rate-limit",
-		Usage:    "Optional self-imposed global rate-limit on L1 blob RPC requests, specified in requests / second. Disabled if set to 0.",
-		EnvVars:  prefixEnvVars("L1_BLOB_RPC_RATE_LIMIT"),
+	L1ArchiveBlobRpcAddr = &cli.StringFlag{
+		Name:     "l1.archive-blob-rpc",
+		Usage:    "Optional address of L1 archive blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
+		Required: false,
+		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC"),
+		Category: RollupCategory,
+	}
+	L1ArchiveBlobRpcRateLimit = &cli.Float64Flag{
+		Name:     "l1.archive-blob-rpc-rate-limit",
+		Usage:    "Optional self-imposed global rate-limit on L1 archive blob RPC requests, specified in requests / second. Disabled if set to 0.",
+		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC_RATE_LIMIT"),
 		Value:    0,
 		Category: L1RPCCategory,
 	}
-	L1BlobRPCMaxBatchSize = &cli.IntFlag{
-		Name:     "l1.blob-rpc-max-batch-size",
-		Usage:    "Maximum number of RPC requests to bundle",
-		EnvVars:  prefixEnvVars("L1_BLOB_RPC_MAX_BATCH_SIZE"),
+	L1ArchiveBlobRpcMaxBatchSize = &cli.IntFlag{
+		Name:     "l1.archive-blob-rpc-max-batch-size",
+		Usage:    "Optional maximum number of L1 archive blob RPC requests to bundle",
+		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC_MAX_BATCH_SIZE"),
 		Value:    20,
 		Category: L1RPCCategory,
 	}
@@ -383,7 +384,6 @@ var (
 
 var requiredFlags = []cli.Flag{
 	L1NodeAddr,
-	L1BlobRpcAddr,
 	L2EngineAddr,
 	L2EngineJWTSecret,
 }
@@ -403,8 +403,9 @@ var optionalFlags = []cli.Flag{
 	L1RPCMaxBatchSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
-	L1BlobRPCRateLimit,
-	L1BlobRPCMaxBatchSize,
+	L1ArchiveBlobRpcAddr,
+	L1ArchiveBlobRpcRateLimit,
+	L1ArchiveBlobRpcMaxBatchSize,
 	VerifierL1Confs,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,

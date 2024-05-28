@@ -130,9 +130,9 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 
 func NewL1BlobEndpointConfig(ctx *cli.Context) node.L1BlobEndpointSetup {
 	return &node.L1BlobEndpointConfig{
-		NodeAddrs: ctx.String(flags.L1BlobRpcAddr.Name),
-		RateLimit: ctx.Float64(flags.L1BlobRPCRateLimit.Name),
-		BatchSize: ctx.Int(flags.L1BlobRPCMaxBatchSize.Name),
+		NodeAddrs: ctx.String(flags.L1NodeAddr.Name) + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name),
+		RateLimit: ctx.Float64(flags.L1ArchiveBlobRpcRateLimit.Name),
+		BatchSize: ctx.Int(flags.L1ArchiveBlobRpcMaxBatchSize.Name),
 	}
 }
 
