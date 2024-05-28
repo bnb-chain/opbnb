@@ -194,17 +194,17 @@ var (
 		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC"),
 		Category: RollupCategory,
 	}
-	L1ArchiveBlobRpcRateLimit = &cli.Float64Flag{
-		Name:     "l1.archive-blob-rpc-rate-limit",
-		Usage:    "Optional self-imposed global rate-limit on L1 archive blob RPC requests, specified in requests / second. Disabled if set to 0.",
-		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC_RATE_LIMIT"),
+	L1BlobRpcRateLimit = &cli.Float64Flag{
+		Name:     "l1.blob-rpc-rate-limit",
+		Usage:    "Optional self-imposed global rate-limit on L1 blob RPC requests, specified in requests / second. Disabled if set to 0.",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_RATE_LIMIT"),
 		Value:    0,
 		Category: L1RPCCategory,
 	}
-	L1ArchiveBlobRpcMaxBatchSize = &cli.IntFlag{
-		Name:     "l1.archive-blob-rpc-max-batch-size",
-		Usage:    "Optional maximum number of L1 archive blob RPC requests to bundle",
-		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC_MAX_BATCH_SIZE"),
+	L1BlobRpcMaxBatchSize = &cli.IntFlag{
+		Name:     "l1.blob-rpc-max-batch-size",
+		Usage:    "Optional maximum number of L1 blob RPC requests to bundle",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_MAX_BATCH_SIZE"),
 		Value:    20,
 		Category: L1RPCCategory,
 	}
@@ -404,8 +404,8 @@ var optionalFlags = []cli.Flag{
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
 	L1ArchiveBlobRpcAddr,
-	L1ArchiveBlobRpcRateLimit,
-	L1ArchiveBlobRpcMaxBatchSize,
+	L1BlobRpcRateLimit,
+	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
