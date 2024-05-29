@@ -309,6 +309,14 @@ func (n *OpNode) initRuntimeConfig(ctx context.Context, cfg *Config) error {
 }
 
 func (n *OpNode) initL1Blob(ctx context.Context, cfg *Config) error {
+	// If Ecotone upgrade is not scheduled yet, then there is no need for a Blob API.
+	if cfg.Rollup.EcotoneTime == nil {
+		return nil
+	}
+	// Once the Ecotone upgrade is scheduled, we must have initialized the Blob API settings.
+	if cfg.L1Blob == nil {
+		return fmt.Errorf("missing L1 Blob Endpoint configuration: this API is mandatory for Ecotone upgrade at t=%d", *cfg.Rollup.EcotoneTime)
+	}
 	rpcClients, err := cfg.L1Blob.Setup(ctx, n.log)
 	if err != nil {
 		return fmt.Errorf("failed to setup L1 blob client: %w", err)
