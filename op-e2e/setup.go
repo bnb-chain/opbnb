@@ -601,7 +601,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		configureL1(nodeCfg, sys.EthInstances["l1"])
 		configureL2(nodeCfg, sys.EthInstances[name], cfg.JWTSecret)
 		if sys.RollupConfig.EcotoneTime != nil {
-			nodeCfg.L1Blob = &rollupNode.L1BlobEndpointConfig{NodeAddrs: sys.L1BeaconAPIAddr}
+			nodeCfg.Beacon = &rollupNode.L1BeaconEndpointConfig{BeaconAddr: sys.L1BeaconAPIAddr}
 		}
 	}
 
