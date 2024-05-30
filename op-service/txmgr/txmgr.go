@@ -512,7 +512,7 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 			l.Warn("nonce too high", "err", err)
 			m.metr.TxPublished("nonce_too_high")
 			bumpFeesImmediately = false // retry without fee bump
-			time.Sleep(100*time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()
@@ -746,8 +746,6 @@ func (m *SimpleTxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *b
 	if err != nil {
 		m.metr.RPCError()
 		return nil, nil, nil, fmt.Errorf("failed to fetch the suggested base fee: %w", err)
-	} else if head.BaseFee == nil {
-		//return nil, nil, errors.New("txmgr does not support pre-london blocks that do not have a basefee")
 	}
 
 	// basefee of BSC block is 0

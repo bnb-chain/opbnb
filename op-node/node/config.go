@@ -22,6 +22,7 @@ type Config struct {
 	L2 L2EndpointSetup
 
 	Beacon L1BeaconEndpointSetup
+	L1Blob L1BlobEndpointSetup
 
 	Driver driver.Config
 

@@ -123,7 +123,7 @@ func TestBasicRPCReceiptsFetcher_Concurrency(t *testing.T) {
 		}).
 		Return([]error{nil})
 
-	runConcurrentFetchingTest(t, rp, numFetchers, receipts, block)
+	runConcurrentFetchingTest(t, NewCachingReceiptsProvider(rp, nil, 1), numFetchers, receipts, block)
 
 	mrpc.AssertExpectations(t)
 	finalNumCalls := int(numCalls.Load())
@@ -148,7 +148,7 @@ func runConcurrentFetchingTest(t *testing.T, rp ReceiptsProvider, numFetchers in
 	for i := 0; i < numFetchers; i++ {
 		go func() {
 			<-barrier
-			recs, err := rp.FetchReceipts(ctx, bInfo, txHashes)
+			recs, err, _ := rp.FetchReceipts(ctx, bInfo, txHashes, false)
 			fetchResults <- fetchResult{rs: recs, err: err}
 		}()
 	}
