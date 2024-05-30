@@ -253,7 +253,7 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.13.8 => github.com/bnb-chain/op-geth v0.4.1-0.20240514082730-f8d1c9e18803
+replace github.com/ethereum/go-ethereum v1.13.8 => github.com/bnb-chain/op-geth v0.4.1
 
 replace github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v1.0.0
 
