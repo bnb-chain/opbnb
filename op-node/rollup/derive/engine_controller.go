@@ -32,8 +32,6 @@ const (
 	syncStatusFinishedEL                // EL sync is done & we should be performing consolidation
 )
 
-const DefaultElTriggerGap = 3600
-
 var errNoFCUNeeded = errors.New("no FCU call was needed")
 
 var _ EngineControl = (*EngineController)(nil)
