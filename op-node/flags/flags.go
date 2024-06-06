@@ -187,6 +187,27 @@ var (
 		Value:    time.Second * 3,
 		Category: L1RPCCategory,
 	}
+	L1ArchiveBlobRpcAddr = &cli.StringFlag{
+		Name:     "l1.archive-blob-rpc",
+		Usage:    "Optional address of L1 archive blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
+		Required: false,
+		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC"),
+		Category: RollupCategory,
+	}
+	L1BlobRpcRateLimit = &cli.Float64Flag{
+		Name:     "l1.blob-rpc-rate-limit",
+		Usage:    "Optional self-imposed global rate-limit on L1 blob RPC requests, specified in requests / second. Disabled if set to 0.",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_RATE_LIMIT"),
+		Value:    0,
+		Category: L1RPCCategory,
+	}
+	L1BlobRpcMaxBatchSize = &cli.IntFlag{
+		Name:     "l1.blob-rpc-max-batch-size",
+		Usage:    "Optional maximum number of L1 blob RPC requests to bundle",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_MAX_BATCH_SIZE"),
+		Value:    20,
+		Category: L1RPCCategory,
+	}
 	VerifierL1Confs = &cli.Uint64Flag{
 		Name:     "verifier.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
@@ -398,6 +419,9 @@ var optionalFlags = []cli.Flag{
 	L1RPCMaxBatchSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
+	L1ArchiveBlobRpcAddr,
+	L1BlobRpcRateLimit,
+	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,

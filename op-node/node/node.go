@@ -51,14 +51,15 @@ type OpNode struct {
 	l1SafeSub      ethereum.Subscription // Subscription to get L1 safe blocks, a.k.a. justified data (polling)
 	l1FinalizedSub ethereum.Subscription // Subscription to get L1 safe blocks, a.k.a. justified data (polling)
 
-	l1Source  *sources.L1Client     // L1 Client to fetch data from
-	l2Driver  *driver.Driver        // L2 Engine to Sync
-	l2Source  *sources.EngineClient // L2 Execution Engine RPC bindings
-	server    *rpcServer            // RPC server hosting the rollup-node API
-	p2pNode   *p2p.NodeP2P          // P2P node functionality
-	p2pSigner p2p.Signer            // p2p gogssip application messages will be signed with this signer
-	tracer    Tracer                // tracer to get events for testing/debugging
-	runCfg    *RuntimeConfig        // runtime configurables
+	l1Source  *sources.L1Client      // L1 Client to fetch data from
+	l2Driver  *driver.Driver         // L2 Engine to Sync
+	l2Source  *sources.EngineClient  // L2 Execution Engine RPC bindings
+	l1Blob    *sources.BSCBlobClient // L1 Blob Client to fetch blobs
+	server    *rpcServer             // RPC server hosting the rollup-node API
+	p2pNode   *p2p.NodeP2P           // P2P node functionality
+	p2pSigner p2p.Signer             // p2p gogssip application messages will be signed with this signer
+	tracer    Tracer                 // tracer to get events for testing/debugging
+	runCfg    *RuntimeConfig         // runtime configurables
 
 	safeDB closableSafeDB
 
@@ -122,6 +123,9 @@ func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) 
 	}
 	if err := n.initL1(ctx, cfg); err != nil {
 		return fmt.Errorf("failed to init L1: %w", err)
+	}
+	if err := n.initL1Blob(ctx, cfg); err != nil {
+		return fmt.Errorf("failed to init L1 blob: %w", err)
 	}
 	if err := n.initL2(ctx, cfg, snapshotLog); err != nil {
 		return fmt.Errorf("failed to init L2: %w", err)
@@ -304,6 +308,27 @@ func (n *OpNode) initRuntimeConfig(ctx context.Context, cfg *Config) error {
 	return nil
 }
 
+func (n *OpNode) initL1Blob(ctx context.Context, cfg *Config) error {
+	// If Ecotone upgrade is not scheduled yet, then there is no need for a Blob API.
+	if cfg.Rollup.EcotoneTime == nil {
+		return nil
+	}
+	// Once the Ecotone upgrade is scheduled, we must have initialized the Blob API settings.
+	if cfg.L1Blob == nil {
+		return fmt.Errorf("missing L1 Blob Endpoint configuration: this API is mandatory for Ecotone upgrade at t=%d", *cfg.Rollup.EcotoneTime)
+	}
+	rpcClients, err := cfg.L1Blob.Setup(ctx, n.log)
+	if err != nil {
+		return fmt.Errorf("failed to setup L1 blob client: %w", err)
+	}
+	instrumentedClients := make([]client.RPC, 0)
+	for _, rpc := range rpcClients {
+		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, n.metrics))
+	}
+	n.l1Blob = sources.NewBSCBlobClient(instrumentedClients)
+	return nil
+}
+
 func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
 	rpcClient, rpcCfg, err := cfg.L2.Setup(ctx, n.log, &cfg.Rollup)
 	if err != nil {
@@ -342,7 +367,7 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	} else {
 		n.safeDB = safedb.Disabled
 	}
-	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.l1Source, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA)
+	n.l2Driver = driver.NewDriver(&cfg.Driver, &cfg.Rollup, n.l2Source, n.l1Source, n.l1Blob, n, n, n.log, snapshotLog, n.metrics, cfg.ConfigPersistence, n.safeDB, &cfg.Sync, sequencerConductor, plasmaDA)
 	return nil
 }
 

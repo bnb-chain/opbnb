@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -59,7 +58,7 @@ func VerifyAccountProof(root common.Hash, address common.Address, account types.
 	}
 }
 
-func VerifyStorageProof(root common.Hash, proof gethclient.StorageResult) error {
+func VerifyStorageProof(root common.Hash, proof common.StorageResult) error {
 	secureKey := crypto.Keccak256(common.FromHex(proof.Key))
 	db := GenerateProofDB(proof.Proof)
 	value, err := trie.VerifyProof(root, secureKey, db)
@@ -75,7 +74,7 @@ func VerifyStorageProof(root common.Hash, proof gethclient.StorageResult) error 
 	}
 }
 
-func VerifyProof(stateRoot common.Hash, proof *gethclient.AccountResult) error {
+func VerifyProof(stateRoot common.Hash, proof *common.AccountResult) error {
 	err := VerifyAccountProof(
 		stateRoot,
 		proof.Address,

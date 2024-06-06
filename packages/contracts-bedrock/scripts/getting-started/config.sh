@@ -101,6 +101,7 @@ config=$(cat << EOL
   "preimageOracleChallengePeriod": 86400,
   "fermat": 0,
   "snowTimeOffset": "0x0",
+  "haberTimeOffset": "0x0",
   "fundDevAccounts": true,
   "proofMaturityDelaySeconds": 12,
   "disputeGameFinalityDelaySeconds": 6,

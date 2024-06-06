@@ -142,6 +142,9 @@ var OPBNBMainnet = rollup.Config{
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(9397477), // Nov-28-2023 06 AM +UTC
 	SnowTime:               u64Ptr(1713160800),  // Apr-15-2024 06 AM +UTC
+	CanyonTime:             u64Ptr(1718870400),  // Jun-20-2024 08:00 AM +UTC
+	DeltaTime:              u64Ptr(1718871000),  // Jun-20-2024 08:10 AM +UTC
+	EcotoneTime:            u64Ptr(1718871600),  // Jun-20-2024 08:20 AM +UTC
 }
 
 var OPBNBTestnet = rollup.Config{

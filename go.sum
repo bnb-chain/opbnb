@@ -179,8 +179,8 @@ github.com/bits-and-blooms/bitset v1.10.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6
 github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40/go.mod h1:8rLXio+WjiTceGBHIoTvn60HIbs7Hm7bcHjyrSqYB9c=
 github.com/bnb-chain/greenfield-cometbft v1.0.0 h1:0r6hOJWD/+es0gxP/exKuN/krgXAr3LCn5/XlcgDWr8=
 github.com/bnb-chain/greenfield-cometbft v1.0.0/go.mod h1:f35mk/r5ab6yvzlqEWZt68LfUje68sYgMpVlt2CUYMk=
-github.com/bnb-chain/op-geth v0.4.1-0.20240514082730-f8d1c9e18803 h1:DBJAzHTOzLoRQ04tr22dHjSLW/QclnGsOzp1wo6WoBs=
-github.com/bnb-chain/op-geth v0.4.1-0.20240514082730-f8d1c9e18803/go.mod h1:dkpInaOz3WeP/5lgdL0BOA6mjexUj30tPQU81H1yEHQ=
+github.com/bnb-chain/op-geth v0.4.1 h1:rnVDtFWHhg0RBSndIBeh6M9cNOPzbW8XfshWY6jWIUQ=
+github.com/bnb-chain/op-geth v0.4.1/go.mod h1:dkpInaOz3WeP/5lgdL0BOA6mjexUj30tPQU81H1yEHQ=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
