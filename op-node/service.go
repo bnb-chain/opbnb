@@ -298,9 +298,19 @@ func NewSyncConfig(ctx *cli.Context, log log.Logger) (*sync.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//fastnode config
+	elTriggerGap := ctx.Int(flags.ELTriggerGap.Name)
+	if ctx.Bool(flags.FastnodeMode.Name) {
+		mode = sync.ELSync
+		// fastnode needs a smaller gap
+		elTriggerGap = 120
+	}
+
 	cfg := &sync.Config{
 		SyncMode:           mode,
 		SkipSyncStartCheck: ctx.Bool(flags.SkipSyncStartCheck.Name),
+		ELTriggerGap:       elTriggerGap,
 	}
 	if ctx.Bool(flags.L2EngineSyncEnabled.Name) {
 		cfg.SyncMode = sync.ELSync
