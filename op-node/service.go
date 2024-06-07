@@ -140,8 +140,12 @@ func NewBeaconEndpointConfig(ctx *cli.Context) node.L1BeaconEndpointSetup {
 }
 
 func NewL1BlobEndpointConfig(ctx *cli.Context) node.L1BlobEndpointSetup {
+	nodeAddrs := ctx.String(flags.L1NodeAddr.Name)
+	if ctx.IsSet(flags.L1ArchiveBlobRpcAddr.Name) {
+		nodeAddrs = nodeAddrs + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name)
+	}
 	return &node.L1BlobEndpointConfig{
-		NodeAddrs: ctx.String(flags.L1NodeAddr.Name) + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name),
+		NodeAddrs: nodeAddrs,
 		RateLimit: ctx.Float64(flags.L1BlobRpcRateLimit.Name),
 		BatchSize: ctx.Int(flags.L1BlobRpcMaxBatchSize.Name),
 	}
