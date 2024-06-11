@@ -140,8 +140,12 @@ func NewBeaconEndpointConfig(ctx *cli.Context) node.L1BeaconEndpointSetup {
 }
 
 func NewL1BlobEndpointConfig(ctx *cli.Context) node.L1BlobEndpointSetup {
+	nodeAddrs := ctx.String(flags.L1NodeAddr.Name)
+	if ctx.IsSet(flags.L1ArchiveBlobRpcAddr.Name) {
+		nodeAddrs = nodeAddrs + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name)
+	}
 	return &node.L1BlobEndpointConfig{
-		NodeAddrs: ctx.String(flags.L1NodeAddr.Name) + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name),
+		NodeAddrs: nodeAddrs,
 		RateLimit: ctx.Float64(flags.L1BlobRpcRateLimit.Name),
 		BatchSize: ctx.Int(flags.L1BlobRpcMaxBatchSize.Name),
 	}
@@ -298,9 +302,19 @@ func NewSyncConfig(ctx *cli.Context, log log.Logger) (*sync.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//fastnode config
+	elTriggerGap := ctx.Int(flags.ELTriggerGap.Name)
+	if ctx.Bool(flags.FastnodeMode.Name) {
+		mode = sync.ELSync
+		// fastnode needs a smaller gap
+		elTriggerGap = 120
+	}
+
 	cfg := &sync.Config{
 		SyncMode:           mode,
 		SkipSyncStartCheck: ctx.Bool(flags.SkipSyncStartCheck.Name),
+		ELTriggerGap:       elTriggerGap,
 	}
 	if ctx.Bool(flags.L2EngineSyncEnabled.Name) {
 		cfg.SyncMode = sync.ELSync

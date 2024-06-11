@@ -253,7 +253,11 @@ func TestEngineQueue_Finalize(t *testing.T) {
 
 	prev := &fakeAttributesQueue{}
 
-	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -493,7 +497,11 @@ func TestEngineQueue_ResetWhenUnsafeOriginNotCanonical(t *testing.T) {
 
 	prev := &fakeAttributesQueue{origin: refE}
 
-	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -832,7 +840,11 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			}, nil)
 
 			prev := &fakeAttributesQueue{origin: refE}
-			ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+			ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+				SyncMode:           sync.CLSync,
+				SkipSyncStartCheck: false,
+				ELTriggerGap:       0,
+			})
 			eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 			require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -934,7 +946,11 @@ func TestBlockBuildingRace(t *testing.T) {
 	}
 
 	prev := &fakeAttributesQueue{origin: refA, attrs: attrs, islastInSpan: true}
-	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -1108,7 +1124,11 @@ func TestResetLoop(t *testing.T) {
 
 	prev := &fakeAttributesQueue{origin: refA, attrs: attrs, islastInSpan: true}
 
-	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics.NoopMetrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	eq.ec.SetUnsafeHead(refA2)
 	eq.ec.SetSafeHead(refA1)
@@ -1216,7 +1236,11 @@ func TestEngineQueue_StepPopOlderUnsafe(t *testing.T) {
 
 	prev := &fakeAttributesQueue{origin: refA}
 
-	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics.NoopMetrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	eq.ec.SetUnsafeHead(refA2)
 	eq.ec.SetSafeHead(refA0)
@@ -1296,7 +1320,11 @@ func TestPlasmaFinalityData(t *testing.T) {
 		SequenceNumber: 1,
 	}
 
-	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics.NoopMetrics, prev, l1F, &sync.Config{}, safedb.Disabled)
 	require.Equal(t, expFinalityLookback, cap(eq.finalityData))
