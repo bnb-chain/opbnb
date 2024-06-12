@@ -287,9 +287,9 @@ def devnet_deploy(paths):
     deploy_config['proxyAdminOwner'] = l1_init_holder
     deploy_config['finalSystemOwner'] = l1_init_holder
     deploy_config['governanceTokenOwner'] = l1_init_holder
-    deploy_config['l2GenesisDeltaTimeOffset'] = "0x1"
+    deploy_config['l2GenesisDeltaTimeOffset'] = "0x0"
     deploy_config['fermat'] = 0
-    deploy_config['L2GenesisEcotoneTimeOffset'] = "0x2"
+    deploy_config['L2GenesisEcotoneTimeOffset'] = "0x0"
     write_json(devnet_cfg_orig, deploy_config)
 
     if os.path.exists(paths.addresses_json_path):
