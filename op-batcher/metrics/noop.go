@@ -51,11 +51,11 @@ func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, c
 func (*noopMetrics) RecordBlobsNumber(number int) {}
 
 func (*noopMetrics) RecordAutoChoosedDAType(daType flags.DataAvailabilityType) {}
-func (*noopMetrics) RecordEconomicAutoSwitchCount() {}
-func (*noopMetrics) RecordReservedErrorSwitchCount() {}
-func (*noopMetrics) RecordAutoSwitchTimeDuration(duration time.Duration) {}
-func (*noopMetrics) RecordEstimatedCalldataTypeFee(fee *big.Int) {}
-func (*noopMetrics) RecordEstimatedBlobTypeFee(fee *big.Int) {}
+func (*noopMetrics) RecordEconomicAutoSwitchCount()                            {}
+func (*noopMetrics) RecordReservedErrorSwitchCount()                           {}
+func (*noopMetrics) RecordAutoSwitchTimeDuration(duration time.Duration)       {}
+func (*noopMetrics) RecordEstimatedCalldataTypeFee(fee *big.Int)               {}
+func (*noopMetrics) RecordEstimatedBlobTypeFee(fee *big.Int)                   {}
 
 func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {
 }
