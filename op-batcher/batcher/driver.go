@@ -294,6 +294,7 @@ func (l *BatchSubmitter) loop() {
 		defer close(economicDALoopDone) // shut down auto DA loop
 		go func() {
 			economicDAType := flags.BlobsType
+			l.Metr.RecordAutoChoosedDAType(economicDAType)
 			switchCount := 0
 			economicDATicker := time.NewTicker(time.Minute)
 			defer economicDATicker.Stop()
@@ -319,6 +320,9 @@ func (l *BatchSubmitter) loop() {
 						switchCount = 0
 						economicDATypeCh <- economicDAType
 						l.Log.Info("finish economic switch", "duration", time.Since(start))
+						l.Metr.RecordAutoChoosedDAType(economicDAType)
+						l.Metr.RecordEconomicAutoSwitchCount()
+						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
 					}
 				case <-addressReservedErrorTicker.C:
 					if l.addressReservedError.Load() {
@@ -335,6 +339,9 @@ func (l *BatchSubmitter) loop() {
 						start := time.Now()
 						economicDATypeCh <- economicDAType
 						l.Log.Info("finish resolve addressReservedError switch", "duration", time.Since(start))
+						l.Metr.RecordAutoChoosedDAType(economicDAType)
+						l.Metr.RecordReservedErrorSwitchCount()
+						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
 						time.Sleep(5 * time.Minute) // stop economic type switching to let addressRservedError resolved first
 						l.addressReservedError.Store(false)
 					}
@@ -436,6 +443,8 @@ func (l *BatchSubmitter) getEconomicDAType(ctx context.Context) (flags.DataAvail
 	blobGasPrice := eip4844.CalcBlobFee(*header.ExcessBlobGas)
 	blobCost := big.NewInt(0).Add(big.NewInt(0).Mul(big.NewInt(21000), gasPrice), big.NewInt(0).Mul(big.NewInt(params.MaxBlobGasPerBlock), blobGasPrice))
 
+	l.Metr.RecordEstimatedCalldataTypeFee(calldataCost)
+	l.Metr.RecordEstimatedBlobTypeFee(blobCost)
 	if calldataCost.Cmp(blobCost) < 0 {
 		l.Log.Info("Economic DA type is calldata", "gas price", gasPrice, "calldata cost", calldataCost, "blob gas price", blobGasPrice, "blob cost", blobCost)
 		return flags.CalldataType, nil
