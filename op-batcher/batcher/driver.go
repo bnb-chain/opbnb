@@ -27,6 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+const LimitLoadBlocksOneTime uint64 = 300
+
 // Auto DA params
 const DATypeSwitchThrehold int = 5
 const CallDataMaxTxSize uint64 = 120000
@@ -170,10 +172,15 @@ func (l *BatchSubmitter) loadBlocksIntoState(ctx context.Context) error {
 	} else if start.Number >= end.Number {
 		return errors.New("start number is >= end number")
 	}
+	// Limit the max loaded blocks one time
+	endNumber := end.Number
+	if endNumber-start.Number > LimitLoadBlocksOneTime {
+		endNumber = start.Number + LimitLoadBlocksOneTime
+	}
 
 	var latestBlock *types.Block
 	// Add all blocks to "state"
-	for i := start.Number + 1; i < end.Number+1; i++ {
+	for i := start.Number + 1; i < endNumber+1; i++ {
 		block, err := l.loadBlockIntoState(ctx, i)
 		if errors.Is(err, ErrReorg) {
 			l.Log.Warn("Found L2 reorg", "block_number", i)
