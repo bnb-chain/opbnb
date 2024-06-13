@@ -384,6 +384,7 @@ func (l *BatchSubmitter) loop() {
 			}
 			l.publishStateToL1(queue, receiptsCh)
 		case targetDAType := <-economicDATypeCh:
+			l.lastStoredBlock = eth.BlockID{}
 			// close current state to prepare for switch
 			err := l.state.Close()
 			if err != nil {
