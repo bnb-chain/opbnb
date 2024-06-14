@@ -33,6 +33,7 @@ const LimitLoadBlocksOneTime uint64 = 300
 const DATypeSwitchThrehold int = 5
 const CallDataMaxTxSize uint64 = 120000
 const ApproximateGasPerCallDataTx int64 = 1934892
+const MaxBlobsNumberPerTx int64 = 6
 
 var ErrBatcherNotRunning = errors.New("batcher is not running")
 
@@ -303,7 +304,7 @@ func (l *BatchSubmitter) loop() {
 			economicDAType := flags.BlobsType
 			l.Metr.RecordAutoChoosedDAType(economicDAType)
 			switchCount := 0
-			economicDATicker := time.NewTicker(time.Minute)
+			economicDATicker := time.NewTicker(30 * time.Second)
 			defer economicDATicker.Stop()
 			addressReservedErrorTicker := time.NewTicker(time.Second)
 			defer addressReservedErrorTicker.Stop()
@@ -437,7 +438,7 @@ func (l *BatchSubmitter) getEconomicDAType(ctx context.Context) (flags.DataAvail
 	if err != nil {
 		return "", fmt.Errorf("getEconomicDAType failed to fetch the suggested gas tip cap: %w", err)
 	}
-	calldataCost := big.NewInt(0).Mul(big.NewInt(6*ApproximateGasPerCallDataTx), gasPrice)
+	calldataCost := big.NewInt(0).Mul(big.NewInt(MaxBlobsNumberPerTx*ApproximateGasPerCallDataTx), gasPrice)
 
 	hCtx, hCancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
 	defer hCancel()
@@ -449,7 +450,7 @@ func (l *BatchSubmitter) getEconomicDAType(ctx context.Context) (flags.DataAvail
 		return "", fmt.Errorf("getEconomicDAType fetched header with nil ExcessBlobGas: %v", header)
 	}
 	blobGasPrice := eip4844.CalcBlobFee(*header.ExcessBlobGas)
-	blobCost := big.NewInt(0).Add(big.NewInt(0).Mul(big.NewInt(21000), gasPrice), big.NewInt(0).Mul(big.NewInt(params.MaxBlobGasPerBlock), blobGasPrice))
+	blobCost := big.NewInt(0).Add(big.NewInt(0).Mul(big.NewInt(int64(params.TxGas)), gasPrice), big.NewInt(0).Mul(big.NewInt(params.MaxBlobGasPerBlock), blobGasPrice))
 
 	l.Metr.RecordEstimatedCalldataTypeFee(calldataCost)
 	l.Metr.RecordEstimatedBlobTypeFee(blobCost)
