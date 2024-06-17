@@ -384,11 +384,11 @@ func (m *Metrics) RecordAutoSwitchTimeDuration(duration time.Duration) {
 }
 
 func (m *Metrics) RecordEstimatedCalldataTypeFee(fee *big.Int) {
-	m.estimatedCalldataTypeFee.Set(float64(fee.Uint64() / params.GWei))
+	m.estimatedCalldataTypeFee.Set(float64(fee.Uint64()) / params.GWei)
 }
 
 func (m *Metrics) RecordEstimatedBlobTypeFee(fee *big.Int) {
-	m.estimatedBlobTypeFee.Set(float64(fee.Uint64() / params.GWei))
+	m.estimatedBlobTypeFee.Set(float64(fee.Uint64()) / params.GWei)
 }
 
 // estimateBatchSize estimates the size of the batch
