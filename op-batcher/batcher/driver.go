@@ -27,10 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-const LimitLoadBlocksOneTime uint64 = 300
+const LimitLoadBlocksOneTime uint64 = 30
 
 // Auto DA params
-const DATypeSwitchThrehold int = 5
+const DATypeSwitchThrehold int = 2
 const CallDataMaxTxSize uint64 = 120000
 const ApproximateGasPerCallDataTx int64 = 1934892
 const MaxBlobsNumberPerTx int64 = 6
@@ -304,7 +304,7 @@ func (l *BatchSubmitter) loop() {
 			economicDAType := flags.BlobsType
 			l.Metr.RecordAutoChoosedDAType(economicDAType)
 			switchCount := 0
-			economicDATicker := time.NewTicker(30 * time.Second)
+			economicDATicker := time.NewTicker(5 * time.Second)
 			defer economicDATicker.Stop()
 			addressReservedErrorTicker := time.NewTicker(time.Second)
 			defer addressReservedErrorTicker.Stop()
