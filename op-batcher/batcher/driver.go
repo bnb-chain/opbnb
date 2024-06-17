@@ -30,7 +30,7 @@ import (
 const LimitLoadBlocksOneTime uint64 = 30
 
 // Auto DA params
-const DATypeSwitchThrehold int = 2
+const DATypeSwitchThrehold int = 3
 const CallDataMaxTxSize uint64 = 120000
 const ApproximateGasPerCallDataTx int64 = 1934892
 const MaxBlobsNumberPerTx int64 = 6
