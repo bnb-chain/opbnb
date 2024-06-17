@@ -350,7 +350,7 @@ func (l *BatchSubmitter) loop() {
 						l.Metr.RecordAutoChoosedDAType(economicDAType)
 						l.Metr.RecordReservedErrorSwitchCount()
 						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
-						time.Sleep(5 * time.Minute) // stop economic type switching to let addressRservedError resolved first
+						time.Sleep(time.Second) // stop to let last addressRservedError handled first
 						l.addressReservedError.Store(false)
 					}
 				case <-economicDALoopDone:
