@@ -414,7 +414,7 @@ func (l *BatchSubmitter) loop() {
 			l.clearState(l.shutdownCtx)
 			// switch action after clear state
 			l.switchDAType(targetDAType)
-			time.Sleep(time.Minute) // wait op-node derivate published DA data
+			time.Sleep(time.Minute) // wait op-node derivation published DA data
 			waitSwitchDACh <- struct{}{}
 			continue
 		case <-l.shutdownCtx.Done():
