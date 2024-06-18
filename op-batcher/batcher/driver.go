@@ -30,7 +30,7 @@ import (
 const LimitLoadBlocksOneTime uint64 = 30
 
 // Auto DA params
-const DATypeSwitchThrehold int = 3
+const DATypeSwitchThrehold int = 5
 const CallDataMaxTxSize uint64 = 120000
 const ApproximateGasPerCallDataTx int64 = 1934892
 const MaxBlobsNumberPerTx int64 = 6
@@ -296,6 +296,7 @@ func (l *BatchSubmitter) loop() {
 	}()
 
 	economicDATypeCh := make(chan flags.DataAvailabilityType)
+	waitSwitchDACh := make(chan struct{})
 	if l.AutoSwitchDA {
 		// start auto choose economic DA type processing loop
 		economicDALoopDone := make(chan struct{})
@@ -321,12 +322,17 @@ func (l *BatchSubmitter) loop() {
 					} else {
 						switchCount = 0
 					}
-					if switchCount >= DATypeSwitchThrehold {
+					threhold := DATypeSwitchThrehold
+					if economicDAType == flags.CalldataType {
+						threhold = 20 * DATypeSwitchThrehold
+					}
+					if switchCount >= threhold {
 						l.Log.Info("start economic switch", "from type", economicDAType.String(), "to type", newEconomicDAType.String())
 						start := time.Now()
 						economicDAType = newEconomicDAType
 						switchCount = 0
 						economicDATypeCh <- economicDAType
+						<-waitSwitchDACh
 						l.Log.Info("finish economic switch", "duration", time.Since(start))
 						l.Metr.RecordAutoChoosedDAType(economicDAType)
 						l.Metr.RecordEconomicAutoSwitchCount()
@@ -346,11 +352,11 @@ func (l *BatchSubmitter) loop() {
 						switchCount = 0
 						start := time.Now()
 						economicDATypeCh <- economicDAType
+						<-waitSwitchDACh
 						l.Log.Info("finish resolve addressReservedError switch", "duration", time.Since(start))
 						l.Metr.RecordAutoChoosedDAType(economicDAType)
 						l.Metr.RecordReservedErrorSwitchCount()
 						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
-						time.Sleep(time.Second) // stop to let last addressRservedError handled first
 						l.addressReservedError.Store(false)
 					}
 				case <-economicDALoopDone:
@@ -408,6 +414,8 @@ func (l *BatchSubmitter) loop() {
 			l.clearState(l.shutdownCtx)
 			// switch action after clear state
 			l.switchDAType(targetDAType)
+			time.Sleep(time.Minute) // wait op-node derivate published DA data
+			waitSwitchDACh <- struct{}{}
 			continue
 		case <-l.shutdownCtx.Done():
 			if l.Txmgr.IsClosed() {
@@ -681,6 +689,7 @@ func (l *BatchSubmitter) recordFailedTx(id txID, err error) {
 	l.Log.Warn("Transaction failed to send", logFields(id, err)...)
 	l.state.TxFailed(id)
 	if errStringMatch(err, txmgr.ErrAlreadyReserved) && l.AutoSwitchDA {
+		l.Log.Warn("Encounter ErrAlreadyReserved", "id", id.String())
 		l.addressReservedError.Store(true)
 	}
 }
