@@ -214,6 +214,7 @@ def deployL1ContractsForDeploy(paths):
     l1_init_holder = l1env['INIT_HOLDER']
     l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
     proposer_address = l1env['PROPOSER_ADDRESS']
+    batcher_address = l1env['BATCHER_ADDRESS']
     account = l1_init_holder
     log.info(f'Deploying with {account}')
 
@@ -229,6 +230,13 @@ def deployL1ContractsForDeploy(paths):
         'cast', 'send', '--private-key', l1_init_holder_prv,
         '--rpc-url', 'http://127.0.0.1:8545', '--gas-price', '10000000000', '--legacy',
         '--value', '10000ether', proposer_address
+    ], env={}, cwd=paths.contracts_bedrock_dir)
+
+    # send some ether to batcher address
+    run_command([
+        'cast', 'send', '--private-key', l1_init_holder_prv,
+        '--rpc-url', 'http://127.0.0.1:8545', '--gas-price', '10000000000', '--legacy',
+        '--value', '10000ether', batcher_address
     ], env={}, cwd=paths.contracts_bedrock_dir)
 
     # deploy the create2 deployer
@@ -263,6 +271,8 @@ def devnet_deploy(paths):
     l1_init_holder_prv = l1env['INIT_HOLDER_PRV']
     proposer_address = l1env['PROPOSER_ADDRESS']
     proposer_address_prv = l1env['PROPOSER_ADDRESS_PRV']
+    batcher_address = l1env['BATCHER_ADDRESS']
+    batcher_address_prv = l1env['BATCHER_ADDRESS_PRV']
     log.info('Generating network config.')
     devnet_cfg_orig = pjoin(paths.contracts_bedrock_dir, 'deploy-config', 'devnetL1.json')
     devnet_cfg_backup = pjoin(paths.devnet_dir, 'devnetL1.json.bak')
@@ -281,6 +291,7 @@ def devnet_deploy(paths):
     deploy_config['eip1559Elasticity'] = 2
     deploy_config['batchSenderAddress'] = l1_init_holder
     deploy_config['l2OutputOracleProposer'] = proposer_address
+    deploy_config['batchSenderAddress'] = batcher_address
     deploy_config['baseFeeVaultRecipient'] = l1_init_holder
     deploy_config['l1FeeVaultRecipient'] = l1_init_holder
     deploy_config['sequencerFeeVaultRecipient'] = l1_init_holder
@@ -347,7 +358,8 @@ def devnet_deploy(paths):
         'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
         'OP_BATCHER_SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address'],
         'INIT_HOLDER_PRV': l1_init_holder_prv,
-        'PROPOSER_ADDRESS_PRV': proposer_address_prv
+        'PROPOSER_ADDRESS_PRV': proposer_address_prv,
+        'BATCHER_ADDRESS_PRV': batcher_address_prv
     })
 
     log.info('Devnet ready.')
