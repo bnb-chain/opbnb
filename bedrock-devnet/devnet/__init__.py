@@ -289,7 +289,6 @@ def devnet_deploy(paths):
     deploy_config['eip1559Denominator'] = 8
     deploy_config['eip1559DenominatorCanyon'] = 8
     deploy_config['eip1559Elasticity'] = 2
-    deploy_config['batchSenderAddress'] = l1_init_holder
     deploy_config['l2OutputOracleProposer'] = proposer_address
     deploy_config['batchSenderAddress'] = batcher_address
     deploy_config['baseFeeVaultRecipient'] = l1_init_holder
