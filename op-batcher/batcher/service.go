@@ -120,7 +120,7 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 	if err := bs.initPlasmaDA(cfg); err != nil {
 		return fmt.Errorf("failed to init plasma DA: %w", err)
 	}
-	bs.initDriver()
+	bs.initDriver(cfg)
 	if err := bs.initRPCServer(cfg); err != nil {
 		return fmt.Errorf("failed to start RPC server: %w", err)
 	}
@@ -198,7 +198,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 	}
 
 	switch cfg.DataAvailabilityType {
-	case flags.BlobsType:
+	case flags.BlobsType, flags.AutoType:
 		if !cfg.TestUseMaxTxSizeForBlobs {
 			// account for version byte prefix
 			cc.MaxFrameSize = eth.MaxBlobDataSize - 1
@@ -228,6 +228,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 		return fmt.Errorf("invalid channel configuration: %w", err)
 	}
 	bs.Log.Info("Initialized channel-config",
+		"da_type", cfg.DataAvailabilityType.String(),
 		"use_blobs", bs.UseBlobs,
 		"use_plasma", bs.UsePlasma,
 		"max_frame_size", cc.MaxFrameSize,
@@ -286,7 +287,7 @@ func (bs *BatcherService) initMetricsServer(cfg *CLIConfig) error {
 	return nil
 }
 
-func (bs *BatcherService) initDriver() {
+func (bs *BatcherService) initDriver(cfg *CLIConfig) {
 	bs.driver = NewBatchSubmitter(DriverSetup{
 		Log:              bs.Log,
 		Metr:             bs.Metrics,
@@ -297,6 +298,7 @@ func (bs *BatcherService) initDriver() {
 		EndpointProvider: bs.EndpointProvider,
 		ChannelConfig:    bs.ChannelConfig,
 		PlasmaDA:         bs.PlasmaDA,
+		AutoSwitchDA:     cfg.DataAvailabilityType == flags.AutoType,
 	})
 }
 
