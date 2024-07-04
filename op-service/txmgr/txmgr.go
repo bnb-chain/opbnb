@@ -798,7 +798,7 @@ func (m *SimpleTxManager) checkLimits(tip, baseFee, bumpedTip, bumpedFee *big.In
 
 func (m *SimpleTxManager) checkBlobFeeLimits(blobBaseFee, bumpedBlobFee *big.Int) error {
 	// If above limit, do not send transaction
-	if limit := m.cfg.BlobGasPriceLimit; limit != nil && limit.Cmp(bumpedBlobFee) == -1 {
+	if limit := m.cfg.BlobGasPriceLimit; limit != nil && limit.Cmp(big.NewInt(0)) == 1 && limit.Cmp(bumpedBlobFee) == -1 {
 		return fmt.Errorf(
 			"bumped blob fee %v is over blob gas price limit value: %v",
 			bumpedBlobFee, m.cfg.BlobGasPriceLimit)
