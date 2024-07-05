@@ -293,6 +293,17 @@ func (e *EngineController) checkForkchoiceUpdatedStatus(status eth.ExecutePayloa
 	return status == eth.ExecutionValid
 }
 
+// checkUpdateUnsafeHead checks if we can update current unsafeHead for op-node
+func (e *EngineController) checkUpdateUnsafeHead(status eth.ExecutePayloadStatus) bool {
+	if e.syncMode == sync.ELSync {
+		if e.syncStatus == syncStatusStartedEL || e.syncStatus == syncStatusWillStartEL {
+			return false
+		}
+		return true
+	}
+	return status == eth.ExecutionValid
+}
+
 // TryUpdateEngine attempts to update the engine with the current forkchoice state of the rollup node,
 // this is a no-op if the nodes already agree on the forkchoice state.
 func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
@@ -329,8 +340,9 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	// Check if there is a finalized head once when doing EL sync. If so, transition to CL sync
 	if e.syncStatus == syncStatusWillStartEL {
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
+		currentUnsafe := e.GetCurrentUnsafeHead(ctx)
 		isTransitionBlock := e.rollupCfg.Genesis.L2.Number != 0 && b.Hash == e.rollupCfg.Genesis.L2.Hash
-		isGapSyncNeeded := ref.Number-e.UnsafeL2Head().Number > uint64(e.elTriggerGap)
+		isGapSyncNeeded := ref.Number-currentUnsafe.Number > uint64(e.elTriggerGap)
 		if errors.Is(err, ethereum.NotFound) || isTransitionBlock || isGapSyncNeeded {
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")
@@ -385,12 +397,16 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		return NewTemporaryError(fmt.Errorf("cannot prepare unsafe chain for new payload: new - %v; parent: %v; err: %w",
 			payload.ID(), payload.ParentID(), eth.ForkchoiceUpdateErr(fcRes.PayloadStatus)))
 	}
-	e.SetUnsafeHead(ref)
+
 	e.needFCUCall = false
+	if e.checkUpdateUnsafeHead(fcRes.PayloadStatus.Status) {
+		e.SetUnsafeHead(ref)
+	}
 
 	if e.syncStatus == syncStatusFinishedELButNotFinalized {
 		e.log.Info("Finished EL sync", "sync_duration", e.clock.Since(e.elStart), "finalized_block", ref.ID().String())
 		e.syncStatus = syncStatusFinishedEL
+		e.SetUnsafeHead(ref)
 	}
 
 	return nil
@@ -467,4 +483,16 @@ func (e *EngineController) TryBackupUnsafeReorg(ctx context.Context) (bool, erro
 // ResetBuildingState implements LocalEngineControl.
 func (e *EngineController) ResetBuildingState() {
 	e.resetBuildingState()
+}
+
+func (e *EngineController) GetCurrentUnsafeHead(ctx context.Context) eth.L2BlockRef {
+	currentL2UnsafeHead := e.UnsafeL2Head()
+	if currentL2UnsafeHead.Number == 0 {
+		//derivation stage not finished yet
+		engineUnsafeHead, err := e.engine.L2BlockRefByLabel(ctx, eth.Unsafe)
+		if err == nil {
+			currentL2UnsafeHead = engineUnsafeHead
+		}
+	}
+	return currentL2UnsafeHead
 }
