@@ -401,7 +401,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 
 	//update unsafe,safe,finalize and send fcu for sync
 	if status.Status == eth.ExecutionInconsistent {
-		log.Info("engine meet unconsistent here")
+		log.Info("engine meet inconsistent here")
 		currentUnsafe, _ := e.engine.L2BlockRefByLabel(ctx, eth.Unsafe)
 		//reset unsafe
 		e.SetUnsafeHead(currentUnsafe)
