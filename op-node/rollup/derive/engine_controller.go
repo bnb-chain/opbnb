@@ -356,7 +356,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	if status.Status == eth.ExecutionInconsistent {
 		currentL2Info, err := e.getCurrentL2Info(ctx)
 		if err != nil {
-			return NewTemporaryError(fmt.Errorf("failed to process unconsistent state: %w", err))
+			return NewTemporaryError(fmt.Errorf("failed to process inconsistent state: %w", err))
 		} else {
 			log.Info("engine has inconsistent state", "unsafe", currentL2Info.Unsafe.Number, "safe", currentL2Info.Safe.Number, "final", currentL2Info.Finalized.Number)
 			e.SetUnsafeHead(currentL2Info.Unsafe)
