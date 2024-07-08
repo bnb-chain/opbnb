@@ -382,7 +382,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 			e.needFCUCall = false
 			return nil
 		} else {
-			return NewTemporaryError(fmt.Errorf("engine failed to process unconsistent data: %w", err))
+			return NewTemporaryError(fmt.Errorf("engine failed to process inconsistent data: %w", err))
 		}
 	}
 
