@@ -490,7 +490,9 @@ func (e *EngineController) GetCurrentUnsafeHead(ctx context.Context) eth.L2Block
 	if currentL2UnsafeHead.Number == 0 {
 		//derivation stage not finished yet
 		engineUnsafeHead, err := e.engine.L2BlockRefByLabel(ctx, eth.Unsafe)
-		if err == nil {
+		if err != nil {
+			log.Error("cannot get unsafe head from engine")
+		} else {
 			currentL2UnsafeHead = engineUnsafeHead
 		}
 	}
