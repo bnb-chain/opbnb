@@ -1,7 +1,6 @@
 package l1
 
 import (
-	"context"
 	"encoding/binary"
 
 	"github.com/hashicorp/golang-lru/v2/simplelru"
@@ -104,9 +103,4 @@ func (o *CachingOracle) Precompile(address common.Address, input []byte) ([]byte
 	res, ok := o.oracle.Precompile(address, input)
 	o.pcmps.Add(cacheKey, precompileResult{res, ok})
 	return res, ok
-}
-
-func (o *CachingOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
-	// do nothing
-	return nil
 }

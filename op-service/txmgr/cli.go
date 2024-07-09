@@ -10,7 +10,6 @@ import (
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	opcrypto "github.com/ethereum-optimism/optimism/op-service/crypto"
-	dial "github.com/ethereum-optimism/optimism/op-service/dummydial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	opsigner "github.com/ethereum-optimism/optimism/op-service/signer"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
@@ -31,7 +30,6 @@ const (
 	SafeAbortNonceTooLowCountFlagName = "safe-abort-nonce-too-low-count"
 	FeeLimitMultiplierFlagName        = "fee-limit-multiplier"
 	FeeLimitThresholdFlagName         = "txmgr.fee-limit-threshold"
-	BlobGasPriceLimitFlagName         = "txmgr.blob-gas-price-limit"
 	MinBaseFeeFlagName                = "txmgr.min-basefee"
 	MinTipCapFlagName                 = "txmgr.min-tip-cap"
 	ResubmissionTimeoutFlagName       = "resubmission-timeout"
@@ -61,7 +59,6 @@ type DefaultFlagValues struct {
 	SafeAbortNonceTooLowCount uint64
 	FeeLimitMultiplier        uint64
 	FeeLimitThresholdGwei     float64
-	BlobGasPriceLimitGwei     float64
 	MinTipCapGwei             float64
 	MinBaseFeeGwei            float64
 	ResubmissionTimeout       time.Duration
@@ -77,7 +74,6 @@ var (
 		SafeAbortNonceTooLowCount: uint64(3),
 		FeeLimitMultiplier:        uint64(5),
 		FeeLimitThresholdGwei:     100.0,
-		BlobGasPriceLimitGwei:     0,
 		MinTipCapGwei:             1.0,
 		MinBaseFeeGwei:            1.0,
 		ResubmissionTimeout:       48 * time.Second,
@@ -91,7 +87,6 @@ var (
 		SafeAbortNonceTooLowCount: uint64(3),
 		FeeLimitMultiplier:        uint64(5),
 		FeeLimitThresholdGwei:     100.0,
-		BlobGasPriceLimitGwei:     0,
 		MinTipCapGwei:             1.0,
 		MinBaseFeeGwei:            1.0,
 		ResubmissionTimeout:       24 * time.Second,
@@ -151,12 +146,6 @@ func CLIFlagsWithDefaults(envPrefix string, defaults DefaultFlagValues) []cli.Fl
 			EnvVars: prefixEnvVars("TXMGR_FEE_LIMIT_THRESHOLD"),
 		},
 		&cli.Float64Flag{
-			Name:    BlobGasPriceLimitFlagName,
-			Usage:   "The maximum limit (in GWei) of blob gas price, above which will stop submit and wait for the price go down. Default value is 0(disabled)",
-			Value:   defaults.BlobGasPriceLimitGwei,
-			EnvVars: prefixEnvVars("TXMGR_BLOB_GAS_PRICE_LIMIT"),
-		},
-		&cli.Float64Flag{
 			Name:    MinTipCapFlagName,
 			Usage:   "Enforces a minimum tip cap (in GWei) to use when determining tx fees. 1 GWei by default.",
 			Value:   defaults.MinTipCapGwei,
@@ -213,7 +202,6 @@ type CLIConfig struct {
 	SafeAbortNonceTooLowCount uint64
 	FeeLimitMultiplier        uint64
 	FeeLimitThresholdGwei     float64
-	BlobGasPriceLimitGwei     float64
 	MinBaseFeeGwei            float64
 	MinTipCapGwei             float64
 	ResubmissionTimeout       time.Duration
@@ -230,7 +218,6 @@ func NewCLIConfig(l1RPCURL string, defaults DefaultFlagValues) CLIConfig {
 		SafeAbortNonceTooLowCount: defaults.SafeAbortNonceTooLowCount,
 		FeeLimitMultiplier:        defaults.FeeLimitMultiplier,
 		FeeLimitThresholdGwei:     defaults.FeeLimitThresholdGwei,
-		BlobGasPriceLimitGwei:     defaults.BlobGasPriceLimitGwei,
 		MinTipCapGwei:             defaults.MinTipCapGwei,
 		MinBaseFeeGwei:            defaults.MinBaseFeeGwei,
 		ResubmissionTimeout:       defaults.ResubmissionTimeout,
@@ -290,7 +277,6 @@ func ReadCLIConfig(ctx *cli.Context) CLIConfig {
 		SafeAbortNonceTooLowCount: ctx.Uint64(SafeAbortNonceTooLowCountFlagName),
 		FeeLimitMultiplier:        ctx.Uint64(FeeLimitMultiplierFlagName),
 		FeeLimitThresholdGwei:     ctx.Float64(FeeLimitThresholdFlagName),
-		BlobGasPriceLimitGwei:     ctx.Float64(BlobGasPriceLimitFlagName),
 		MinBaseFeeGwei:            ctx.Float64(MinBaseFeeFlagName),
 		MinTipCapGwei:             ctx.Float64(MinTipCapFlagName),
 		ResubmissionTimeout:       ctx.Duration(ResubmissionTimeoutFlagName),
@@ -339,11 +325,6 @@ func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, err
 		return Config{}, fmt.Errorf("invalid fee limit threshold: %w", err)
 	}
 
-	blobGasPriceLimit, err := eth.GweiToWei(cfg.BlobGasPriceLimitGwei)
-	if err != nil {
-		return Config{}, fmt.Errorf("invalid blob gas price limit: %w", err)
-	}
-
 	minBaseFee, err := eth.GweiToWei(cfg.MinBaseFeeGwei)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid min base fee: %w", err)
@@ -359,7 +340,6 @@ func NewConfig(cfg CLIConfig, l log.Logger, m txmetrics.TxMetricer) (Config, err
 		ResubmissionTimeout:       cfg.ResubmissionTimeout,
 		FeeLimitMultiplier:        cfg.FeeLimitMultiplier,
 		FeeLimitThreshold:         feeLimitThreshold,
-		BlobGasPriceLimit:         blobGasPriceLimit,
 		MinBaseFee:                minBaseFee,
 		MinTipCap:                 minTipCap,
 		ChainID:                   chainID,
@@ -390,10 +370,6 @@ type Config struct {
 	// On low-fee networks, like test networks, this allows for arbitrary fee bumps
 	// below this threshold.
 	FeeLimitThreshold *big.Int
-
-	// The maximum limit (in GWei) of blob gas price,
-	// Above which will stop submit and wait for the price go down
-	BlobGasPriceLimit *big.Int
 
 	// Minimum base fee (in Wei) to assume when determining tx fees.
 	MinBaseFee *big.Int

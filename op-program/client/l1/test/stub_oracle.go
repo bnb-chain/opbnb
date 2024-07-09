@@ -83,8 +83,3 @@ func (o StubOracle) Precompile(addr common.Address, input []byte) ([]byte, bool)
 	}
 	return result, true
 }
-
-func (o StubOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
-	// do nothing
-	return nil
-}

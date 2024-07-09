@@ -19,6 +19,9 @@ const RPCClientSubsystem = "rpc_client"
 // implements the Registry getter, for metrics HTTP server to hook into
 var _ opmetrics.RegistryMetricer = (*Metrics)(nil)
 
+// implements the Registry getter, for metrics HTTP server to hook into
+var _ opmetrics.RegistryMetricer = (*Metrics)(nil)
+
 type Metricer interface {
 	RecordInfo(version string)
 	RecordUp()
@@ -29,7 +32,9 @@ type Metricer interface {
 	// Record Tx metrics
 	txmetrics.TxMetricer
 
-	StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer
+	opmetrics.RPCMetricer
+
+	StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer
 
 	RecordL2BlocksProposed(l2ref eth.L2BlockRef)
 }
@@ -84,7 +89,7 @@ func (m *Metrics) Registry() *prometheus.Registry {
 	return m.registry
 }
 
-func (m *Metrics) StartBalanceMetrics(l log.Logger, client ethereum.ChainStateReader, account common.Address) io.Closer {
+func (m *Metrics) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {
 	return opmetrics.LaunchBalanceMetrics(l, m.registry, m.ns, client, account)
 }
 

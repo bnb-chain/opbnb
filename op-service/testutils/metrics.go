@@ -58,9 +58,6 @@ func (t *TestDerivationMetrics) RecordFrame() {
 func (n *TestDerivationMetrics) RecordDerivedBatches(batchType string) {
 }
 
-func (n *TestDerivationMetrics) RecordSequencerStepTime(step string, duration time.Duration) {
-}
-
 type TestRPCMetrics struct{}
 
 func (n *TestRPCMetrics) RecordRPCServerRequest(method string) func() {

@@ -42,15 +42,17 @@ type BatcherConfig struct {
 	// UsePlasma is true if the rollup config has a DA challenge address so the batcher
 	// will post inputs to the Plasma DA server and post commitments to blobs or calldata.
 	UsePlasma bool
+
+	WaitNodeSync        bool
+	CheckRecentTxsDepth int
 }
 
 // BatcherService represents a full batch-submitter instance and its resources,
 // and conforms to the op-service CLI Lifecycle interface.
 type BatcherService struct {
-	Log      log.Logger
-	Metrics  metrics.Metricer
-	L1Client client.Client
-
+	Log              log.Logger
+	Metrics          metrics.Metricer
+	L1Client         *ethclient.Client
 	EndpointProvider dial.L2EndpointProvider
 	TxManager        txmgr.TxManager
 	PlasmaDA         *plasma.DAClient
@@ -97,6 +99,8 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 	bs.PollInterval = cfg.PollInterval
 	bs.MaxPendingTransactions = cfg.MaxPendingTransactions
 	bs.NetworkTimeout = cfg.TxMgrConfig.NetworkTimeout
+	bs.CheckRecentTxsDepth = cfg.CheckRecentTxsDepth
+	bs.WaitNodeSync = cfg.WaitNodeSync
 	if err := bs.initRPCClients(ctx, cfg); err != nil {
 		return err
 	}
@@ -115,6 +119,10 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 	}
 	if err := bs.initPProf(cfg); err != nil {
 		return fmt.Errorf("failed to init profiling: %w", err)
+	}
+	// init before driver
+	if err := bs.initPlasmaDA(cfg); err != nil {
+		return fmt.Errorf("failed to init plasma DA: %w", err)
 	}
 	// init before driver
 	if err := bs.initPlasmaDA(cfg); err != nil {
@@ -143,7 +151,7 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 		ethUrls := strings.Split(cfg.L2EthRpc, ",")
 		endpointProvider, err = dial.NewActiveL2EndpointProvider(ctx, ethUrls, rollupUrls, cfg.ActiveSequencerCheckDuration, dial.DefaultDialTimeout, bs.Log)
 	} else {
-		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc, bs.Metrics)
+		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to build L2 endpoint provider: %w", err)
@@ -198,7 +206,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 	}
 
 	switch cfg.DataAvailabilityType {
-	case flags.BlobsType, flags.AutoType:
+	case flags.BlobsType:
 		if !cfg.TestUseMaxTxSizeForBlobs {
 			// account for version byte prefix
 			cc.MaxFrameSize = eth.MaxBlobDataSize - 1
@@ -215,7 +223,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 		return fmt.Errorf("max frame size %d exceeds plasma max input size %d", cc.MaxFrameSize, plasma.MaxInputSize)
 	}
 
-	cc.InitCompressorConfig(cfg.ApproxComprRatio, cfg.Compressor)
+	cc.InitCompressorConfig(cfg.ApproxComprRatio, cfg.Compressor, cfg.CompressionAlgo)
 
 	if bs.UseBlobs && !bs.RollupConfig.IsEcotone(uint64(time.Now().Unix())) {
 		bs.Log.Error("Cannot use Blob data before Ecotone!") // log only, the batcher may not be actively running.
@@ -224,19 +232,24 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 		bs.Log.Warn("Ecotone upgrade is active, but batcher is not configured to use Blobs!")
 	}
 
+	// Checking for brotli compression only post Fjord
+	if bs.ChannelConfig.CompressorConfig.CompressionAlgo.IsBrotli() && !bs.RollupConfig.IsFjord(uint64(time.Now().Unix())) {
+		return fmt.Errorf("cannot use brotli compression before Fjord")
+	}
+
 	if err := cc.Check(); err != nil {
 		return fmt.Errorf("invalid channel configuration: %w", err)
 	}
 	bs.Log.Info("Initialized channel-config",
-		"da_type", cfg.DataAvailabilityType.String(),
 		"use_blobs", bs.UseBlobs,
 		"use_plasma", bs.UsePlasma,
 		"max_frame_size", cc.MaxFrameSize,
 		"target_num_frames", cc.TargetNumFrames,
 		"compressor", cc.CompressorConfig.Kind,
+		"compression_algo", cc.CompressorConfig.CompressionAlgo,
+		"batch_type", cc.BatchType,
 		"max_channel_duration", cc.MaxChannelDuration,
 		"channel_timeout", cc.ChannelTimeout,
-		"batch_type", cc.BatchType,
 		"sub_safety_margin", cc.SubSafetyMargin)
 	bs.ChannelConfig = cc
 	return nil
@@ -298,7 +311,6 @@ func (bs *BatcherService) initDriver(cfg *CLIConfig) {
 		EndpointProvider: bs.EndpointProvider,
 		ChannelConfig:    bs.ChannelConfig,
 		PlasmaDA:         bs.PlasmaDA,
-		AutoSwitchDA:     cfg.DataAvailabilityType == flags.AutoType,
 	})
 }
 

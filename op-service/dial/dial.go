@@ -64,36 +64,19 @@ func DialRPCClientWithTimeout(ctx context.Context, timeout time.Duration, log lo
 func dialRPCClientWithBackoff(ctx context.Context, log log.Logger, addr string) (*rpc.Client, error) {
 	bOff := retry.Fixed(defaultRetryTime)
 	return retry.Do(ctx, defaultRetryCount, bOff, func() (*rpc.Client, error) {
-		if !client.IsURLAvailable(addr) {
-			log.Warn("failed to dial address, but may connect later", "addr", addr)
-			return nil, fmt.Errorf("address unavailable (%s)", addr)
-		}
-		client, err := rpc.DialOptions(ctx, addr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to dial address (%s): %w", addr, err)
-		}
-		return client, nil
+		return dialRPCClient(ctx, log, addr)
 	})
 }
 
-// DialEthClientWithTimeoutAndFallback will try to dial within the timeout period and create an EthClient.
-// If the URL is a multi URL, then a fallbackClient will be created to add the fallback capability to the client
-func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64, m client.FallbackClientMetricer) (client.Client, error) {
-	isMultiUrl, urlList := client.MultiUrlParse(url)
-	if isMultiUrl {
-		firstEthClient, err := DialEthClientWithTimeout(ctx, timeout, l, urlList[0])
-		if err != nil {
-			return nil, err
-		}
-		fallbackClient := client.NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, m, func(url string) (client.Client, error) {
-			ethClientNew, err := DialEthClientWithTimeout(ctx, timeout, l, url)
-			if err != nil {
-				return nil, err
-			}
-			return ethClientNew, nil
-		})
-		return fallbackClient, nil
+// Dials a JSON-RPC endpoint once.
+func dialRPCClient(ctx context.Context, log log.Logger, addr string) (*rpc.Client, error) {
+	if !client.IsURLAvailable(ctx, addr) {
+		log.Warn("failed to dial address, but may connect later", "addr", addr)
+		return nil, fmt.Errorf("address unavailable (%s)", addr)
 	}
-
-	return DialEthClientWithTimeout(ctx, timeout, l, url)
+	client, err := rpc.DialOptions(ctx, addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to dial address (%s): %w", addr, err)
+	}
+	return client, nil
 }

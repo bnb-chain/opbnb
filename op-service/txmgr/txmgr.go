@@ -293,9 +293,7 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 		if blobBaseFee == nil {
 			return nil, fmt.Errorf("expected non-nil blobBaseFee")
 		}
-		// no need to calcBlobFeeCap, prefer raw blobBaseFee
-		// blobFeeCap := calcBlobFeeCap(blobBaseFee)
-		blobFeeCap := blobBaseFee
+		blobFeeCap := calcBlobFeeCap(blobBaseFee)
 		message := &types.BlobTx{
 			To:         *candidate.To,
 			Data:       candidate.TxData,
@@ -325,7 +323,7 @@ func (m *SimpleTxManager) craftTx(ctx context.Context, candidate TxCandidate) (*
 // data.
 func MakeSidecar(blobs []*eth.Blob) (*types.BlobTxSidecar, []common.Hash, error) {
 	sidecar := &types.BlobTxSidecar{}
-	blobHashes := []common.Hash{}
+	blobHashes := make([]common.Hash, 0, len(blobs))
 	for i, blob := range blobs {
 		rawBlob := *blob.KZGBlob()
 		sidecar.Blobs = append(sidecar.Blobs, rawBlob)
@@ -420,7 +418,7 @@ func (m *SimpleTxManager) sendTx(ctx context.Context, tx *types.Transaction) (*t
 		return tx
 	}
 
-	// Immediately publish a transaction before starting the resumbission loop
+	// Immediately publish a transaction before starting the resubmission loop
 	tx = publishAndWait(tx, false)
 
 	ticker := time.NewTicker(m.cfg.ResubmissionTimeout)
@@ -508,12 +506,6 @@ func (m *SimpleTxManager) publishTx(ctx context.Context, tx *types.Transaction, 
 		case errStringMatch(err, core.ErrNonceTooLow):
 			l.Warn("nonce too low", "err", err)
 			m.metr.TxPublished("nonce_too_low")
-		case errStringMatch(err, core.ErrNonceTooHigh):
-			l.Warn("nonce too high", "err", err)
-			m.metr.TxPublished("nonce_too_high")
-			bumpFeesImmediately = false // retry without fee bump
-			time.Sleep(100 * time.Millisecond)
-			continue
 		case errStringMatch(err, context.Canceled):
 			m.metr.RPCError()
 			l.Warn("transaction send cancelled", "err", err)
@@ -746,10 +738,11 @@ func (m *SimpleTxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *b
 	if err != nil {
 		m.metr.RPCError()
 		return nil, nil, nil, fmt.Errorf("failed to fetch the suggested base fee: %w", err)
+	} else if head.BaseFee == nil {
+		return nil, nil, nil, errors.New("txmgr does not support pre-london blocks that do not have a base fee")
 	}
 
-	// basefee of BSC block is 0
-	baseFee := big.NewInt(0)
+	baseFee := head.BaseFee
 	m.metr.RecordBaseFee(baseFee)
 	m.metr.RecordTipCap(tip)
 
@@ -797,13 +790,6 @@ func (m *SimpleTxManager) checkLimits(tip, baseFee, bumpedTip, bumpedFee *big.In
 }
 
 func (m *SimpleTxManager) checkBlobFeeLimits(blobBaseFee, bumpedBlobFee *big.Int) error {
-	// If above limit, do not send transaction
-	if limit := m.cfg.BlobGasPriceLimit; limit != nil && limit.Cmp(big.NewInt(0)) == 1 && limit.Cmp(bumpedBlobFee) == -1 {
-		return fmt.Errorf(
-			"bumped blob fee %v is over blob gas price limit value: %v",
-			bumpedBlobFee, m.cfg.BlobGasPriceLimit)
-	}
-
 	// If below threshold, don't apply multiplier limit. Note we use same threshold parameter here
 	// used for non-blob fee limiting.
 	if thr := m.cfg.FeeLimitThreshold; thr != nil && thr.Cmp(bumpedBlobFee) == 1 {

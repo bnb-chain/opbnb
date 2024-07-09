@@ -4,6 +4,9 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
+)
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum-optimism/optimism/op-service/metrics"
 )

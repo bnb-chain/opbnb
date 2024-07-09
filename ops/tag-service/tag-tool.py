@@ -13,13 +13,13 @@ SERVICES  = [
     'op-challenger',
     'op-dispute-mon',
     'op-proposer',
-    'op-ufm',
+    'da-server',
     'proxyd',
     'op-heartbeat',
-    'ufm-metamask',
     'op-contracts',
     'test',
     'op-stack', # special case for tagging op-node, op-batcher, and op-proposer together
+    'op-conductor',
 ]
 VERSION_PATTERN = '^{service}/v\\d+\\.\\d+\\.\\d+(-rc\\.\\d+)?$'
 GIT_TAG_COMMAND = 'git tag -a {tag} -m "{message}"'

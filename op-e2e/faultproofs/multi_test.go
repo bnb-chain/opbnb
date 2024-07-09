@@ -11,12 +11,10 @@ import (
 )
 
 func TestMultipleGameTypes(t *testing.T) {
-	//todo Skip for now, and when we research the proof of failure, we'll come back to fix this case.
-	t.SkipNow()
 	op_e2e.InitParallel(t, op_e2e.UsesCannon)
 
 	ctx := context.Background()
-	sys, _ := startFaultDisputeSystem(t)
+	sys, _ := StartFaultDisputeSystem(t)
 	t.Cleanup(sys.Close)
 
 	gameFactory := disputegame.NewFactoryHelper(t, ctx, sys)
@@ -28,8 +26,8 @@ func TestMultipleGameTypes(t *testing.T) {
 
 	// Start a challenger with both cannon and alphabet support
 	gameFactory.StartChallenger(ctx, "TowerDefense",
-		challenger.WithCannon(t, sys.RollupConfig, sys.L2GenesisCfg, sys.RollupEndpoint("sequencer"), sys.NodeEndpoint("sequencer")),
-		challenger.WithAlphabet(sys.RollupEndpoint("sequencer")),
+		challenger.WithCannon(t, sys.RollupConfig, sys.L2GenesisCfg),
+		challenger.WithAlphabet(),
 		challenger.WithPrivKey(sys.Cfg.Secrets.Alice),
 	)
 

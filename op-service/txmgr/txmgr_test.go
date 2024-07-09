@@ -305,7 +305,7 @@ func (*mockBackend) ChainID(ctx context.Context) (*big.Int, error) {
 
 // TransactionReceipt queries the mockBackend for a mined txHash. If none is found, nil is returned
 // for both return values. Otherwise, it returns a receipt containing the txHash, the gasFeeCap
-// used in GasUsed, and the blobFeeCap in CumuluativeGasUsed to make the values accessible from our
+// used in GasUsed, and the blobFeeCap in CumulativeGasUsed to make the values accessible from our
 // test framework.
 func (b *mockBackend) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	b.mu.RLock()
@@ -409,7 +409,7 @@ func TestAlreadyReserved(t *testing.T) {
 	require.ErrorIs(t, err, ErrAlreadyReserved)
 }
 
-// TestTxMgrConfirmsAtMaxGasPrice asserts that Send properly returns the max gas
+// TestTxMgrConfirmsAtHigherGasPrice asserts that Send properly returns the max gas
 // price receipt if none of the lower gas price txs were mined.
 func TestTxMgrConfirmsAtHigherGasPrice(t *testing.T) {
 	t.Skip("due to 0 base fee of bsc")
@@ -440,10 +440,9 @@ func TestTxMgrConfirmsAtHigherGasPrice(t *testing.T) {
 	require.Equal(t, h.gasPricer.expGasFeeCap().Uint64(), receipt.GasUsed)
 }
 
-// TestTxMgrConfirmsBlobTxAtMaxGasPrice asserts that Send properly returns the max gas price
+// TestTxMgrConfirmsBlobTxAtHigherGasPrice asserts that Send properly returns the max gas price
 // receipt if none of the lower gas price txs were mined when attempting to send a blob tx.
 func TestTxMgrConfirmsBlobTxAtHigherGasPrice(t *testing.T) {
-	t.Skip("due to 0 base fee of bsc")
 	t.Parallel()
 
 	h := newTestHarness(t)
@@ -535,7 +534,6 @@ func TestTxMgr_CraftTx(t *testing.T) {
 
 // TestTxMgr_CraftBlobTx ensures that the tx manager will create blob transactions as expected.
 func TestTxMgr_CraftBlobTx(t *testing.T) {
-	t.Skip("due to 0 base fee of bsc")
 	t.Parallel()
 	h := newTestHarness(t)
 	candidate := h.createBlobTxCandidate()
@@ -1120,7 +1118,6 @@ func TestIncreaseGasPrice(t *testing.T) {
 // TestIncreaseGasPriceLimits asserts that if the L1 base fee & tip remain the
 // same, repeated calls to IncreaseGasPrice eventually hit a limit.
 func TestIncreaseGasPriceLimits(t *testing.T) {
-	t.Skip("due to 0 base fee of bsc")
 	t.Run("no-threshold", func(t *testing.T) {
 		testIncreaseGasPriceLimit(t, gasPriceLimitTest{
 			expTipCap:     46,
@@ -1282,7 +1279,6 @@ func TestNonceReset(t *testing.T) {
 }
 
 func TestMinFees(t *testing.T) {
-	t.Skip("due to 0 base fee of bsc")
 	for _, tt := range []struct {
 		desc             string
 		minBaseFee       *big.Int

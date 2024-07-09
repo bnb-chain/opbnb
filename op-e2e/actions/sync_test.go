@@ -26,6 +26,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newSpanChannelOut(t StatefulTesting, e e2eutils.SetupData) derive.ChannelOut {
+	channelOut, err := derive.NewSpanChannelOut(e.RollupCfg.Genesis.L2Time, e.RollupCfg.L2ChainID, 128_000, derive.Zlib)
+	require.NoError(t, err)
+	return channelOut
+}
+
 // TestSyncBatchType run each sync test case in singular batch mode and span batch mode.
 func TestSyncBatchType(t *testing.T) {
 	tests := []struct {
@@ -211,15 +217,7 @@ func TestBackupUnsafe(gt *testing.T) {
 	require.Equal(t, verifier.L2Unsafe().Number, uint64(5))
 	require.Equal(t, verifier.L2Safe().Number, uint64(0))
 
-	c, e := compressor.NewRatioCompressor(compressor.Config{
-		TargetOutputSize: 128_000,
-		ApproxComprRatio: 1,
-	})
-	require.NoError(t, e)
-	spanBatchBuilder := derive.NewSpanBatchBuilder(sd.RollupCfg.Genesis.L2Time, sd.RollupCfg.L2ChainID)
-	// Create new span batch channel
-	channelOut, err := derive.NewChannelOut(derive.SpanBatchType, c, spanBatchBuilder)
-	require.NoError(t, err)
+	channelOut := newSpanChannelOut(t, *sd)
 
 	for i := uint64(1); i <= sequencer.L2Unsafe().Number; i++ {
 		block, err := l2Cl.BlockByNumber(t.Ctx(), new(big.Int).SetUint64(i))
@@ -246,7 +244,7 @@ func TestBackupUnsafe(gt *testing.T) {
 			block = block.WithBody([]*types.Transaction{block.Transactions()[0], invalidTx}, []*types.Header{})
 		}
 		// Add A1, B2, B3, B4, B5 into the channel
-		_, err = channelOut.AddBlock(sd.RollupCfg, block)
+		err = channelOut.AddBlock(sd.RollupCfg, block)
 		require.NoError(t, err)
 	}
 
@@ -382,15 +380,7 @@ func TestBackupUnsafeReorgForkChoiceInputError(gt *testing.T) {
 	require.Equal(t, verifier.L2Unsafe().Number, uint64(5))
 	require.Equal(t, verifier.L2Safe().Number, uint64(0))
 
-	c, e := compressor.NewRatioCompressor(compressor.Config{
-		TargetOutputSize: 128_000,
-		ApproxComprRatio: 1,
-	})
-	require.NoError(t, e)
-	spanBatchBuilder := derive.NewSpanBatchBuilder(sd.RollupCfg.Genesis.L2Time, sd.RollupCfg.L2ChainID)
-	// Create new span batch channel
-	channelOut, err := derive.NewChannelOut(derive.SpanBatchType, c, spanBatchBuilder)
-	require.NoError(t, err)
+	channelOut := newSpanChannelOut(t, *sd)
 
 	for i := uint64(1); i <= sequencer.L2Unsafe().Number; i++ {
 		block, err := l2Cl.BlockByNumber(t.Ctx(), new(big.Int).SetUint64(i))
@@ -417,7 +407,7 @@ func TestBackupUnsafeReorgForkChoiceInputError(gt *testing.T) {
 			block = block.WithBody([]*types.Transaction{block.Transactions()[0], invalidTx}, []*types.Header{})
 		}
 		// Add A1, B2, B3, B4, B5 into the channel
-		_, err = channelOut.AddBlock(sd.RollupCfg, block)
+		err = channelOut.AddBlock(sd.RollupCfg, block)
 		require.NoError(t, err)
 	}
 
@@ -529,15 +519,7 @@ func TestBackupUnsafeReorgForkChoiceNotInputError(gt *testing.T) {
 	require.Equal(t, verifier.L2Unsafe().Number, uint64(5))
 	require.Equal(t, verifier.L2Safe().Number, uint64(0))
 
-	c, e := compressor.NewRatioCompressor(compressor.Config{
-		TargetOutputSize: 128_000,
-		ApproxComprRatio: 1,
-	})
-	require.NoError(t, e)
-	spanBatchBuilder := derive.NewSpanBatchBuilder(sd.RollupCfg.Genesis.L2Time, sd.RollupCfg.L2ChainID)
-	// Create new span batch channel
-	channelOut, err := derive.NewChannelOut(derive.SpanBatchType, c, spanBatchBuilder)
-	require.NoError(t, err)
+	channelOut := newSpanChannelOut(t, *sd)
 
 	for i := uint64(1); i <= sequencer.L2Unsafe().Number; i++ {
 		block, err := l2Cl.BlockByNumber(t.Ctx(), new(big.Int).SetUint64(i))
@@ -564,7 +546,7 @@ func TestBackupUnsafeReorgForkChoiceNotInputError(gt *testing.T) {
 			block = block.WithBody([]*types.Transaction{block.Transactions()[0], invalidTx}, []*types.Header{})
 		}
 		// Add A1, B2, B3, B4, B5 into the channel
-		_, err = channelOut.AddBlock(sd.RollupCfg, block)
+		err = channelOut.AddBlock(sd.RollupCfg, block)
 		require.NoError(t, err)
 	}
 
@@ -866,15 +848,7 @@ func TestInvalidPayloadInSpanBatch(gt *testing.T) {
 	sequencer.ActL2PipelineFull(t)
 	verifier.ActL2PipelineFull(t)
 
-	c, e := compressor.NewRatioCompressor(compressor.Config{
-		TargetOutputSize: 128_000,
-		ApproxComprRatio: 1,
-	})
-	require.NoError(t, e)
-	spanBatchBuilder := derive.NewSpanBatchBuilder(sd.RollupCfg.Genesis.L2Time, sd.RollupCfg.L2ChainID)
-	// Create new span batch channel
-	channelOut, err := derive.NewChannelOut(derive.SpanBatchType, c, spanBatchBuilder)
-	require.NoError(t, err)
+	channelOut := newSpanChannelOut(t, *sd)
 
 	// Create block A1 ~ A12 for L1 block #0 ~ #2
 	miner.ActEmptyBlock(t)
@@ -891,7 +865,7 @@ func TestInvalidPayloadInSpanBatch(gt *testing.T) {
 			block = block.WithBody([]*types.Transaction{block.Transactions()[0], invalidTx}, []*types.Header{})
 		}
 		// Add A1 ~ A12 into the channel
-		_, err = channelOut.AddBlock(sd.RollupCfg, block)
+		err = channelOut.AddBlock(sd.RollupCfg, block)
 		require.NoError(t, err)
 	}
 
@@ -913,15 +887,7 @@ func TestInvalidPayloadInSpanBatch(gt *testing.T) {
 	require.Equal(t, verifier.L2Unsafe().Number, uint64(7))
 	require.Equal(t, verifier.L2Safe().Number, uint64(0))
 
-	// Create new span batch channel
-	c, e = compressor.NewRatioCompressor(compressor.Config{
-		TargetOutputSize: 128_000,
-		ApproxComprRatio: 1,
-	})
-	require.NoError(t, e)
-	spanBatchBuilder = derive.NewSpanBatchBuilder(sd.RollupCfg.Genesis.L2Time, sd.RollupCfg.L2ChainID)
-	channelOut, err = derive.NewChannelOut(derive.SpanBatchType, c, spanBatchBuilder)
-	require.NoError(t, err)
+	channelOut = newSpanChannelOut(t, *sd)
 
 	for i := uint64(1); i <= sequencer.L2Unsafe().Number; i++ {
 		block, err := l2Cl.BlockByNumber(t.Ctx(), new(big.Int).SetUint64(i))
@@ -948,7 +914,7 @@ func TestInvalidPayloadInSpanBatch(gt *testing.T) {
 			block = block.WithBody([]*types.Transaction{block.Transactions()[0], tx}, []*types.Header{})
 		}
 		// Add B1, A2 ~ A12 into the channel
-		_, err = channelOut.AddBlock(sd.RollupCfg, block)
+		err = channelOut.AddBlock(sd.RollupCfg, block)
 		require.NoError(t, err)
 	}
 	// Submit span batch(B1, A2, ... A12)

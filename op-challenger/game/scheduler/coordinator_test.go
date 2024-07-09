@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/scheduler/test"
@@ -11,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 func TestScheduleNewGames(t *testing.T) {
@@ -204,7 +204,136 @@ func TestDeleteDataForResolvedGames(t *testing.T) {
 
 	require.True(t, disk.gameDirExists[gameAddr1], "game 1 data should be preserved (not resolved)")
 	require.False(t, disk.gameDirExists[gameAddr2], "game 2 data should be deleted")
-	require.True(t, disk.gameDirExists[gameAddr3], "game 3 data should be preserved (inflight)")
+	// Game 3 never got marked as in-flight because it was already resolved so got skipped.
+	// We shouldn't be able to have a known-resolved game that is also in-flight because we always skip processing it.
+	require.False(t, disk.gameDirExists[gameAddr3], "game 3 data should be deleted")
+}
+
+func TestSchedule_RecordActedL1Block(t *testing.T) {
+	c, workQueue, _, _, _, _ := setupCoordinatorTest(t, 10)
+	gameAddr1 := common.Address{0xaa}
+	gameAddr2 := common.Address{0xcc}
+	ctx := context.Background()
+
+	// The first game should be tracked
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2), 1))
+
+	// Process the result
+	require.Len(t, workQueue, 2)
+	j := <-workQueue
+	require.Equal(t, gameAddr1, j.addr)
+	j.status = types.GameStatusDefenderWon
+	require.NoError(t, c.processResult(j))
+	j = <-workQueue
+	require.Equal(t, gameAddr2, j.addr)
+	j.status = types.GameStatusInProgress
+	require.NoError(t, c.processResult(j))
+
+	// Schedule another block
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2), 2))
+
+	// Process the result (only the in-progress game gets rescheduled)
+	require.Len(t, workQueue, 1)
+	j = <-workQueue
+	require.Equal(t, gameAddr2, j.addr)
+	require.Equal(t, uint64(2), j.block)
+	j.status = types.GameStatusInProgress
+	require.NoError(t, c.processResult(j))
+
+	// Schedule a third block
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2), 3))
+
+	// Process the result (only the in-progress game gets rescheduled)
+	// This is deliberately done a third time, because there was actually a bug where it worked for the first two
+	// cycles and failed on the third. This was because the first cycle the game status was unknown so it was processed
+	// the second cycle was the first time the game was known to be complete so was skipped but crucially it left it
+	// marked as in-flight.  On the third update the was incorrectly skipped as in-flight and the l1 block number
+	// wasn't updated. From then on the block number would never be updated.
+	require.Len(t, workQueue, 1)
+	j = <-workQueue
+	require.Equal(t, gameAddr2, j.addr)
+	require.Equal(t, uint64(3), j.block)
+	j.status = types.GameStatusInProgress
+	require.NoError(t, c.processResult(j))
+
+	// Schedule so that the metric is updated
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2), 4))
+
+	// Verify that the block number is recorded by the metricer as acted upon
+	require.Equal(t, uint64(3), c.m.(*stubSchedulerMetrics).actedL1Blocks)
+}
+
+func TestSchedule_RecordActedL1BlockMultipleGames(t *testing.T) {
+	c, workQueue, _, _, _, _ := setupCoordinatorTest(t, 10)
+	gameAddr1 := common.Address{0xaa}
+	gameAddr2 := common.Address{0xbb}
+	gameAddr3 := common.Address{0xcc}
+	ctx := context.Background()
+
+	games := asGames(gameAddr1, gameAddr2, gameAddr3)
+	require.NoError(t, c.schedule(ctx, games, 1))
+	require.Len(t, workQueue, 3)
+
+	// Game 1 progresses and is still in progress
+	// Game 2 progresses and is now resolved
+	// Game 3 hasn't yet progressed (update is still in flight)
+	var game3Job job
+	for i := 0; i < len(games); i++ {
+		require.Equal(t, uint64(0), c.m.(*stubSchedulerMetrics).actedL1Blocks)
+		j := <-workQueue
+		if j.addr == gameAddr2 {
+			j.status = types.GameStatusDefenderWon
+		}
+		if j.addr != gameAddr3 {
+			require.NoError(t, c.processResult(j))
+		} else {
+			game3Job = j
+		}
+	}
+
+	// Schedule so that the metric is updated
+	require.NoError(t, c.schedule(ctx, games, 2))
+
+	// Verify that block 1 isn't yet complete
+	require.Equal(t, uint64(0), c.m.(*stubSchedulerMetrics).actedL1Blocks)
+
+	// Complete processing game 3
+	require.NoError(t, c.processResult(game3Job))
+
+	// Schedule so that the metric is updated
+	require.NoError(t, c.schedule(ctx, games, 3))
+
+	// Verify that block 1 is now complete
+	require.Equal(t, uint64(1), c.m.(*stubSchedulerMetrics).actedL1Blocks)
+}
+
+func TestSchedule_RecordActedL1BlockNewGame(t *testing.T) {
+	c, workQueue, _, _, _, _ := setupCoordinatorTest(t, 10)
+	gameAddr1 := common.Address{0xaa}
+	gameAddr2 := common.Address{0xbb}
+	gameAddr3 := common.Address{0xcc}
+	ctx := context.Background()
+
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2), 1))
+	require.Len(t, workQueue, 2)
+
+	// Game 1 progresses and is still in progress
+	// Game 2 progresses and is now resolved
+	// Game 3 doesn't exist yet
+	for i := 0; i < 2; i++ {
+		require.Equal(t, uint64(0), c.m.(*stubSchedulerMetrics).actedL1Blocks)
+		j := <-workQueue
+		if j.addr == gameAddr2 {
+			j.status = types.GameStatusDefenderWon
+		}
+		require.NoError(t, c.processResult(j))
+	}
+
+	// Schedule next block with game 3 now created
+	require.NoError(t, c.schedule(ctx, asGames(gameAddr1, gameAddr2, gameAddr3), 2))
+
+	// Verify that block 1 is now complete
+	require.Equal(t, uint64(1), c.m.(*stubSchedulerMetrics).actedL1Blocks)
 }
 
 func TestSchedule_RecordActedL1Block(t *testing.T) {

@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-batcher/flags"
 	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -20,11 +19,10 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 const LimitLoadBlocksOneTime uint64 = 30
@@ -39,7 +37,7 @@ var ErrBatcherNotRunning = errors.New("batcher is not running")
 
 type L1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
+	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
 }
 
 type L2Client interface {
@@ -61,7 +59,6 @@ type DriverSetup struct {
 	EndpointProvider dial.L2EndpointProvider
 	ChannelConfig    ChannelConfig
 	PlasmaDA         *plasma.DAClient
-	AutoSwitchDA     bool
 }
 
 // BatchSubmitter encapsulates a service responsible for submitting L2 tx
@@ -207,13 +204,15 @@ func (l *BatchSubmitter) loadBlocksIntoState(ctx context.Context) error {
 
 // loadBlockIntoState fetches & stores a single block into `state`. It returns the block it loaded.
 func (l *BatchSubmitter) loadBlockIntoState(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
 	l2Client, err := l.EndpointProvider.EthClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting L2 client: %w", err)
 	}
-	block, err := l2Client.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	block, err := l2Client.BlockByNumber(cCtx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		return nil, fmt.Errorf("getting L2 block: %w", err)
 	}
@@ -229,13 +228,15 @@ func (l *BatchSubmitter) loadBlockIntoState(ctx context.Context, blockNumber uin
 // calculateL2BlockRangeToStore determines the range (start,end] that should be loaded into the local state.
 // It also takes care of initializing some local state (i.e. will modify l.lastStoredBlock in certain conditions)
 func (l *BatchSubmitter) calculateL2BlockRangeToStore(ctx context.Context) (eth.BlockID, eth.BlockID, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
 	rollupClient, err := l.EndpointProvider.RollupClient(ctx)
 	if err != nil {
 		return eth.BlockID{}, eth.BlockID{}, fmt.Errorf("getting rollup client: %w", err)
 	}
-	syncStatus, err := rollupClient.SyncStatus(ctx)
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	syncStatus, err := rollupClient.SyncStatus(cCtx)
 	// Ensure that we have the sync status
 	if err != nil {
 		return eth.BlockID{}, eth.BlockID{}, fmt.Errorf("failed to get sync status: %w", err)
@@ -275,6 +276,13 @@ func (l *BatchSubmitter) calculateL2BlockRangeToStore(ctx context.Context) (eth.
 
 func (l *BatchSubmitter) loop() {
 	defer l.wg.Done()
+	if l.Config.WaitNodeSync {
+		err := l.waitNodeSync()
+		if err != nil {
+			l.Log.Error("Error waiting for node sync", "err", err)
+			return
+		}
+	}
 
 	receiptsCh := make(chan txmgr.TxReceipt[txID])
 	queue := txmgr.NewQueue[txID](l.killCtx, l.Txmgr, l.Config.MaxPendingTransactions)
@@ -295,78 +303,6 @@ func (l *BatchSubmitter) loop() {
 		}
 	}()
 
-	economicDATypeCh := make(chan flags.DataAvailabilityType)
-	waitSwitchDACh := make(chan struct{})
-	if l.AutoSwitchDA {
-		// start auto choose economic DA type processing loop
-		economicDALoopDone := make(chan struct{})
-		defer close(economicDALoopDone) // shut down auto DA loop
-		go func() {
-			economicDAType := flags.BlobsType
-			l.Metr.RecordAutoChoosedDAType(economicDAType)
-			switchCount := 0
-			economicDATicker := time.NewTicker(5 * time.Second)
-			defer economicDATicker.Stop()
-			addressReservedErrorTicker := time.NewTicker(time.Second)
-			defer addressReservedErrorTicker.Stop()
-			for {
-				select {
-				case <-economicDATicker.C:
-					newEconomicDAType, err := l.getEconomicDAType(l.shutdownCtx)
-					if err != nil {
-						l.Log.Error("getEconomicDAType failed: %w", err)
-						continue
-					}
-					if newEconomicDAType != economicDAType {
-						switchCount++
-					} else {
-						switchCount = 0
-					}
-					threhold := DATypeSwitchThrehold
-					if economicDAType == flags.CalldataType {
-						threhold = 20 * DATypeSwitchThrehold
-					}
-					if switchCount >= threhold {
-						l.Log.Info("start economic switch", "from type", economicDAType.String(), "to type", newEconomicDAType.String())
-						start := time.Now()
-						economicDAType = newEconomicDAType
-						switchCount = 0
-						economicDATypeCh <- economicDAType
-						<-waitSwitchDACh
-						l.Log.Info("finish economic switch", "duration", time.Since(start))
-						l.Metr.RecordAutoChoosedDAType(economicDAType)
-						l.Metr.RecordEconomicAutoSwitchCount()
-						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
-					}
-				case <-addressReservedErrorTicker.C:
-					if l.addressReservedError.Load() {
-						if economicDAType == flags.BlobsType {
-							economicDAType = flags.CalldataType
-							l.Log.Info("start resolve addressReservedError switch", "from type", flags.BlobsType.String(), "to type", flags.CalldataType.String())
-						} else if economicDAType == flags.CalldataType {
-							economicDAType = flags.BlobsType
-							l.Log.Info("start resolve addressReservedError switch", "from type", flags.CalldataType.String(), "to type", flags.BlobsType.String())
-						} else {
-							l.Log.Crit("invalid DA type in economic switch loop", "invalid type", economicDAType.String())
-						}
-						switchCount = 0
-						start := time.Now()
-						economicDATypeCh <- economicDAType
-						<-waitSwitchDACh
-						l.Log.Info("finish resolve addressReservedError switch", "duration", time.Since(start))
-						l.Metr.RecordAutoChoosedDAType(economicDAType)
-						l.Metr.RecordReservedErrorSwitchCount()
-						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
-						l.addressReservedError.Store(false)
-					}
-				case <-economicDALoopDone:
-					l.Log.Info("auto DA processing loop done")
-					return
-				}
-			}
-		}()
-	}
-
 	ticker := time.NewTicker(l.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -378,6 +314,7 @@ func (l *BatchSubmitter) loop() {
 			l.Log.Info("Txmgr is closed, remaining channel data won't be sent")
 		}
 	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -397,26 +334,6 @@ func (l *BatchSubmitter) loop() {
 				continue
 			}
 			l.publishStateToL1(queue, receiptsCh)
-		case targetDAType := <-economicDATypeCh:
-			l.lastStoredBlock = eth.BlockID{}
-			// close current state to prepare for switch
-			err := l.state.Close()
-			if err != nil {
-				if errors.Is(err, ErrPendingAfterClose) {
-					l.Log.Warn("Closed channel manager to handle DA type switch with pending channel(s) remaining - submitting")
-				} else {
-					l.Log.Error("Error closing the channel manager to handle a DA type switch", "err", err)
-				}
-			}
-			// on DA type switch we want to publish all pending state then wait until each result clears before resetting
-			// the state.
-			publishAndWait()
-			l.clearState(l.shutdownCtx)
-			// switch action after clear state
-			l.switchDAType(targetDAType)
-			time.Sleep(time.Minute) // wait op-node derivation published DA data
-			waitSwitchDACh <- struct{}{}
-			continue
 		case <-l.shutdownCtx.Done():
 			if l.Txmgr.IsClosed() {
 				l.Log.Info("Txmgr is closed, remaining channel data won't be sent")
@@ -439,52 +356,36 @@ func (l *BatchSubmitter) loop() {
 	}
 }
 
-func (l *BatchSubmitter) getEconomicDAType(ctx context.Context) (flags.DataAvailabilityType, error) {
-	sCtx, sCancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer sCancel()
-	gasPrice, err := l.L1Client.SuggestGasTipCap(sCtx)
+// waitNodeSync Check to see if there was a batcher tx sent recently that
+// still needs more block confirmations before being considered finalized
+func (l *BatchSubmitter) waitNodeSync() error {
+	ctx := l.shutdownCtx
+	rollupClient, err := l.EndpointProvider.RollupClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("getEconomicDAType failed to fetch the suggested gas tip cap: %w", err)
+		return fmt.Errorf("failed to get rollup client: %w", err)
 	}
-	calldataCost := big.NewInt(0).Mul(big.NewInt(MaxBlobsNumberPerTx*ApproximateGasPerCallDataTx), gasPrice)
 
-	hCtx, hCancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer hCancel()
-	header, err := l.L1Client.HeaderByNumber(hCtx, nil)
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	l1Tip, err := l.l1Tip(cCtx)
 	if err != nil {
-		return "", fmt.Errorf("getEconomicDAType failed to fetch the latest header: %w", err)
+		return fmt.Errorf("failed to retrieve l1 tip: %w", err)
 	}
-	if header.ExcessBlobGas == nil {
-		return "", fmt.Errorf("getEconomicDAType fetched header with nil ExcessBlobGas: %v", header)
-	}
-	blobGasPrice := eip4844.CalcBlobFee(*header.ExcessBlobGas)
-	blobCost := big.NewInt(0).Add(big.NewInt(0).Mul(big.NewInt(int64(params.TxGas)), gasPrice), big.NewInt(0).Mul(big.NewInt(params.MaxBlobGasPerBlock), blobGasPrice))
 
-	l.Metr.RecordEstimatedCalldataTypeFee(calldataCost)
-	l.Metr.RecordEstimatedBlobTypeFee(blobCost)
-	if calldataCost.Cmp(blobCost) < 0 {
-		l.Log.Info("Economic DA type is calldata", "gas price", gasPrice, "calldata cost", calldataCost, "blob gas price", blobGasPrice, "blob cost", blobCost)
-		return flags.CalldataType, nil
+	l1TargetBlock := l1Tip.Number
+	if l.Config.CheckRecentTxsDepth != 0 {
+		l.Log.Info("Checking for recently submitted batcher transactions on L1")
+		recentBlock, found, err := eth.CheckRecentTxs(cCtx, l.L1Client, l.Config.CheckRecentTxsDepth, l.Txmgr.From())
+		if err != nil {
+			return fmt.Errorf("failed checking recent batcher txs: %w", err)
+		}
+		l.Log.Info("Checked for recently submitted batcher transactions on L1",
+			"l1_head", l1Tip, "l1_recent", recentBlock, "found", found)
+		l1TargetBlock = recentBlock
 	}
-	l.Log.Info("Economic DA type is blobs", "gas price", gasPrice, "calldata cost", calldataCost, "blob gas price", blobGasPrice, "blob cost", blobCost)
-	return flags.BlobsType, nil
-}
 
-func (l *BatchSubmitter) switchDAType(targetDAType flags.DataAvailabilityType) {
-	switch targetDAType {
-	case flags.BlobsType:
-		l.Config.UseBlobs = true
-		l.ChannelConfig.MaxFrameSize = eth.MaxBlobDataSize - 1
-		l.ChannelConfig.MultiFrameTxs = true
-		l.state.SwitchDAType(targetDAType)
-	case flags.CalldataType:
-		l.Config.UseBlobs = false
-		l.ChannelConfig.MaxFrameSize = CallDataMaxTxSize - 1
-		l.ChannelConfig.MultiFrameTxs = false
-		l.state.SwitchDAType(targetDAType)
-	default:
-		l.Log.Crit("batch submitter switch to a invalid DA type", "targetDAType", targetDAType.String())
-	}
+	return dial.WaitRollupSync(l.shutdownCtx, l.Log, rollupClient, l1TargetBlock, time.Second*12)
 }
 
 // publishStateToL1 queues up all pending TxData to be published to the L1, returning when there is
@@ -573,16 +474,16 @@ func (l *BatchSubmitter) publishTxToL1(ctx context.Context, queue *txmgr.Queue[t
 }
 
 func (l *BatchSubmitter) safeL1Origin(ctx context.Context) (eth.BlockID, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
-
 	c, err := l.EndpointProvider.RollupClient(ctx)
 	if err != nil {
 		log.Error("Failed to get rollup client", "err", err)
 		return eth.BlockID{}, fmt.Errorf("safe l1 origin: error getting rollup client: %w", err)
 	}
 
-	status, err := c.SyncStatus(ctx)
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	status, err := c.SyncStatus(cCtx)
 	if err != nil {
 		log.Error("Failed to get sync status", "err", err)
 		return eth.BlockID{}, fmt.Errorf("safe l1 origin: error getting sync status: %w", err)
@@ -726,13 +627,4 @@ func logFields(xs ...any) (fs []any) {
 		}
 	}
 	return fs
-}
-
-func errStringMatch(err, target error) bool {
-	if err == nil && target == nil {
-		return true
-	} else if err == nil || target == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), target.Error())
 }

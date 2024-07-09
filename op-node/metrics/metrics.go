@@ -26,11 +26,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
-const (
-	Namespace = "op_node"
-
-	BatchMethod = "<batch>"
-)
+const Namespace = "op_node"
 
 type Metricer interface {
 	RecordInfo(version string)
@@ -99,6 +95,8 @@ type Metrics struct {
 	SequencingErrors *metrics.Event
 	PublishingErrors *metrics.Event
 	L1UrlSwitchEvent *metrics.Event
+
+	DerivedBatches metrics.EventVec
 
 	DerivedBatches metrics.EventVec
 
@@ -205,6 +203,8 @@ func NewMetrics(procName string) *Metrics {
 		SequencingErrors: metrics.NewEvent(factory, ns, "", "sequencing_errors", "sequencing errors"),
 		PublishingErrors: metrics.NewEvent(factory, ns, "", "publishing_errors", "p2p publishing errors"),
 		L1UrlSwitchEvent: metrics.NewEvent(factory, ns, "", "l1_url_switch", "L1 URL switch events"),
+
+		DerivedBatches: metrics.NewEventVec(factory, ns, "", "derived_batches", "derived batches", []string{"type"}),
 
 		DerivedBatches: metrics.NewEventVec(factory, ns, "", "derived_batches", "derived batches", []string{"type"}),
 

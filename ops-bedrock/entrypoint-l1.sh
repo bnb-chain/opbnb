@@ -54,21 +54,10 @@ exec geth \
 	--syncmode=full \
 	--nodiscover \
 	--maxpeers=1 \
-	--networkid=$CHAIN_ID \
-	--unlock=$BLOCK_SIGNER_ADDRESS \
+	--networkid="$CHAIN_ID" \
+	--unlock="$BLOCK_SIGNER_ADDRESS" \
 	--mine \
-	--miner.etherbase=$BLOCK_SIGNER_ADDRESS \
-	--miner.gaslimit=150000000 \
-  --miner.newpayload-timeout=650ms \
-  --miner.gasprice=1000 \
-  --txpool.globalslots=18000 \
-  --txpool.globalqueue=6000 \
-  --txpool.accountqueue=200 \
-  --txpool.accountslots=200 \
-  --txpool.nolocals=true \
-  --txpool.pricelimit=1000 \
-  --cache 32000 \
-  --cache.preimages \
+	--miner.etherbase="$BLOCK_SIGNER_ADDRESS" \
 	--password="$GETH_DATA_DIR"/password \
 	--allow-insecure-unlock \
 	--rpc.allow-unprotected-txs \

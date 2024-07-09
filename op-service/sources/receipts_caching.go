@@ -14,17 +14,18 @@ import (
 // A CachingReceiptsProvider caches successful receipt fetches from the inner
 // ReceiptsProvider. It also avoids duplicate in-flight requests per block hash.
 type CachingReceiptsProvider struct {
-	inner InnerReceiptsProvider
-	cache *caching.PreFetchCache[*ReceiptsHashPair]
+	inner ReceiptsProvider
+	cache *caching.LRUCache[common.Hash, types.Receipts]
+
 	// lock fetching process for each block hash to avoid duplicate requests
 	fetching   map[common.Hash]*sync.Mutex
 	fetchingMu sync.Mutex // only protects map
 }
 
-func NewCachingReceiptsProvider(inner InnerReceiptsProvider, m caching.Metrics, cacheSize int) *CachingReceiptsProvider {
+func NewCachingReceiptsProvider(inner ReceiptsProvider, m caching.Metrics, cacheSize int) *CachingReceiptsProvider {
 	return &CachingReceiptsProvider{
 		inner:    inner,
-		cache:    caching.NewPreFetchCache[*ReceiptsHashPair](m, "receipts", cacheSize),
+		cache:    caching.NewLRUCache[common.Hash, types.Receipts](m, "receipts", cacheSize),
 		fetching: make(map[common.Hash]*sync.Mutex),
 	}
 }
@@ -52,41 +53,34 @@ func (p *CachingReceiptsProvider) deleteFetchingLock(blockHash common.Hash) {
 
 // FetchReceipts fetches receipts for the given block and transaction hashes
 // it expects that the inner FetchReceipts implementation handles validation
-func (p *CachingReceiptsProvider) FetchReceipts(ctx context.Context, blockInfo eth.BlockInfo, txHashes []common.Hash, isForPreFetch bool) (types.Receipts, error, bool) {
+func (p *CachingReceiptsProvider) FetchReceipts(ctx context.Context, blockInfo eth.BlockInfo, txHashes []common.Hash) (types.Receipts, error) {
 	block := eth.ToBlockID(blockInfo)
-	var isFull bool
-
-	if v, ok := p.cache.Get(block.Number, !isForPreFetch); ok && v.blockHash == block.Hash {
-		return v.receipts, nil, isFull
+	if r, ok := p.cache.Get(block.Hash); ok {
+		return r, nil
 	}
 
 	mu := p.getOrCreateFetchingLock(block.Hash)
 	mu.Lock()
 	defer mu.Unlock()
 	// Other routine might have fetched in the meantime
-	if v, ok := p.cache.Get(block.Number, !isForPreFetch); ok && v.blockHash == block.Hash {
+	if r, ok := p.cache.Get(block.Hash); ok {
 		// we might have created a new lock above while the old
 		// fetching job completed.
 		p.deleteFetchingLock(block.Hash)
-		return v.receipts, nil, isFull
-	}
-
-	isFull = p.cache.IsFull()
-	if isForPreFetch && isFull {
-		return nil, nil, true
+		return r, nil
 	}
 
 	r, err := p.inner.FetchReceipts(ctx, blockInfo, txHashes)
 	if err != nil {
-		return nil, err, isFull
+		return nil, err
 	}
 
-	p.cache.AddIfNotFull(block.Number, &ReceiptsHashPair{blockHash: block.Hash, receipts: r})
+	p.cache.Add(block.Hash, r)
 	// result now in cache, can delete fetching lock
 	p.deleteFetchingLock(block.Hash)
-	return r, nil, isFull
+	return r, nil
 }
 
-func (p *CachingReceiptsProvider) GetReceiptsCache() *caching.PreFetchCache[*ReceiptsHashPair] {
-	return p.cache
+func (p *CachingReceiptsProvider) isInnerNil() bool {
+	return p.inner == nil
 }

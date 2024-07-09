@@ -10,15 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
-	"github.com/ethereum-optimism/optimism/op-bindings/bindingspreview"
-	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/crossdomain"
+	legacybindings "github.com/ethereum-optimism/optimism/op-e2e/bindings"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/challenger"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/disputegame"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/geth"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/wait"
+	"github.com/ethereum-optimism/optimism/op-node/bindings"
+	bindingspreview "github.com/ethereum-optimism/optimism/op-node/bindings/preview"
+	"github.com/ethereum-optimism/optimism/op-service/predeploys"
 	"github.com/ethereum-optimism/optimism/op-service/testutils/fuzzerutils"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -42,8 +43,9 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 	InitParallel(t)
 	// Define our values to set in the GasPriceOracle (we set them high to see if it can lock L2 or stop bindings
 	// from updating the prices once again.
-	overheadValue := abi.MaxUint256
-	scalarValue := abi.MaxUint256
+	overheadValue := new(big.Int).Set(abi.MaxUint256)
+	// Ensure the most significant byte is 0x00
+	scalarValue := new(big.Int).Rsh(new(big.Int).Set(abi.MaxUint256), 8)
 	var cancel context.CancelFunc
 
 	// Create our system configuration for L1/L2 and start it
@@ -59,9 +61,9 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 	ethPrivKey := cfg.Secrets.SysCfgOwner
 
 	// Bind to the SystemConfig & GasPriceOracle contracts
-	sysconfig, err := bindings.NewSystemConfig(cfg.L1Deployments.SystemConfigProxy, l1Client)
+	sysconfig, err := legacybindings.NewSystemConfig(cfg.L1Deployments.SystemConfigProxy, l1Client)
 	require.Nil(t, err)
-	gpoContract, err := bindings.NewGasPriceOracleCaller(predeploys.GasPriceOracleAddr, l2Seq)
+	gpoContract, err := legacybindings.NewGasPriceOracleCaller(predeploys.GasPriceOracleAddr, l2Seq)
 	require.Nil(t, err)
 
 	// Obtain our signer.
@@ -419,7 +421,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			l2Verif := sys.Clients["verifier"]
 			require.NoError(t, err)
 
-			systemConfig, err := bindings.NewSystemConfigCaller(cfg.L1Deployments.SystemConfigProxy, l1Client)
+			systemConfig, err := legacybindings.NewSystemConfigCaller(cfg.L1Deployments.SystemConfigProxy, l1Client)
 			require.NoError(t, err)
 			unsafeBlockSigner, err := systemConfig.UnsafeBlockSigner(nil)
 			require.NoError(t, err)
@@ -547,7 +549,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			// Wait for the finalization period, then we can finalize this withdrawal.
 			require.NotEqual(t, cfg.L1Deployments.L2OutputOracleProxy, common.Address{})
 			var blockNumber uint64
-			if e2eutils.UseFPAC() {
+			if e2eutils.UseFaultProofs() {
 				blockNumber, err = wait.ForGamePublished(ctx, l1Client, cfg.L1Deployments.OptimismPortalProxy, cfg.L1Deployments.DisputeGameFactoryProxy, receipt.BlockNumber)
 			} else {
 				blockNumber, err = wait.ForOutputRootPublished(ctx, l1Client, cfg.L1Deployments.L2OutputOracleProxy, receipt.BlockNumber)
@@ -653,11 +655,11 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 
-				if e2eutils.UseFPAC() {
+				if e2eutils.UseFaultProofs() {
 					// Start a challenger to resolve claims and games once the clock expires
 					factoryHelper := disputegame.NewFactoryHelper(t, ctx, sys)
 					factoryHelper.StartChallenger(ctx, "Challenger",
-						challenger.WithCannon(t, sys.RollupConfig, sys.L2GenesisCfg, sys.RollupEndpoint("sequencer"), sys.NodeEndpoint("sequencer")),
+						challenger.WithFastGames(),
 						challenger.WithPrivKey(sys.Cfg.Secrets.Mallory))
 				}
 				receipt, err = wait.ForReceiptOK(ctx, l1Client, tx.Hash())
@@ -681,8 +683,8 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 				// Wait for finalization and then create the Finalized Withdrawal Transaction
 				ctx, withdrawalCancel := context.WithTimeout(context.Background(), 60*time.Duration(cfg.DeployConfig.L1BlockTime)*time.Second)
 				defer withdrawalCancel()
-				if e2eutils.UseFPAC() {
-					err = wait.ForWithdrawalCheck(ctx, l1Client, withdrawal, cfg.L1Deployments.OptimismPortalProxy)
+				if e2eutils.UseFaultProofs() {
+					err = wait.ForWithdrawalCheck(ctx, l1Client, withdrawal, cfg.L1Deployments.OptimismPortalProxy, transactor.Account.L1Opts.From)
 					require.NoError(t, err)
 				} else {
 					err = wait.ForFinalizationPeriod(ctx, l1Client, header.Number, cfg.L1Deployments.L2OutputOracleProxy)

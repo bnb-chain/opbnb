@@ -5,26 +5,12 @@ import (
 	"fmt"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
-	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-type ReceiptsHashPair struct {
-	blockHash common.Hash
-	receipts  types.Receipts
-}
-
 type ReceiptsProvider interface {
-	// FetchReceipts returns a block info and all of the receipts associated with transactions in the block.
-	// It verifies the receipt hash in the block header against the receipt hash of the fetched receipts
-	// to ensure that the execution engine did not fail to return any receipts.
-	FetchReceipts(ctx context.Context, blockInfo eth.BlockInfo, txHashes []common.Hash, isForPreFetch bool) (types.Receipts, error, bool)
-	GetReceiptsCache() *caching.PreFetchCache[*ReceiptsHashPair]
-}
-
-type InnerReceiptsProvider interface {
 	// FetchReceipts returns a block info and all of the receipts associated with transactions in the block.
 	// It verifies the receipt hash in the block header against the receipt hash of the fetched receipts
 	// to ensure that the execution engine did not fail to return any receipts.

@@ -102,11 +102,6 @@ func (m *MockEthClient) FetchReceipts(ctx context.Context, blockHash common.Hash
 	return *out.Get(0).(*eth.BlockInfo), out.Get(1).(types.Receipts), out.Error(2)
 }
 
-func (m *MockEthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
-	out := m.Mock.MethodCalled("PreFetchReceipts", blockHash)
-	return *out[0].(*bool), *out[1].(*error)
-}
-
 func (m *MockEthClient) ExpectFetchReceipts(hash common.Hash, info eth.BlockInfo, receipts types.Receipts, err error) {
 	m.Mock.On("FetchReceipts", hash).Once().Return(&info, receipts, err)
 }
