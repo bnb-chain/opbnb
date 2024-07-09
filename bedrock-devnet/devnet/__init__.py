@@ -389,7 +389,15 @@ def bsc_l1_init(paths):
             file_content = file.read()
         file_content = file_content.replace('0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186', l1_init_holder)
         file_content = file_content.replace('59ba8068eb256d520179e903f43dacf6d8d57d72bd306e1bd603fdb8c8da10e8', l1_init_holder_prv)
+        file_content = file_content.replace('DefaultExtraReserveForBlobRequests=32', 'DefaultExtraReserveForBlobRequests=524288')
+        file_content = file_content.replace('MinBlocksForBlobRequests=576', 'MinBlocksForBlobRequests=524288')
         with open(pjoin(paths.node_deploy_dir,'.env'), 'w') as file:
+            file.write(file_content)
+
+        with open(pjoin(paths.node_deploy_dir,'config.toml'), 'r') as file:
+            file_content = file.read()
+        file_content = file_content.replace('Level = "info"', 'Level = "trace"')
+        with open(pjoin(paths.node_deploy_dir,'config.toml'), 'w') as file:
             file.write(file_content)
 
     shutil.copy(pjoin(paths.bsc_dir,'build','bin','geth'), pjoin(paths.node_deploy_dir,'bin','geth'))
