@@ -552,6 +552,7 @@ func (e *EngineController) GetCurrentUnsafeHead(ctx context.Context) eth.L2Block
 	}
 	return currentL2UnsafeHead
 }
+
 // getCurrentL2Info returns the current finalized, safe and unsafe heads of the execution engine.
 func (e *EngineController) getCurrentL2Info(ctx context.Context) (*sync.FindHeadsResult, error) {
 	finalized, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
