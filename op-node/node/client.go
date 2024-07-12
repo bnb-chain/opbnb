@@ -39,6 +39,11 @@ type L1BeaconEndpointSetup interface {
 	Check() error
 }
 
+type L1BlobEndpointSetup interface {
+	Setup(ctx context.Context, log log.Logger) ([]client.RPC, error)
+	Check() error
+}
+
 type L2EndpointConfig struct {
 	// L2EngineAddr is the address of the L2 Engine JSON-RPC endpoint to use. The engine and eth
 	// namespaces must be enabled by the endpoint.
@@ -161,6 +166,20 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 	return l1Node, rpcCfg, nil
 }
 
+func fallbackClientWrap(ctx context.Context, logger log.Logger, urlList []string, cfg *L1EndpointConfig, rollupCfg *rollup.Config, opts ...client.RPCOption) (client.RPC, *sources.L1ClientConfig, error) {
+	l1Node, err := client.NewRPC(ctx, logger, urlList[0], opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to dial L1 address (%s): %w", urlList[0], err)
+	}
+	l1Node = sources.NewFallbackClient(ctx, l1Node, urlList, logger, rollupCfg.L1ChainID, rollupCfg.Genesis.L1, func(url string) (client.RPC, error) {
+		return client.NewRPC(ctx, logger, url, opts...)
+	})
+	rpcCfg := sources.L1ClientDefaultConfig(rollupCfg, cfg.L1TrustRPC, cfg.L1RPCKind)
+	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
+	rpcCfg.MaxConcurrentRequests = cfg.MaxConcurrency
+	return l1Node, rpcCfg, nil
+}
+
 // PreparedL1Endpoint enables testing with an in-process pre-setup RPC connection to L1
 type PreparedL1Endpoint struct {
 	Client          client.RPC
@@ -234,4 +253,61 @@ func parseHTTPHeader(headerStr string) (http.Header, error) {
 	}
 	h.Add(s[0], s[1])
 	return h, nil
+}
+
+
+type L1BlobEndpointConfig struct {
+	// Address of L1 blob node endpoint to use, multiple alternative addresses separated by commas are supported, and will rotate when error
+	NodeAddrs string
+
+	// RateLimit specifies a self-imposed rate-limit on L1 requests. 0 is no rate-limit.
+	RateLimit float64
+
+	// BatchSize specifies the maximum batch-size, which also applies as L1 rate-limit burst amount (if set).
+	BatchSize int
+}
+
+var _ L1BlobEndpointSetup = (*L1BlobEndpointConfig)(nil)
+
+func (cfg *L1BlobEndpointConfig) Check() error {
+	if cfg.NodeAddrs == "" {
+		return fmt.Errorf("empty L1 blob endpoint address")
+	}
+	if cfg.BatchSize < 1 || cfg.BatchSize > 500 {
+		return fmt.Errorf("batch size is invalid or unreasonable: %d", cfg.BatchSize)
+	}
+	if cfg.RateLimit < 0 {
+		return fmt.Errorf("rate limit cannot be negative")
+	}
+	return nil
+}
+
+func (cfg *L1BlobEndpointConfig) Setup(ctx context.Context, log log.Logger) ([]client.RPC, error) {
+	rpcClients := make([]client.RPC, 0)
+
+	opts := []client.RPCOption{
+		client.WithDialBackoff(10),
+	}
+	if cfg.RateLimit != 0 {
+		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
+	}
+	isMultiUrl, urlList := client.MultiUrlParse(cfg.NodeAddrs)
+
+	if isMultiUrl {
+		for _, url := range urlList {
+			rpcClient, err := client.NewRPC(ctx, log, url, opts...)
+			if err != nil {
+				return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", url, err)
+			}
+			rpcClients = append(rpcClients, rpcClient)
+		}
+	} else {
+		rpcClient, err := client.NewRPC(ctx, log, cfg.NodeAddrs, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("setup blob client failed to dial L1 address (%s): %w", cfg.NodeAddrs, err)
+		}
+		rpcClients = append(rpcClients, rpcClient)
+	}
+
+	return rpcClients, nil
 }

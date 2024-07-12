@@ -27,11 +27,6 @@ func TestLoadConfig(t *testing.T) {
 		l1-header-buffer-size = 1000
 		l2-header-buffer-size = 1000
 
-		l1-polling-interval = 5000
-		l2-polling-interval = 5000
-		l1-header-buffer-size = 1000
-		l2-header-buffer-size = 1000
-
 		[rpcs]
 		l1-rpc = "https://l1.example.com"
 		l2-rpc = "https://l2.example.com"

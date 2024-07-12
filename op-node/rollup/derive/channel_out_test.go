@@ -124,27 +124,6 @@ func TestOutputFrameNoEmptyLastFrame(t *testing.T) {
 	}
 }
 
-func TestOutputFrameNoEmptyLastFrame(t *testing.T) {
-	cout, err := NewChannelOut(SingularBatchType, &nonCompressor{}, nil)
-	require.NoError(t, err)
-
-	rng := rand.New(rand.NewSource(0x543331))
-	chainID := big.NewInt(rng.Int63n(1000))
-	txCount := 1
-	singularBatch := RandomSingularBatch(rng, txCount, chainID)
-
-	written, err := cout.AddSingularBatch(singularBatch, 0)
-	require.NoError(t, err)
-
-	require.NoError(t, cout.Close())
-
-	var buf bytes.Buffer
-	// Output a frame which needs exactly `written` bytes. This frame is expected to be the last frame.
-	_, err = cout.OutputFrame(&buf, written+FrameV0OverHeadSize)
-	require.ErrorIs(t, err, io.EOF)
-
-}
-
 // TestRLPByteLimit ensures that stream encoder is properly limiting the length.
 // It will decode the input if `len(input) <= inputLimit`.
 func TestRLPByteLimit(t *testing.T) {

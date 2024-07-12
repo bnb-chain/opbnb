@@ -22,6 +22,7 @@ type Config struct {
 	L2 L2EndpointSetup
 
 	Beacon L1BeaconEndpointSetup
+	L1Blob L1BlobEndpointSetup
 
 	Driver driver.Config
 
@@ -138,14 +139,14 @@ func (cfg *Config) Check() error {
 	if err := cfg.L2.Check(); err != nil {
 		return fmt.Errorf("l2 endpoint config error: %w", err)
 	}
-	if cfg.Rollup.EcotoneTime != nil {
-		if cfg.Beacon == nil {
-			return fmt.Errorf("the Ecotone upgrade is scheduled but no L1 Beacon API endpoint is configured")
-		}
-		if err := cfg.Beacon.Check(); err != nil {
-			return fmt.Errorf("misconfigured L1 Beacon API endpoint: %w", err)
-		}
-	}
+	// if cfg.Rollup.EcotoneTime != nil {
+	// 	if cfg.Beacon == nil {
+	// 		return fmt.Errorf("the Ecotone upgrade is scheduled but no L1 Beacon API endpoint is configured")
+	// 	}
+	// 	if err := cfg.Beacon.Check(); err != nil {
+	// 		return fmt.Errorf("misconfigured L1 Beacon API endpoint: %w", err)
+	// 	}
+	// }
 	if err := cfg.Rollup.Check(); err != nil {
 		return fmt.Errorf("rollup config error: %w", err)
 	}

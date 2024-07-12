@@ -50,6 +50,7 @@ type EngineController struct {
 	metrics    Metrics
 	syncMode   sync.Mode
 	syncStatus syncStatusEnum
+	elTriggerGap int
 	chainSpec  *rollup.ChainSpec
 	rollupCfg  *rollup.Config
 	elStart    time.Time
@@ -76,9 +77,9 @@ type EngineController struct {
 	safeAttrs    *AttributesWithParent
 }
 
-func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncMode sync.Mode) *EngineController {
+func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncConfig *sync.Config) *EngineController {
 	syncStatus := syncStatusCL
-	if syncMode == sync.ELSync {
+	if syncConfig.SyncMode == sync.ELSync {
 		syncStatus = syncStatusWillStartEL
 	}
 
@@ -88,7 +89,8 @@ func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rol
 		metrics:    metrics,
 		chainSpec:  rollup.NewChainSpec(rollupCfg),
 		rollupCfg:  rollupCfg,
-		syncMode:   syncMode,
+		syncMode:     syncConfig.SyncMode,
+		elTriggerGap: syncConfig.ELTriggerGap,
 		syncStatus: syncStatus,
 		clock:      clock.SystemClock,
 	}
@@ -256,7 +258,7 @@ func (e *EngineController) ConfirmPayload(ctx context.Context, agossip async.Asy
 	}
 	// Update the safe head if the payload is built with the last attributes in the batch.
 	updateSafe := e.buildingSafe && e.safeAttrs != nil && e.safeAttrs.IsLastInSpan
-	envelope, errTyp, err := confirmPayload(ctx, e.log, e.engine, fc, e.buildingInfo, updateSafe, agossip, sequencerConductor)
+	envelope, errTyp, err := confirmPayload(ctx, e.log, e.engine, fc, e.buildingInfo, updateSafe, agossip, sequencerConductor, e.metrics)
 	if err != nil {
 		return nil, errTyp, fmt.Errorf("failed to complete building on top of L2 chain %s, id: %s, error (%d): %w", e.buildingOnto, e.buildingInfo.ID, errTyp, err)
 	}
@@ -377,7 +379,8 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	if e.syncStatus == syncStatusWillStartEL {
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
 		rollupGenesisIsFinalized := b.Hash == e.rollupCfg.Genesis.L2.Hash
-		if errors.Is(err, ethereum.NotFound) || rollupGenesisIsFinalized {
+		isGapSyncNeeded := ref.Number-e.UnsafeL2Head().Number > uint64(e.elTriggerGap)
+		if errors.Is(err, ethereum.NotFound) || rollupGenesisIsFinalized || isGapSyncNeeded {
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")
 			e.elStart = e.clock.Now()

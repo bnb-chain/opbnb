@@ -99,9 +99,5 @@ func LoadOPStackRollupConfig(chainID uint64) (*Config, error) {
 		cfg.MaxSequencerDrift = 1000
 		cfg.SeqWindowSize = 7200
 	}
-	if chainID == pgnSepolia {
-		cfg.MaxSequencerDrift = 1000
-		cfg.SeqWindowSize = 7200
-	}
 	return cfg, nil
 }

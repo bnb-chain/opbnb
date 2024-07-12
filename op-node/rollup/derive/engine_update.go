@@ -129,6 +129,7 @@ func confirmPayload(
 	updateSafe bool,
 	agossip async.AsyncGossiper,
 	sequencerConductor conductor.SequencerConductor,
+	metrics Metrics,
 ) (out *eth.ExecutionPayloadEnvelope, errTyp BlockInsertionErrType, err error) {
 	var envelope *eth.ExecutionPayloadEnvelope
 	// if the payload is available from the async gossiper, it means it was not yet imported, so we reuse it
@@ -141,7 +142,9 @@ func confirmPayload(
 			"parent", envelope.ExecutionPayload.ParentHash,
 			"txs", len(envelope.ExecutionPayload.Transactions))
 	} else {
+		start := time.Now()
 		envelope, err = eng.GetPayload(ctx, payloadInfo)
+		metrics.RecordSequencerStepTime("getPayload", time.Since(start))
 	}
 	if err != nil {
 		// even if it is an input-error (unknown payload ID), it is temporary, since we will re-attempt the full payload building, not just the retrieval of the payload.
@@ -158,6 +161,7 @@ func confirmPayload(
 	// agossip.Clear() will be called later if an non-temporary error is found, or if the payload is successfully inserted
 	agossip.Gossip(envelope)
 
+	start := time.Now()
 	status, err := eng.NewPayload(ctx, payload, envelope.ParentBeaconBlockRoot)
 	if err != nil {
 		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to insert execution payload: %w", err)

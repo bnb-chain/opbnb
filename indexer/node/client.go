@@ -73,10 +73,6 @@ func StorageHash(ctx context.Context, c client.Client, address common.Address, b
 	return proof.StorageHash, nil
 }
 
-func (c *clnt) Close() {
-	c.rpc.Close()
-}
-
 type Logs struct {
 	Logs          []types.Log
 	ToBlockHeader *types.Header

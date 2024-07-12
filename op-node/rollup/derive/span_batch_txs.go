@@ -433,14 +433,6 @@ func (sbtx *spanBatchTxs) AddTxs(txs [][]byte, chainID *big.Int) error {
 			if tx.Protected() {
 				protectedBit = uint(1)
 			}
-			sbtx.protectedBits.SetBit(sbtx.protectedBits, int(sbtx.totalLegacyTxCount), protectedBit)
-			sbtx.totalLegacyTxCount++
-		}
-		if tx.Type() == types.LegacyTxType {
-			protectedBit := uint(0)
-			if tx.Protected() {
-				protectedBit = uint(1)
-			}
 			protectedBits.SetBit(protectedBits, int(totalLegacyTxCount), protectedBit)
 			totalLegacyTxCount++
 		}

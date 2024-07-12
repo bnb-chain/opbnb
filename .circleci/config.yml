@@ -1370,10 +1370,6 @@ jobs:
           command: |
             pnpm i && pnpm build
       - run:
-          name: pnpm i
-          command: |
-            pnpm i && pnpm build
-      - run:
           name: Bring up the stack
           command: |
             # Specify like this to avoid a forced rebuild of the contracts + devnet L1

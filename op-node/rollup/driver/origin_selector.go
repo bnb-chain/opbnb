@@ -53,6 +53,10 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
 	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+msd
+	// Limit the time to fetch next origin block by default
+	// Nolan
+	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer refCancel()
 	if pastSeqDrift {
 		log.Warn("Next L2 block time is past the sequencer drift + current origin time")
 		// Must fetch next L1 block as long as it may take, cause we are pastSeqDrift

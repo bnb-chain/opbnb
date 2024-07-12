@@ -76,7 +76,7 @@ func VerifyStorageProof(root common.Hash, proof common.StorageResult) error {
 	}
 }
 
-func VerifyProof(stateRoot common.Hash, proof *gethclient.AccountResult) error {
+func VerifyProof(stateRoot common.Hash, proof *common.AccountResult) error {
 	balance, overflow := uint256.FromBig(proof.Balance)
 	if overflow {
 		return fmt.Errorf("proof balance overflows uint256: %d", proof.Balance)

@@ -22,6 +22,7 @@ type Metrics interface {
 	RecordChannelTimedOut()
 	RecordFrame()
 	RecordDerivedBatches(batchType string)
+	RecordSequencerStepTime(step string, duration time.Duration)
 }
 
 type L1Fetcher interface {

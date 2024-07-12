@@ -29,7 +29,7 @@ const defaultFinalityLookback = 4*32 + 1
 
 // finalityDelay is the number of L1 blocks to traverse before trying to finalize L2 blocks again.
 // We do not want to do this too often, since it requires fetching a L1 block by number, so no cache data.
-const finalityDelay = 64
+const finalityDelay = 15
 
 // calcFinalityLookback calculates the default finality lookback based on DA challenge window if plasma
 // mode is activated or L1 finality lookback.
@@ -61,6 +61,7 @@ type FinalizerEngine interface {
 
 type FinalizerL1Interface interface {
 	L1BlockRefByNumber(context.Context, uint64) (eth.L1BlockRef, error)
+	L1ReceiptsFetcher
 }
 
 type Finalizer struct {
@@ -223,6 +224,8 @@ func (fi *Finalizer) PostProcessSafeL2(l2Safe eth.L2BlockRef, derivedFrom eth.L1
 			fi.log.Debug("updated finality-data", "last_l1", last.L1Block, "last_l2", last.L2Block)
 		}
 	}
+	// Nolan
+	fi.l1Fetcher.ClearReceiptsCacheBefore(l2Safe.L1Origin.Number)
 }
 
 // Reset clears the recent history of safe-L2 blocks used for finalization,

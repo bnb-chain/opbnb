@@ -125,6 +125,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 
 	// Start a payload building process.
 	withParent := &derive.AttributesWithParent{Attributes: attrs, Parent: l2Head, IsLastInSpan: false}
+	start = time.Now()
 	errTyp, err := d.engine.StartPayload(ctx, l2Head, withParent, false)
 	if err != nil {
 		return fmt.Errorf("failed to start building on top of L2 chain %s, error (%d): %w", l2Head, errTyp, err)
@@ -257,6 +258,10 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			return nil, nil
 		} else {
 			payload := envelope.ExecutionPayload
+			if len(payload.Transactions) == 1 {
+				d.accEmptyBlocks += 1
+			}
+			d.attrBuilder.CachePayloadByHash(envelope)
 			d.log.Info("sequencer successfully built a new block", "block", payload.ID(), "time", uint64(payload.Timestamp), "txs", len(payload.Transactions))
 			return envelope, nil
 		}

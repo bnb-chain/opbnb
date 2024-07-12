@@ -15,8 +15,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/node/safedb"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
-	"github.com/ethereum-optimism/optimism/op-node/rollup/async"
-	"github.com/ethereum-optimism/optimism/op-node/rollup/conductor"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
@@ -289,7 +287,11 @@ func TestEngineQueue_ResetWhenUnsafeOriginNotCanonical(t *testing.T) {
 
 	prev := &fakeAttributesQueue{origin: refE}
 
-	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -628,7 +630,11 @@ func TestVerifyNewL1Origin(t *testing.T) {
 			}, nil)
 
 			prev := &fakeAttributesQueue{origin: refE}
-			ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+			ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+				SyncMode:           sync.CLSync,
+				SkipSyncStartCheck: false,
+				ELTriggerGap:       0,
+			})
 			eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 			require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -649,6 +655,9 @@ func TestVerifyNewL1Origin(t *testing.T) {
 
 			// L1 chain reorgs so new origin is at same slot as refF but on a different fork
 			prev.origin = test.newOrigin
+			if test.verifyPass {
+				l1F.ExpectClearReceiptsCacheBefore(refB.Number)
+			}
 			err = eq.Step(context.Background())
 			if test.expectReset {
 				require.ErrorIs(t, err, ErrReset, "should reset pipeline due to mismatched origin")
@@ -727,7 +736,11 @@ func TestBlockBuildingRace(t *testing.T) {
 	}
 
 	prev := &fakeAttributesQueue{origin: refA, attrs: attrs, islastInSpan: true}
-	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	attribHandler := &fakeAttributesHandler{}
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, attribHandler)
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
@@ -844,11 +857,16 @@ func TestResetLoop(t *testing.T) {
 
 	prev := &fakeAttributesQueue{origin: refA, attrs: attrs, islastInSpan: true}
 
-	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, sync.CLSync)
+	ec := NewEngineController(eng, logger, metrics.NoopMetrics, &rollup.Config{}, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics.NoopMetrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 	eq.ec.SetUnsafeHead(refA2)
 	eq.ec.SetSafeHead(refA1)
 	eq.ec.SetFinalizedHead(refA0)
+	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 
 	// Queue up the safe attributes
 	// Expect a FCU after during the first step

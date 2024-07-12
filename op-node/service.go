@@ -80,6 +80,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		Rollup: *rollupConfig,
 		Driver: *driverConfig,
 		Beacon: NewBeaconEndpointConfig(ctx),
+		L1Blob: NewL1BlobEndpointConfig(ctx),
 		RPC: node.RPCConfig{
 			ListenAddr:  ctx.String(flags.RPCListenAddr.Name),
 			ListenPort:  ctx.Int(flags.RPCListenPort.Name),
@@ -135,6 +136,18 @@ func NewBeaconEndpointConfig(ctx *cli.Context) node.L1BeaconEndpointSetup {
 		BeaconFallbackAddrs:    ctx.StringSlice(flags.BeaconFallbackAddrs.Name),
 		BeaconCheckIgnore:      ctx.Bool(flags.BeaconCheckIgnore.Name),
 		BeaconFetchAllSidecars: ctx.Bool(flags.BeaconFetchAllSidecars.Name),
+	}
+}
+
+func NewL1BlobEndpointConfig(ctx *cli.Context) node.L1BlobEndpointSetup {
+	nodeAddrs := ctx.String(flags.L1NodeAddr.Name)
+	if ctx.IsSet(flags.L1ArchiveBlobRpcAddr.Name) {
+		nodeAddrs = nodeAddrs + "," + ctx.String(flags.L1ArchiveBlobRpcAddr.Name)
+	}
+	return &node.L1BlobEndpointConfig{
+		NodeAddrs: nodeAddrs,
+		RateLimit: ctx.Float64(flags.L1BlobRpcRateLimit.Name),
+		BatchSize: ctx.Int(flags.L1BlobRpcMaxBatchSize.Name),
 	}
 }
 
@@ -221,11 +234,11 @@ Startup will proceed to use the network-parameter and ignore the rollup config.
 Conflicting configuration is deprecated, and will stop the op-node from starting in the future.
 `, "network", network, "rollup_config", rollupConfigPath)
 		}
-		rollupConfig, err := chaincfg.GetRollupConfig(network)
+		config, err := chaincfg.GetRollupConfigByNetwork(network)
 		if err != nil {
 			return nil, err
 		}
-		return rollupConfig, nil
+		return &config, nil
 	}
 
 	file, err := os.Open(rollupConfigPath)
@@ -238,7 +251,16 @@ Conflicting configuration is deprecated, and will stop the op-node from starting
 	if err := json.NewDecoder(file).Decode(&rollupConfig); err != nil {
 		return nil, fmt.Errorf("failed to decode rollup config: %w", err)
 	}
-	return &rollupConfig, nil
+	if rollupConfig.L2ChainID == nil {
+		return nil, fmt.Errorf("l2 chain ID must not be nil")
+	}
+	presetRollupConfig, err := chaincfg.GetRollupConfigByChainId(rollupConfig.L2ChainID.String())
+	if err != nil {
+		return &rollupConfig, nil
+	}
+
+	log.Warn("using preset rollup config of", rollupConfig.L2ChainID, "overwrite rollup file")
+	return &presetRollupConfig, nil
 }
 
 func applyOverrides(ctx *cli.Context, rollupConfig *rollup.Config) {
@@ -284,9 +306,18 @@ func NewSyncConfig(ctx *cli.Context, log log.Logger) (*sync.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//fastnode config
+	elTriggerGap := ctx.Int(flags.ELTriggerGap.Name)
+	if ctx.Bool(flags.FastnodeMode.Name) {
+		mode = sync.ELSync
+		// fastnode needs a smaller gap
+		elTriggerGap = 120
+	}
 	cfg := &sync.Config{
 		SyncMode:           mode,
 		SkipSyncStartCheck: ctx.Bool(flags.SkipSyncStartCheck.Name),
+		ELTriggerGap:       elTriggerGap,
 	}
 	if ctx.Bool(flags.L2EngineSyncEnabled.Name) {
 		cfg.SyncMode = sync.ELSync

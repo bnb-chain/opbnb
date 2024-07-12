@@ -194,18 +194,6 @@ func (s *Driver) OnUnsafeL2Payload(ctx context.Context, envelope *eth.ExecutionP
 	}
 }
 
-func (s *Driver) logSyncProgress(reason string) {
-	s.log.Info("Sync progress",
-		"reason", reason,
-		"l2_finalized", s.engineController.Finalized(),
-		"l2_safe", s.engineController.SafeL2Head(),
-		"l2_pending_safe", s.engineController.PendingSafeL2Head(),
-		"l2_unsafe", s.engineController.UnsafeL2Head(),
-		"l2_time", s.engineController.UnsafeL2Head().Time,
-		"l1_derived", s.derivation.Origin(),
-	)
-}
-
 // the eventLoop responds to L1 changes and internal timers to produce L2 blocks.
 func (s *Driver) eventLoop() {
 	defer s.wg.Done()
@@ -382,16 +370,9 @@ func (s *Driver) eventLoop() {
 
 		select {
 		case <-sequencerCh:
-			// the payload publishing is handled by the async gossiper, which will begin gossiping as soon as available
-			// so, we don't need to receive the payload here
-			_, err := s.sequencer.RunNextSequencerAction(s.driverCtx, s.asyncGossiper, s.sequencerConductor)
-			if errors.Is(err, derive.ErrReset) {
-				s.derivation.Reset()
-			} else if err != nil {
-				s.log.Error("Sequencer critical error", "err", err)
+			if err := sequencerStep(); err != nil {
 				return
 			}
-			planSequencerAction() // schedule the next sequencer action to keep the sequencing looping
 		case <-altSyncTicker.C:
 			// Check if there is a gap in the current unsafe payload queue.
 			ctx, cancel := context.WithTimeout(s.driverCtx, time.Second*2)

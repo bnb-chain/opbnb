@@ -120,6 +120,13 @@ type Config struct {
 	// Active if InteropTime != nil && L2 block timestamp >= *InteropTime, inactive otherwise.
 	InteropTime *uint64 `json:"interop_time,omitempty"`
 
+	// OPBNB hard fork L2 block number
+	// Fermat switch block (nil = no fork, 0 = already on Fermat)
+	Fermat *big.Int `json:"fermat,omitempty"`
+	// SnowTime  sets the activation time of the next network upgrade.
+	// Active if SnowTime != nil && L2 block timestamp >= *SnowTime, inactive otherwise.
+	SnowTime *uint64 `json:"snow_time,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -539,6 +546,36 @@ func (c *Config) SyncLookback() uint64 {
 	return c.SeqWindowSize
 }
 
+// IsFermat returns true if the Fermat hardfork is active at or past the given block.
+func (c *Config) IsFermat(num *big.Int) bool {
+	return isBlockForked(c.Fermat, num)
+}
+
+// IsSnow returns whether the time is either equal to the Snow fork time or greater.
+func (c *Config) IsSnow(time uint64) bool {
+	return isTimestampForked(c.SnowTime, time)
+}
+
+// isBlockForked returns whether a fork scheduled at block s is active at the
+// given head block. Whilst this method is the same as isTimestampForked, they
+// are explicitly separate for clearer reading.
+func isBlockForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
+}
+
+// isTimestampForked returns whether a fork scheduled at timestamp s is active
+// at the given head timestamp. Whilst this method is the same as isBlockForked,
+// they are explicitly separate for clearer reading.
+func isTimestampForked(s *uint64, head uint64) bool {
+	if s == nil {
+		return false
+	}
+	return *s <= head
+}
+
 // Description outputs a banner describing the important parts of rollup configuration in a human-readable form.
 // Optionally provide a mapping of L2 chain IDs to network names to label the L2 chain with if not unknown.
 // The config should be config.Check()-ed before creating a description.
@@ -573,6 +610,10 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf("  - Ecotone: %s\n", fmtForkTimeOrUnset(c.EcotoneTime))
 	banner += fmt.Sprintf("  - Fjord: %s\n", fmtForkTimeOrUnset(c.FjordTime))
 	banner += fmt.Sprintf("  - Interop: %s\n", fmtForkTimeOrUnset(c.InteropTime))
+	banner += "OPBNB hard forks (block based):\n"
+	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
+	banner += "OPBNB hard forks (timestamp based):\n"
+	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.SnowTime))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	if c.PlasmaConfig != nil {
@@ -609,6 +650,8 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"ecotone_time", fmtForkTimeOrUnset(c.EcotoneTime),
 		"fjord_time", fmtForkTimeOrUnset(c.FjordTime),
 		"interop_time", fmtForkTimeOrUnset(c.InteropTime),
+		"fermat", c.Fermat,
+		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
 		"plasma_mode", c.PlasmaConfig != nil,
 	)
 }

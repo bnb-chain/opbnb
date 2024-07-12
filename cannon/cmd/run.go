@@ -299,45 +299,6 @@ func Run(ctx *cli.Context) error {
 	}
 	stopAtPreimageLargerThan := ctx.Int(RunStopAtPreimageLargerThanFlag.Name)
 
-	stopAtAnyPreimage := false
-	var stopAtPreimageKeyPrefix []byte
-	stopAtPreimageOffset := uint32(0)
-	if ctx.IsSet(RunStopAtPreimageFlag.Name) {
-		val := ctx.String(RunStopAtPreimageFlag.Name)
-		parts := strings.Split(val, "@")
-		if len(parts) > 2 {
-			return fmt.Errorf("invalid %v: %v", RunStopAtPreimageFlag.Name, val)
-		}
-		stopAtPreimageKeyPrefix = common.FromHex(parts[0])
-		if len(parts) == 2 {
-			x, err := strconv.ParseUint(parts[1], 10, 32)
-			if err != nil {
-				return fmt.Errorf("invalid preimage offset: %w", err)
-			}
-			stopAtPreimageOffset = uint32(x)
-		}
-	} else {
-		switch ctx.String(RunStopAtPreimageTypeFlag.Name) {
-		case "local":
-			stopAtPreimageKeyPrefix = []byte{byte(preimage.LocalKeyType)}
-		case "keccak":
-			stopAtPreimageKeyPrefix = []byte{byte(preimage.Keccak256KeyType)}
-		case "sha256":
-			stopAtPreimageKeyPrefix = []byte{byte(preimage.Sha256KeyType)}
-		case "blob":
-			stopAtPreimageKeyPrefix = []byte{byte(preimage.BlobKeyType)}
-		case "precompile":
-			stopAtPreimageKeyPrefix = []byte{byte(preimage.PrecompileKeyType)}
-		case "any":
-			stopAtAnyPreimage = true
-		case "":
-			// 0 preimage type is forbidden so will not stop at any preimage
-		default:
-			return fmt.Errorf("invalid preimage type %q", ctx.String(RunStopAtPreimageTypeFlag.Name))
-		}
-	}
-	stopAtPreimageLargerThan := ctx.Int(RunStopAtPreimageLargerThanFlag.Name)
-
 	// split CLI args after first '--'
 	args := ctx.Args().Slice()
 	for i, arg := range args {

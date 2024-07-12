@@ -138,7 +138,3 @@ var sepoliaDev0Cfg = rollup.Config{
 	FjordTime:               u64Ptr(1715961600),
 	ProtocolVersionsAddress: common.HexToAddress("0x252CbE9517F731C618961D890D534183822dcC8d"),
 }
-
-func u64Ptr(v uint64) *uint64 {
-	return &v
-}

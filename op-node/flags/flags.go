@@ -46,7 +46,7 @@ var (
 	/* Required Flags */
 	L1NodeAddr = &cli.StringFlag{
 		Name:     "l1",
-		Usage:    "Address of L1 User JSON-RPC endpoint to use (eth namespace required)",
+		Usage:    "Address of L1 User JSON-RPC endpoint to use (eth namespace required). Multiple alternative addresses are supported, separated by commas, and the first address is used by default",
 		Value:    "http://127.0.0.1:8545",
 		EnvVars:  prefixEnvVars("L1_ETH_RPC"),
 		Category: RollupCategory,
@@ -188,14 +188,35 @@ var (
 		Name:     "l1.http-poll-interval",
 		Usage:    "Polling interval for latest-block subscription when using an HTTP RPC provider. Ignored for other types of RPC endpoints.",
 		EnvVars:  prefixEnvVars("L1_HTTP_POLL_INTERVAL"),
-		Value:    time.Second * 12,
+		Value:    time.Second * 3,
+		Category: L1RPCCategory,
+	}
+	L1ArchiveBlobRpcAddr = &cli.StringFlag{
+		Name:     "l1.archive-blob-rpc",
+		Usage:    "Optional address of L1 archive blob endpoint to use. Multiple alternative addresses are supported, separated by commas, and will rotate when error",
+		Required: false,
+		EnvVars:  prefixEnvVars("L1_ARCHIVE_BLOB_RPC"),
+		Category: RollupCategory,
+	}
+	L1BlobRpcRateLimit = &cli.Float64Flag{
+		Name:     "l1.blob-rpc-rate-limit",
+		Usage:    "Optional self-imposed global rate-limit on L1 blob RPC requests, specified in requests / second. Disabled if set to 0.",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_RATE_LIMIT"),
+		Value:    0,
+		Category: L1RPCCategory,
+	}
+	L1BlobRpcMaxBatchSize = &cli.IntFlag{
+		Name:     "l1.blob-rpc-max-batch-size",
+		Usage:    "Optional maximum number of L1 blob RPC requests to bundle",
+		EnvVars:  prefixEnvVars("L1_BLOB_RPC_MAX_BATCH_SIZE"),
+		Value:    20,
 		Category: L1RPCCategory,
 	}
 	VerifierL1Confs = &cli.Uint64Flag{
 		Name:     "verifier.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
 		EnvVars:  prefixEnvVars("VERIFIER_L1_CONFS"),
-		Value:    0,
+		Value:    15,
 		Category: L1RPCCategory,
 	}
 	SequencerEnabledFlag = &cli.BoolFlag{
@@ -217,18 +238,24 @@ var (
 		Value:    0,
 		Category: SequencerCategory,
 	}
+	SequencerPriorityFlag = &cli.BoolFlag{
+		Name:     "sequencer.priority",
+		Usage:    "Enable sequencer step takes precedence over other steps.",
+		EnvVars:  prefixEnvVars("SEQUENCER_PRIORITY"),
+		Category: SequencerCategory,
+	}
 	SequencerL1Confs = &cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
 		EnvVars:  prefixEnvVars("SEQUENCER_L1_CONFS"),
-		Value:    4,
+		Value:    15,
 		Category: SequencerCategory,
 	}
 	L1EpochPollIntervalFlag = &cli.DurationFlag{
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
 		EnvVars:  prefixEnvVars("L1_EPOCH_POLL_INTERVAL"),
-		Value:    time.Second * 12 * 32,
+		Value:    time.Second * 3 * 15,
 		Category: L1RPCCategory,
 	}
 	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{
@@ -301,6 +328,18 @@ var (
 		EnvVars:  prefixEnvVars("SAFEDB_PATH"),
 		Category: OperationsCategory,
 	}
+	FastnodeMode = &cli.BoolFlag{
+		Name:    "fastnode",
+		Usage:   "Fastnode has a strong dependency on a specific synchronization mode during synchronization, so please set this flag when running fastnode.",
+		EnvVars: prefixEnvVars("FASTNODE"),
+		Value:   false,
+	}
+	ELTriggerGap = &cli.IntFlag{
+		Name:    "el-trigger.gap",
+		Usage:   "gap to trigger el-sync",
+		Value:   86400,
+		EnvVars: prefixEnvVars("EL_TRIGGER_GAP"),
+	}
 	/* Deprecated Flags */
 	L2EngineSyncEnabled = &cli.BoolFlag{
 		Name:    "l2.engine-sync",
@@ -372,6 +411,8 @@ var optionalFlags = []cli.Flag{
 	BeaconCheckIgnore,
 	BeaconFetchAllSidecars,
 	SyncModeFlag,
+	FastnodeMode,
+	ELTriggerGap,
 	RPCListenAddr,
 	RPCListenPort,
 	L1TrustRPC,
@@ -380,6 +421,9 @@ var optionalFlags = []cli.Flag{
 	L1RPCMaxBatchSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
+	L1ArchiveBlobRpcAddr,
+	L1BlobRpcRateLimit,
+	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
