@@ -71,7 +71,7 @@ type safeDB interface {
 
 func NewL2Verifier(t Testing, log log.Logger, l1 derive.L1Fetcher, blobsSrc derive.L1BlobsFetcher, plasmaSrc driver.PlasmaIface, eng L2API, cfg *rollup.Config, syncCfg *sync.Config, safeHeadListener safeDB) *L2Verifier {
 	metrics := &testutils.TestDerivationMetrics{}
-	engine := derive.NewEngineController(eng, log, metrics, cfg, syncCfg.SyncMode)
+	engine := derive.NewEngineController(eng, log, metrics, cfg, syncCfg)
 
 	clSync := clsync.NewCLSync(log, cfg, metrics, engine)
 
@@ -297,16 +297,6 @@ func (s *L2Verifier) ActL2PipelineFull(t Testing) {
 func (s *L2Verifier) ActL2UnsafeGossipReceive(payload *eth.ExecutionPayloadEnvelope) Action {
 	return func(t Testing) {
 		s.clSync.AddUnsafePayload(payload)
-	}
-}
-
-// ActL2InsertUnsafePayload creates an action that can insert an unsafe execution payload
-func (s *L2Verifier) ActL2InsertUnsafePayload(payload *eth.ExecutionPayloadEnvelope) Action {
-	return func(t Testing) {
-		ref, err := derive.PayloadToBlockRef(s.rollupCfg, payload.ExecutionPayload)
-		require.NoError(t, err)
-		err = s.engine.InsertUnsafePayload(t.Ctx(), payload, ref)
-		require.NoError(t, err)
 	}
 }
 

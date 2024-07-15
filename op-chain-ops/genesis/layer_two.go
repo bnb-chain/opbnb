@@ -108,19 +108,3 @@ func LoadForgeAllocs(allocsPath string) (*ForgeAllocs, error) {
 	}
 	return &out, nil
 }
-
-func PerformUpgradeTxs(db *state.MemoryStateDB) error {
-	// Only the Ecotone upgrade is performed with upgrade-txs.
-	if !db.Genesis().Config.IsEcotone(db.Genesis().Timestamp) {
-		return nil
-	}
-	sim := squash.NewSimulator(db)
-	ecotone, err := derive.EcotoneNetworkUpgradeTransactions()
-	if err != nil {
-		return fmt.Errorf("failed to build ecotone upgrade txs: %w", err)
-	}
-	if err := sim.AddUpgradeTxs(ecotone); err != nil {
-		return fmt.Errorf("failed to apply ecotone upgrade txs: %w", err)
-	}
-	return nil
-}

@@ -615,6 +615,28 @@ func (d *DeployConfig) InteropTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+func (d *DeployConfig) SnowTime(genesisTime uint64) *uint64 {
+	if d.SnowTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.SnowTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
+func (d *DeployConfig) HaberTime(genesisTime uint64) *uint64 {
+	if d.HaberTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.HaberTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
 // RollupConfig converts a DeployConfig to a rollup.Config. If Ecotone is active at genesis, the
 // Overhead value is considered a noop.
 func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHash common.Hash, l2GenesisBlockNumber uint64) (*rollup.Config, error) {
@@ -668,6 +690,8 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		FjordTime:              d.FjordTime(l1StartBlock.Time()),
 		InteropTime:            d.InteropTime(l1StartBlock.Time()),
 		PlasmaConfig:           plasma,
+		Fermat:                 d.Fermat,
+		SnowTime:               d.SnowTime(l1StartBlock.Time()),
 	}, nil
 }
 

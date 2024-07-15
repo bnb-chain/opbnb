@@ -112,18 +112,11 @@ func (r *FaultResponder) PerformAction(ctx context.Context, action types.Action)
 	var err error
 	switch action.Type {
 	case types.ActionTypeMove:
-		var movePos types.Position
 		if action.IsAttack {
 			candidate, err = r.contract.AttackTx(ctx, action.ParentClaim, action.Value)
 		} else {
 			candidate, err = r.contract.DefendTx(ctx, action.ParentClaim, action.Value)
 		}
-
-		bondValue, err := r.contract.GetRequiredBond(ctx, movePos)
-		if err != nil {
-			return err
-		}
-		candidate.Value = bondValue
 	case types.ActionTypeStep:
 		candidate, err = r.contract.StepTx(uint64(action.ParentClaim.ContractIndex), action.IsAttack, action.PreState, action.ProofData)
 	case types.ActionTypeChallengeL2BlockNumber:

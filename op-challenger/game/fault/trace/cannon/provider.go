@@ -9,7 +9,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/config"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/utils"
@@ -197,72 +196,6 @@ func NewTraceProviderForTest(logger log.Logger, m CannonMetricer, cfg *config.Co
 }
 
 func (p *CannonTraceProviderForTest) FindStep(ctx context.Context, start uint64, preimage utils.PreimageOpt) (uint64, error) {
-	// Run cannon to find the step that meets the preimage conditions
-	if err := p.generator.(*Executor).generateProof(ctx, p.dir, start, math.MaxUint64, preimage()...); err != nil {
-		return 0, fmt.Errorf("generate cannon trace (until preimage read): %w", err)
-	}
-	// Load the step from the state cannon finished with
-	state, err := p.finalState()
-	if err != nil {
-		return 0, fmt.Errorf("failed to load final state: %w", err)
-	}
-	// Check we didn't get to the end of the trace without finding the preimage read we were looking for
-	if state.Exited {
-		return 0, fmt.Errorf("preimage read not found: %w", io.EOF)
-	}
-	// The state is the post-state so the step we want to execute to read the preimage is step - 1.
-	return state.Step - 1, nil
-}
-
-// CannonTraceProviderForTest is a CannonTraceProvider that can find the step referencing the preimage read
-// Only to be used for testing
-type CannonTraceProviderForTest struct {
-	*CannonTraceProvider
-}
-
-type preimageOpts []string
-
-type PreimageOpt func() preimageOpts
-
-func PreimageLoad(key preimage.Key, offset uint32) PreimageOpt {
-	return func() preimageOpts {
-		return []string{"--stop-at-preimage", fmt.Sprintf("%v@%v", common.Hash(key.PreimageKey()).Hex(), offset)}
-	}
-}
-
-func FirstPreimageLoadOfType(preimageType string) PreimageOpt {
-	return func() preimageOpts {
-		return []string{"--stop-at-preimage-type", preimageType}
-	}
-}
-
-func FirstKeccakPreimageLoad() PreimageOpt {
-	return FirstPreimageLoadOfType("keccak")
-}
-
-func FirstPrecompilePreimageLoad() PreimageOpt {
-	return FirstPreimageLoadOfType("precompile")
-}
-
-func PreimageLargerThan(size int) PreimageOpt {
-	return func() preimageOpts {
-		return []string{"--stop-at-preimage-larger-than", strconv.Itoa(size)}
-	}
-}
-
-func NewTraceProviderForTest(logger log.Logger, m CannonMetricer, cfg *config.Config, localInputs LocalGameInputs, dir string, gameDepth types.Depth) *CannonTraceProviderForTest {
-	p := &CannonTraceProvider{
-		logger:         logger,
-		dir:            dir,
-		prestate:       cfg.CannonAbsolutePreState,
-		generator:      NewExecutor(logger, m, cfg, localInputs),
-		gameDepth:      gameDepth,
-		preimageLoader: newPreimageLoader(kvstore.NewDiskKV(preimageDir(dir)).Get),
-	}
-	return &CannonTraceProviderForTest{p}
-}
-
-func (p *CannonTraceProviderForTest) FindStep(ctx context.Context, start uint64, preimage PreimageOpt) (uint64, error) {
 	// Run cannon to find the step that meets the preimage conditions
 	if err := p.generator.(*Executor).generateProof(ctx, p.dir, start, math.MaxUint64, preimage()...); err != nil {
 		return 0, fmt.Errorf("generate cannon trace (until preimage read): %w", err)

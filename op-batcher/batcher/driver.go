@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/op-batcher/flags"
 	"github.com/ethereum-optimism/optimism/op-batcher/metrics"
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -38,6 +39,7 @@ var ErrBatcherNotRunning = errors.New("batcher is not running")
 type L1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
 type L2Client interface {
@@ -59,6 +61,7 @@ type DriverSetup struct {
 	EndpointProvider dial.L2EndpointProvider
 	ChannelConfig    ChannelConfig
 	PlasmaDA         *plasma.DAClient
+	AutoSwitchDA     bool
 }
 
 // BatchSubmitter encapsulates a service responsible for submitting L2 tx
@@ -303,6 +306,78 @@ func (l *BatchSubmitter) loop() {
 		}
 	}()
 
+	economicDATypeCh := make(chan flags.DataAvailabilityType)
+	waitSwitchDACh := make(chan struct{})
+	if l.AutoSwitchDA {
+		// start auto choose economic DA type processing loop
+		economicDALoopDone := make(chan struct{})
+		defer close(economicDALoopDone) // shut down auto DA loop
+		go func() {
+			economicDAType := flags.BlobsType
+			l.Metr.RecordAutoChoosedDAType(economicDAType)
+			switchCount := 0
+			economicDATicker := time.NewTicker(5 * time.Second)
+			defer economicDATicker.Stop()
+			addressReservedErrorTicker := time.NewTicker(time.Second)
+			defer addressReservedErrorTicker.Stop()
+			for {
+				select {
+				case <-economicDATicker.C:
+					newEconomicDAType, err := l.getEconomicDAType(l.shutdownCtx)
+					if err != nil {
+						l.Log.Error("getEconomicDAType failed: %w", err)
+						continue
+					}
+					if newEconomicDAType != economicDAType {
+						switchCount++
+					} else {
+						switchCount = 0
+					}
+					threhold := DATypeSwitchThrehold
+					if economicDAType == flags.CalldataType {
+						threhold = 20 * DATypeSwitchThrehold
+					}
+					if switchCount >= threhold {
+						l.Log.Info("start economic switch", "from type", economicDAType.String(), "to type", newEconomicDAType.String())
+						start := time.Now()
+						economicDAType = newEconomicDAType
+						switchCount = 0
+						economicDATypeCh <- economicDAType
+						<-waitSwitchDACh
+						l.Log.Info("finish economic switch", "duration", time.Since(start))
+						l.Metr.RecordAutoChoosedDAType(economicDAType)
+						l.Metr.RecordEconomicAutoSwitchCount()
+						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
+					}
+				case <-addressReservedErrorTicker.C:
+					if l.addressReservedError.Load() {
+						if economicDAType == flags.BlobsType {
+							economicDAType = flags.CalldataType
+							l.Log.Info("start resolve addressReservedError switch", "from type", flags.BlobsType.String(), "to type", flags.CalldataType.String())
+						} else if economicDAType == flags.CalldataType {
+							economicDAType = flags.BlobsType
+							l.Log.Info("start resolve addressReservedError switch", "from type", flags.CalldataType.String(), "to type", flags.BlobsType.String())
+						} else {
+							l.Log.Crit("invalid DA type in economic switch loop", "invalid type", economicDAType.String())
+						}
+						switchCount = 0
+						start := time.Now()
+						economicDATypeCh <- economicDAType
+						<-waitSwitchDACh
+						l.Log.Info("finish resolve addressReservedError switch", "duration", time.Since(start))
+						l.Metr.RecordAutoChoosedDAType(economicDAType)
+						l.Metr.RecordReservedErrorSwitchCount()
+						l.Metr.RecordAutoSwitchTimeDuration(time.Since(start))
+						l.addressReservedError.Store(false)
+					}
+				case <-economicDALoopDone:
+					l.Log.Info("auto DA processing loop done")
+					return
+				}
+			}
+		}()
+	}
+
 	ticker := time.NewTicker(l.Config.PollInterval)
 	defer ticker.Stop()
 
@@ -334,6 +409,26 @@ func (l *BatchSubmitter) loop() {
 				continue
 			}
 			l.publishStateToL1(queue, receiptsCh)
+		case targetDAType := <-economicDATypeCh:
+			l.lastStoredBlock = eth.BlockID{}
+			// close current state to prepare for switch
+			err := l.state.Close()
+			if err != nil {
+				if errors.Is(err, ErrPendingAfterClose) {
+					l.Log.Warn("Closed channel manager to handle DA type switch with pending channel(s) remaining - submitting")
+				} else {
+					l.Log.Error("Error closing the channel manager to handle a DA type switch", "err", err)
+				}
+			}
+			// on DA type switch we want to publish all pending state then wait until each result clears before resetting
+			// the state.
+			publishAndWait()
+			l.clearState(l.shutdownCtx)
+			// switch action after clear state
+			l.switchDAType(targetDAType)
+			time.Sleep(time.Minute) // wait op-node derivation published DA data
+			waitSwitchDACh <- struct{}{}
+			continue
 		case <-l.shutdownCtx.Done():
 			if l.Txmgr.IsClosed() {
 				l.Log.Info("Txmgr is closed, remaining channel data won't be sent")
@@ -353,6 +448,54 @@ func (l *BatchSubmitter) loop() {
 			l.Log.Info("Finished publishing all remaining channel data")
 			return
 		}
+	}
+}
+
+func (l *BatchSubmitter) getEconomicDAType(ctx context.Context) (flags.DataAvailabilityType, error) {
+	sCtx, sCancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer sCancel()
+	gasPrice, err := l.L1Client.SuggestGasTipCap(sCtx)
+	if err != nil {
+		return "", fmt.Errorf("getEconomicDAType failed to fetch the suggested gas tip cap: %w", err)
+	}
+	calldataCost := big.NewInt(0).Mul(big.NewInt(MaxBlobsNumberPerTx*ApproximateGasPerCallDataTx), gasPrice)
+
+	hCtx, hCancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer hCancel()
+	header, err := l.L1Client.HeaderByNumber(hCtx, nil)
+	if err != nil {
+		return "", fmt.Errorf("getEconomicDAType failed to fetch the latest header: %w", err)
+	}
+	if header.ExcessBlobGas == nil {
+		return "", fmt.Errorf("getEconomicDAType fetched header with nil ExcessBlobGas: %v", header)
+	}
+	blobGasPrice := eip4844.CalcBlobFee(*header.ExcessBlobGas)
+	blobCost := big.NewInt(0).Add(big.NewInt(0).Mul(big.NewInt(int64(params.TxGas)), gasPrice), big.NewInt(0).Mul(big.NewInt(params.MaxBlobGasPerBlock), blobGasPrice))
+
+	l.Metr.RecordEstimatedCalldataTypeFee(calldataCost)
+	l.Metr.RecordEstimatedBlobTypeFee(blobCost)
+	if calldataCost.Cmp(blobCost) < 0 {
+		l.Log.Info("Economic DA type is calldata", "gas price", gasPrice, "calldata cost", calldataCost, "blob gas price", blobGasPrice, "blob cost", blobCost)
+		return flags.CalldataType, nil
+	}
+	l.Log.Info("Economic DA type is blobs", "gas price", gasPrice, "calldata cost", calldataCost, "blob gas price", blobGasPrice, "blob cost", blobCost)
+	return flags.BlobsType, nil
+}
+
+func (l *BatchSubmitter) switchDAType(targetDAType flags.DataAvailabilityType) {
+	switch targetDAType {
+	case flags.BlobsType:
+		l.Config.UseBlobs = true
+		l.ChannelConfig.MaxFrameSize = eth.MaxBlobDataSize - 1
+		l.ChannelConfig.MultiFrameTxs = true
+		l.state.SwitchDAType(targetDAType)
+	case flags.CalldataType:
+		l.Config.UseBlobs = false
+		l.ChannelConfig.MaxFrameSize = CallDataMaxTxSize - 1
+		l.ChannelConfig.MultiFrameTxs = false
+		l.state.SwitchDAType(targetDAType)
+	default:
+		l.Log.Crit("batch submitter switch to a invalid DA type", "targetDAType", targetDAType.String())
 	}
 }
 
@@ -627,4 +770,13 @@ func logFields(xs ...any) (fs []any) {
 		}
 	}
 	return fs
+}
+
+func errStringMatch(err, target error) bool {
+	if err == nil && target == nil {
+		return true
+	} else if err == nil || target == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), target.Error())
 }

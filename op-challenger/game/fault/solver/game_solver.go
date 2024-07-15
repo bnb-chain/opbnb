@@ -2,6 +2,7 @@ package solver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"

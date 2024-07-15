@@ -52,7 +52,7 @@ type BatcherConfig struct {
 type BatcherService struct {
 	Log              log.Logger
 	Metrics          metrics.Metricer
-	L1Client         *ethclient.Client
+	L1Client         client.Client
 	EndpointProvider dial.L2EndpointProvider
 	TxManager        txmgr.TxManager
 	PlasmaDA         *plasma.DAClient
@@ -151,7 +151,7 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 		ethUrls := strings.Split(cfg.L2EthRpc, ",")
 		endpointProvider, err = dial.NewActiveL2EndpointProvider(ctx, ethUrls, rollupUrls, cfg.ActiveSequencerCheckDuration, dial.DefaultDialTimeout, bs.Log)
 	} else {
-		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc)
+		endpointProvider, err = dial.NewStaticL2EndpointProvider(ctx, bs.Log, cfg.L2EthRpc, cfg.RollupRpc, bs.Metrics)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to build L2 endpoint provider: %w", err)
@@ -206,7 +206,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 	}
 
 	switch cfg.DataAvailabilityType {
-	case flags.BlobsType:
+	case flags.BlobsType, flags.AutoType:
 		if !cfg.TestUseMaxTxSizeForBlobs {
 			// account for version byte prefix
 			cc.MaxFrameSize = eth.MaxBlobDataSize - 1
@@ -241,6 +241,7 @@ func (bs *BatcherService) initChannelConfig(cfg *CLIConfig) error {
 		return fmt.Errorf("invalid channel configuration: %w", err)
 	}
 	bs.Log.Info("Initialized channel-config",
+		"da_type", cfg.DataAvailabilityType.String(),
 		"use_blobs", bs.UseBlobs,
 		"use_plasma", bs.UsePlasma,
 		"max_frame_size", cc.MaxFrameSize,
@@ -311,6 +312,7 @@ func (bs *BatcherService) initDriver(cfg *CLIConfig) {
 		EndpointProvider: bs.EndpointProvider,
 		ChannelConfig:    bs.ChannelConfig,
 		PlasmaDA:         bs.PlasmaDA,
+		AutoSwitchDA:     cfg.DataAvailabilityType == flags.AutoType,
 	})
 }
 

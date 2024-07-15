@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-multierror"
@@ -129,7 +130,7 @@ func (c *OpConductor) initSequencerControl(ctx context.Context) error {
 	}
 	execCfg := sources.L2ClientDefaultConfig(&c.cfg.RollupCfg, true)
 	// TODO: Add metrics tracer here. tracked by https://github.com/ethereum-optimism/protocol-quest/issues/45
-	exec, err := sources.NewEthClient(ec, c.log, nil, &execCfg.EthClientConfig)
+	exec, err := sources.NewEthClient(ec, c.log, nil, &execCfg.EthClientConfig, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to create geth client")
 	}
@@ -212,7 +213,7 @@ func (oc *OpConductor) initRPCServer(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create execution rpc client")
 		}
-		executionProxy := conductorrpc.NewExecutionProxyBackend(oc.log, oc, execClient)
+		executionProxy := conductorrpc.NewExecutionProxyBackend(oc.log, oc, execClient).(*ethclient.Client))
 		server.AddAPI(rpc.API{
 			Namespace: conductorrpc.ExecutionRPCNamespace,
 			Service:   executionProxy,

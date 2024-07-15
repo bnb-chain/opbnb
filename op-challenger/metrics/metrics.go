@@ -48,12 +48,6 @@ type Metricer interface {
 	RecordBondClaimFailed()
 	RecordBondClaimed(amount uint64)
 
-	RecordPreimageChallenged()
-	RecordPreimageChallengeFailed()
-
-	RecordBondClaimFailed()
-	RecordBondClaimed(amount uint64)
-
 	RecordGamesStatus(inProgress, defenderWon, challengerWon int)
 
 	RecordGameUpdateScheduled()
@@ -76,8 +70,6 @@ type Metrics struct {
 	txmetrics.TxMetrics
 	*opmetrics.CacheMetrics
 	*contractMetrics.ContractMetrics
-
-	*opmetrics.CacheMetrics
 
 	info prometheus.GaugeVec
 	up   prometheus.Gauge

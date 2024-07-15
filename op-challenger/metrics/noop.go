@@ -16,10 +16,6 @@ type NoopMetricsImpl struct {
 	contractMetrics.NoopMetrics
 }
 
-func (i *NoopMetricsImpl) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {
-	return nil
-}
-
 func (i *NoopMetricsImpl) RecordBlobsNumber(_ int) {}
 
 func (i *NoopMetricsImpl) StartBalanceMetrics(l log.Logger, client *ethclient.Client, account common.Address) io.Closer {

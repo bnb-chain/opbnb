@@ -152,8 +152,6 @@ type Config struct {
 
 	MaxPendingTx uint64 // Maximum number of pending transactions (0 == no limit)
 
-	MaxPendingTx uint64 // Maximum number of pending transactions (0 == no limit)
-
 	TxMgrConfig   txmgr.CLIConfig
 	MetricsConfig opmetrics.CLIConfig
 	PprofConfig   oppprof.CLIConfig

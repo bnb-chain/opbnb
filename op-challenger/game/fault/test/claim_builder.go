@@ -140,7 +140,6 @@ func (c *ClaimBuilder) claim(pos types.Position, opts ...ClaimOpt) types.Claim {
 			Duration:  cfg.clockDuration,
 			Timestamp: cfg.clockTimestamp,
 		},
-		Claimant: DefaultClaimant,
 	}
 	if cfg.claimant != (common.Address{}) {
 		claim.Claimant = cfg.claimant

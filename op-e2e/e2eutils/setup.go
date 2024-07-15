@@ -62,6 +62,7 @@ func MakeDeployParams(t require.TestingT, tp *TestParams) *DeployParams {
 	deployConfig.ChannelTimeout = tp.ChannelTimeout
 	deployConfig.L1BlockTime = tp.L1BlockTime
 	deployConfig.UsePlasma = tp.UsePlasma
+	deployConfig.L1GenesisBlockBaseFeePerGas = (*hexutil.Big)(bsc.DefaultBaseFee)
 	ApplyDeployConfigForks(deployConfig)
 
 	require.NoError(t, deployConfig.Check())
