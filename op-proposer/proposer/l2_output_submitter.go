@@ -6,6 +6,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	opaws "github.com/ethereum-optimism/optimism/op-aws-sdk"
 	"github.com/ethereum-optimism/optimism/op-proposer/flags"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
@@ -16,6 +17,9 @@ import (
 // This method returns a cliapp.LifecycleAction, to create an op-service CLI-lifecycle-managed L2Output-submitter
 func Main(version string) cliapp.LifecycleAction {
 	return func(cliCtx *cli.Context, _ context.CancelCauseFunc) (cliapp.Lifecycle, error) {
+		if err := opaws.KeyManager(context.Background(), cliCtx, opaws.OP_PROPOSER_SIGN_KEY); err != nil {
+			return nil, err
+		}
 		if err := flags.CheckRequired(cliCtx); err != nil {
 			return nil, err
 		}

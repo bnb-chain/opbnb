@@ -769,11 +769,6 @@ export class CrossChainMessenger {
             messageIndex
           )
 
-          // Pick portal based on FPAC compatibility.
-          const portal = (await this.fpac())
-            ? this.contracts.l1.OptimismPortal2
-            : this.contracts.l1.OptimismPortal
-
           // Attempt to fetch the proven withdrawal.
           const provenWithdrawal = await this.getProvenWithdrawal(
             hashLowLevelMessage(withdrawal)

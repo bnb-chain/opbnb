@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-proposer/proposer/rpc"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
@@ -21,7 +22,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -55,7 +55,7 @@ type ProposerService struct {
 	ProposerConfig
 
 	TxManager      txmgr.TxManager
-	L1Client       *ethclient.Client
+	L1Client       client.Client
 	RollupProvider dial.RollupProvider
 
 	driver *L2OutputSubmitter
@@ -122,11 +122,11 @@ func (ps *ProposerService) initFromCLIConfig(ctx context.Context, version string
 }
 
 func (ps *ProposerService) initRPCClients(ctx context.Context, cfg *CLIConfig) error {
-	l1Client, err := dial.DialEthClientWithTimeout(ctx, dial.DefaultDialTimeout, ps.Log, cfg.L1EthRpc)
+	l1Client, err := dial.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, dial.DefaultDialTimeout, ps.Log, dial.ProposerFallbackThreshold, ps.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	ps.L1Client = l1Client
+	ps.L1Client = client.NewInstrumentedClient(l1Client, ps.Metrics)
 
 	var rollupProvider dial.RollupProvider
 	if strings.Contains(cfg.RollupRpc, ",") {

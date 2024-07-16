@@ -307,17 +307,25 @@ func (l *L2OutputSubmitter) FetchOutput(ctx context.Context, block *big.Int) (*e
 
 // ProposeL2OutputTxData creates the transaction data for the ProposeL2Output function
 func (l *L2OutputSubmitter) ProposeL2OutputTxData(output *eth.OutputResponse) ([]byte, error) {
-	return proposeL2OutputTxData(l.l2ooABI, output)
+	if l.Cfg.AllowNonFinalized {
+		return proposeL2OutputTxData(l.l2ooABI, output, true)
+	}
+	return proposeL2OutputTxData(l.l2ooABI, output, false)
 }
 
 // proposeL2OutputTxData creates the transaction data for the ProposeL2Output function
-func proposeL2OutputTxData(abi *abi.ABI, output *eth.OutputResponse) ([]byte, error) {
+func proposeL2OutputTxData(abi *abi.ABI, output *eth.OutputResponse, withCurrentL1Hash bool) ([]byte, error) {
+	currentL1Hash := common.Hash{}
+	if withCurrentL1Hash {
+		currentL1Hash = output.Status.CurrentL1.Hash
+	}
 	return abi.Pack(
 		"proposeL2Output",
 		output.OutputRoot,
 		new(big.Int).SetUint64(output.BlockRef.Number),
-		output.Status.CurrentL1.Hash,
-		new(big.Int).SetUint64(output.Status.CurrentL1.Number))
+		currentL1Hash,
+		new(big.Int).SetUint64(output.Status.CurrentL1.Number),
+	)
 }
 
 func (l *L2OutputSubmitter) ProposeL2OutputDGFTxData(output *eth.OutputResponse) ([]byte, *big.Int, error) {

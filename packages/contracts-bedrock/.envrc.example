@@ -1,0 +1,32 @@
+# RPC for the network to deploy to
+export ETH_RPC_URL=
+
+# Sets the deployer's key to match the first default hardhat account
+export PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+# Name of the deployed network
+export DEPLOYMENT_CONTEXT=getting-started
+
+# Optional Tenderly details for a simulation link during deployment
+export TENDERLY_PROJECT=
+export TENDERLY_USERNAME=
+
+export ETHERSCAN_API_KEY=
+
+# Optional create2 salt for deterministic deployment of
+# contract implementations
+export IMPL_SALT=$(openssl rand -hex 32)
+
+
+# Verify API for opbnbscan mainnet
+export SCAN_API = 'https://open-platform.nodereal.io/{yourApiKey}/op-bnb-mainnet/contract'
+export API_KEY =
+# Verify API for opbnbscan testnet
+#SCAN_API = 'https://open-platform.nodereal.io/{yourApiKey}/op-bnb-testnet/contract/'
+#API_KEY =
+# Verify API for bscscan mainnet
+#SCAN_API = 'https://api.bscscan.com/api'
+#API_KEY =
+# Verify API for bscscan testnet
+#SCAN_API = 'https://api-testnet.bscscan.com/api'
+#API_KEY =

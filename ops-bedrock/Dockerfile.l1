@@ -1,6 +1,9 @@
-FROM ethereum/client-go:v1.13.15
+FROM golang:1.21-alpine3.18 as build
+RUN apk add --no-cache git make cmake gcc musl-dev linux-headers build-base libc-dev gcompat
+RUN git clone https://github.com/bnb-chain/bsc.git
+RUN cd bsc && git checkout v1.4.5 && make geth && go build -o ./build/bin/bootnode ./cmd/bootnode
 
-RUN apk add --no-cache jq bash
+FROM golang:1.21-alpine3.18
 
 RUN apk add --no-cache bash expect wget nodejs npm git jq make cmake gcc musl-dev linux-headers build-base libc-dev gcompat python3
 
@@ -10,4 +13,4 @@ RUN cd /db/node-deploy && git checkout 27e7ca669a27c8fd259eeb88ba33ef5a1b4ac182
 COPY --from=build /go/bsc/build/bin/geth /db/node-deploy/bin/geth
 COPY --from=build /go/bsc/build/bin/bootnode /db/node-deploy/bin/bootnode
 
-ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/l1-entrypoint.sh"]

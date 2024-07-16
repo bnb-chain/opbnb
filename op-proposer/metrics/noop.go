@@ -3,8 +3,8 @@ package metrics
 import (
 	"io"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -15,7 +15,6 @@ import (
 type noopMetrics struct {
 	opmetrics.NoopRefMetrics
 	txmetrics.NoopTxMetrics
-	opmetrics.NoopRPCMetrics
 }
 
 var NoopMetrics Metricer = new(noopMetrics)
@@ -25,6 +24,10 @@ func (*noopMetrics) RecordUp()                 {}
 
 func (*noopMetrics) RecordL2BlocksProposed(l2ref eth.L2BlockRef) {}
 
-func (*noopMetrics) StartBalanceMetrics(log.Logger, *ethclient.Client, common.Address) io.Closer {
+func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, common.Address) io.Closer {
 	return nil
 }
+
+func (*noopMetrics) RecordBlobsNumber(number int) {}
+
+func (m *noopMetrics) RecordL1UrlSwitchEvt(url string) {}

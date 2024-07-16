@@ -147,9 +147,9 @@ reproducible-prestate:
 .PHONY: reproducible-prestate
 
 cannon-prestate: op-program cannon
-	./cannon/bin/cannon load-elf --path op-program/bin/op-program-client.elf --out op-program/bin/prestate.json --meta op-program/bin/meta.json
-	./cannon/bin/cannon run --proof-at '=0' --stop-at '=1' --input op-program/bin/prestate.json --meta op-program/bin/meta.json --proof-fmt 'op-program/bin/%d.json' --output ""
-	mv op-program/bin/0.json op-program/bin/prestate-proof.json
+	# ./cannon/bin/cannon load-elf --path op-program/bin/op-program-client.elf --out op-program/bin/prestate.json --meta op-program/bin/meta.json
+	# ./cannon/bin/cannon run --proof-at '=0' --stop-at '=1' --input op-program/bin/prestate.json --meta op-program/bin/meta.json --proof-fmt 'op-program/bin/%d.json' --output ""
+	# mv op-program/bin/0.json op-program/bin/prestate-proof.json
 .PHONY: cannon-prestate
 
 mod-tidy:
@@ -159,7 +159,6 @@ mod-tidy:
 	#
 	# See https://proxy.golang.org/ for more info.
 	export GOPRIVATE="github.com/ethereum-optimism" && go mod tidy
-	make -C ./op-ufm mod-tidy
 .PHONY: mod-tidy
 
 clean:
@@ -183,6 +182,10 @@ pre-devnet: submodules
 devnet-up: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=.
 .PHONY: devnet-up
+
+devnet-init: pre-devnet
+	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --init
+.PHONY: devnet-init
 
 devnet-test: pre-devnet
 	PYTHONPATH=./bedrock-devnet $(PYTHON) ./bedrock-devnet/main.py --monorepo-dir=. --test

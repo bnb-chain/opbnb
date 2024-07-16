@@ -226,12 +226,6 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         createdAt = Timestamp.wrap(uint64(block.timestamp));
     }
 
-    /// @notice Receive function to allow the contract to receive ETH.
-    receive() external payable { }
-
-    /// @notice Fallback function to allow the contract to receive ETH.
-    fallback() external payable { }
-
     ////////////////////////////////////////////////////////////////
     //                  `IFaultDisputeGame` impl                  //
     ////////////////////////////////////////////////////////////////
@@ -698,16 +692,6 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         extraData_ = extraData();
     }
 
-    /// @inheritdoc IFaultDisputeGame
-    function startingBlockNumber() external view returns (uint256 startingBlockNumber_) {
-        startingBlockNumber_ = startingOutputRoot.l2BlockNumber;
-    }
-
-    /// @inheritdoc IFaultDisputeGame
-    function startingRootHash() external view returns (Hash startingRootHash_) {
-        startingRootHash_ = startingOutputRoot.root;
-    }
-
     ////////////////////////////////////////////////////////////////
     //                       MISC EXTERNAL                        //
     ////////////////////////////////////////////////////////////////
@@ -804,78 +788,6 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
     /// @notice Returns the length of the `claimData` array.
     function claimDataLen() external view returns (uint256 len_) {
         len_ = claimData.length;
-    }
-
-    /// @notice Returns the required bond for a given move kind.
-    /// @param _position The position of the bonded interaction.
-    /// @return requiredBond_ The required ETH bond for the given move, in wei.
-    function getRequiredBond(Position _position) public view returns (uint256 requiredBond_) {
-        uint256 depth = uint256(_position.depth());
-        if (depth > MAX_GAME_DEPTH) revert GameDepthExceeded();
-
-        // Values taken from Big Bonds v1.5 (TM) spec.
-        uint256 assumedBaseFee = 200 gwei;
-        uint256 baseGasCharged = 400_000;
-        uint256 highGasCharged = 200_000_000;
-
-        // Goal here is to compute the fixed multiplier that will be applied to the base gas
-        // charged to get the required gas amount for the given depth. We apply this multiplier
-        // some `n` times where `n` is the depth of the position. We are looking for some number
-        // that, when multiplied by itself `MAX_GAME_DEPTH` times and then multiplied by the base
-        // gas charged, will give us the maximum gas that we want to charge.
-        // We want to solve for (highGasCharged/baseGasCharged) ** (1/MAX_GAME_DEPTH).
-        // We know that a ** (b/c) is equal to e ** (ln(a) * (b/c)).
-        // We can compute e ** (ln(a) * (b/c)) quite easily with FixedPointMathLib.
-
-        // Set up a, b, and c.
-        uint256 a = highGasCharged / baseGasCharged;
-        uint256 b = FixedPointMathLib.WAD;
-        uint256 c = MAX_GAME_DEPTH * FixedPointMathLib.WAD;
-
-        // Compute ln(a).
-        // slither-disable-next-line divide-before-multiply
-        uint256 lnA = uint256(FixedPointMathLib.lnWad(int256(a * FixedPointMathLib.WAD)));
-
-        // Computes (b / c) with full precision using WAD = 1e18.
-        uint256 bOverC = FixedPointMathLib.divWad(b, c);
-
-        // Compute e ** (ln(a) * (b/c))
-        // sMulWad can be used here since WAD = 1e18 maintains the same precision.
-        uint256 numerator = FixedPointMathLib.mulWad(lnA, bOverC);
-        int256 base = FixedPointMathLib.expWad(int256(numerator));
-
-        // Compute the required gas amount.
-        int256 rawGas = FixedPointMathLib.powWad(base, int256(depth * FixedPointMathLib.WAD));
-        uint256 requiredGas = FixedPointMathLib.mulWad(baseGasCharged, uint256(rawGas));
-
-        // Compute the required bond.
-        requiredBond_ = assumedBaseFee * requiredGas;
-    }
-
-    /// @notice Claim the credit belonging to the recipient address.
-    /// @param _recipient The owner and recipient of the credit.
-    function claimCredit(address _recipient) external {
-        // Remove the credit from the recipient prior to performing the external call.
-        uint256 recipientCredit = credit[_recipient];
-        credit[_recipient] = 0;
-
-        // Revert if the recipient has no credit to claim.
-        if (recipientCredit == 0) {
-            revert NoCreditToClaim();
-        }
-
-        // Try to withdraw the WETH amount so it can be used here.
-        WETH.withdraw(_recipient, recipientCredit);
-
-        // Transfer the credit to the recipient.
-        (bool success,) = _recipient.call{ value: recipientCredit }(hex"");
-        if (!success) revert BondTransferFailed();
-    }
-
-    /// @notice Returns the flag set in the `bond` field of a `ClaimData` struct to indicate that the bond has been
-    ///         claimed.
-    function claimedBondFlag() external pure returns (uint128 claimedBondFlag_) {
-        claimedBondFlag_ = CLAIMED_BOND_FLAG;
     }
 
     ////////////////////////////////////////////////////////////////

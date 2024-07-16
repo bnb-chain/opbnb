@@ -54,7 +54,11 @@ type Driver struct {
 }
 
 func NewDriver(logger log.Logger, cfg *rollup.Config, l1Source derive.L1Fetcher, l1BlobsSource derive.L1BlobsFetcher, l2Source L2Source, targetBlockNum uint64) *Driver {
-	engine := derive.NewEngineController(l2Source, logger, metrics.NoopMetrics, cfg, sync.CLSync)
+	engine := derive.NewEngineController(l2Source, logger, metrics.NoopMetrics, cfg, &sync.Config{
+		SyncMode:           sync.CLSync,
+		SkipSyncStartCheck: false,
+		ELTriggerGap:       0,
+	})
 	attributesHandler := attributes.NewAttributesHandler(logger, cfg, engine, l2Source)
 	pipeline := derive.NewDerivationPipeline(logger, cfg, l1Source, l1BlobsSource, plasma.Disabled, l2Source, engine, metrics.NoopMetrics, &sync.Config{}, safedb.Disabled, NoopFinalizer{}, attributesHandler)
 	pipeline.Reset()

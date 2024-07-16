@@ -32,26 +32,6 @@ contract PeripheryDeployConfig is Script {
     address public faucetOffchainAuthModuleAdmin;
     uint256 public faucetOffchainAuthModuleTtl;
     uint256 public faucetOffchainAuthModuleAmount;
-    bool public installOpChainFaucetsDrips;
-    bool public archivePreviousOpChainFaucetsDrips;
-    uint256 public smallOpChainFaucetDripValue;
-    uint256 public smallOpChainFaucetDripInterval;
-    uint256 public largeOpChainFaucetDripValue;
-    uint256 public largeOpChainFaucetDripInterval;
-    uint256 public opChainAdminWalletDripValue;
-    uint256 public opChainAdminWalletDripInterval;
-    address public opL1BridgeAddress;
-    address public baseL1BridgeAddress;
-    address public zoraL1BridgeAddress;
-    address public pgnL1BridgeAddress;
-    address public orderlyL1BridgeAddress;
-    address public modeL1BridgeAddress;
-    address public lyraL1BridgeAddress;
-    address public liskL1BridgeAddress;
-    address[6] public smallFaucetsL1BridgeAddresses;
-    address[2] public largeFaucetsL1BridgeAddresses;
-    uint256 public dripVersion;
-    uint256 public previousDripVersion;
 
     // Configuration booleans.
     bool public deployDripchecks;

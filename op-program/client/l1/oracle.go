@@ -1,6 +1,7 @@
 package l1
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -30,6 +31,8 @@ type Oracle interface {
 
 	// Precompile retrieves the result and success indicator of a precompile call for the given input.
 	Precompile(precompileAddress common.Address, input []byte) ([]byte, bool)
+
+	GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error
 }
 
 // PreimageOracle implements Oracle using by interfacing with the pure preimage.Oracle
@@ -128,4 +131,9 @@ func (p *PreimageOracle) Precompile(address common.Address, input []byte) ([]byt
 		panic(fmt.Errorf("unexpected precompile oracle behavior, got result: %x", result))
 	}
 	return result[1:], result[0] == 1
+}
+
+func (p *PreimageOracle) GoOrUpdatePreFetchReceipts(ctx context.Context, block uint64) error {
+	// do nothing
+	return nil
 }

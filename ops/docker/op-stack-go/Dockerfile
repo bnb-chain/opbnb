@@ -98,8 +98,6 @@ FROM --platform=$BUILDPLATFORM builder as op-proposer-builder
 ARG OP_PROPOSER_VERSION=v0.0.0
 RUN --mount=type=cache,target=/root/.cache/go-build cd op-proposer && make op-proposer  \
     GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE  VERSION="$OP_PROPOSER_VERSION"
-RUN --mount=type=cache,target=/root/.cache/go-build cd op-conductor && make op-conductor  \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH GITCOMMIT=$GIT_COMMIT GITDATE=$GIT_DATE  VERSION="$OP_CONDUCTOR_VERSION"
 
 FROM --platform=$BUILDPLATFORM builder as op-conductor-builder
 ARG OP_CONDUCTOR_VERSION=v0.0.0
