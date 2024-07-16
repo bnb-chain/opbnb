@@ -126,7 +126,7 @@ func (ps *ProposerService) initRPCClients(ctx context.Context, cfg *CLIConfig) e
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	ps.L1Client = client.NewInstrumentedClient(l1Client, ps.Metrics)
+	ps.L1Client = client.NewInstrumentedClientWithoutRPC(l1Client, &ps.Metrics)
 
 	var rollupProvider dial.RollupProvider
 	if strings.Contains(cfg.RollupRpc, ",") {

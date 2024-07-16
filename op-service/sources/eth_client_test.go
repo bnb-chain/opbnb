@@ -220,7 +220,7 @@ func TestReceiptValidation(t *testing.T) {
 
 	ethcl := newEthClientWithCaches(nil, numTxs)
 	ethcl.client = mrpc
-	ethcl.recProvider = rp
+	ethcl.recProvider = NewCachingReceiptsProvider(rp, nil, 1)
 	ethcl.trustRPC = true
 
 	_, _, err := ethcl.FetchReceipts(ctx, block.Hash)

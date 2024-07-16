@@ -3,6 +3,7 @@ package metrics
 import (
 	"math/big"
 
+	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -38,6 +39,7 @@ type TxMetrics struct {
 	confirmEvent       metrics.EventVec
 	baseFee            prometheus.Gauge
 	blobBaseFee        prometheus.Gauge
+	blobsNumber        prometheus.Gauge
 	tipCap             prometheus.Gauge
 	rpcError           prometheus.Counter
 	*client.FallbackClientMetrics
@@ -122,6 +124,12 @@ func MakeTxMetrics(ns string, factory metrics.Factory) TxMetrics {
 			Help:      "Latest Blob base fee (in Wei)",
 			Subsystem: "txmgr",
 		}),
+		blobsNumber: factory.NewGauge(prometheus.GaugeOpts{
+			Namespace: ns,
+			Name:      "blobs_number_in_tx",
+			Help:      "number of blobs in tx",
+			Subsystem: "txmgr",
+		}),
 		tipCap: factory.NewGauge(prometheus.GaugeOpts{
 			Namespace: ns,
 			Name:      "tipcap_wei",
@@ -179,6 +187,10 @@ func (t *TxMetrics) RecordBaseFee(baseFee *big.Int) {
 func (t *TxMetrics) RecordBlobBaseFee(blobBaseFee *big.Int) {
 	bff, _ := blobBaseFee.Float64()
 	t.blobBaseFee.Set(bff)
+}
+
+func (t *TxMetrics) RecordBlobsNumber(number int) {
+	t.blobsNumber.Set(float64(number))
 }
 
 func (t *TxMetrics) RecordTipCap(tipcap *big.Int) {

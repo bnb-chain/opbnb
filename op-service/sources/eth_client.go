@@ -126,6 +126,10 @@ type EthClient struct {
 	// cache payloads by hash
 	// common.Hash -> *eth.ExecutionPayload
 	payloadsCache *caching.LRUCache[common.Hash, *eth.ExecutionPayloadEnvelope]
+
+	// isReadOrderly Indicates whether the client often reads data in order of block height.
+	// If so, the process of reading the cache will be different to ensure a high cache hit rate.
+	isReadOrderly bool
 }
 
 // NewEthClient returns an [EthClient], wrapping an RPC with bindings to fetch ethereum data with added error logging,
@@ -149,6 +153,7 @@ func NewEthClient(client client.RPC, log log.Logger, metrics caching.Metrics, co
 		transactionsCache: caching.NewLRUCache[common.Hash, types.Transactions](metrics, "txs", config.TransactionsCacheSize),
 		headersCache:      caching.NewLRUCache[common.Hash, eth.BlockInfo](metrics, "headers", config.HeadersCacheSize),
 		payloadsCache:     caching.NewLRUCache[common.Hash, *eth.ExecutionPayloadEnvelope](metrics, "payloads", config.PayloadsCacheSize),
+		isReadOrderly:     isReadOrderly,
 	}, nil
 }
 
@@ -315,6 +320,10 @@ func (s *EthClient) PayloadByHash(ctx context.Context, hash common.Hash) (*eth.E
 	return s.payloadCall(ctx, "eth_getBlockByHash", hashID(hash))
 }
 
+func (s *EthClient) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
+	return s.payloadsCache.Add(payload.ExecutionPayload.BlockHash, payload)
+}
+
 func (s *EthClient) PayloadByNumber(ctx context.Context, number uint64) (*eth.ExecutionPayloadEnvelope, error) {
 	return s.payloadCall(ctx, "eth_getBlockByNumber", numberID(number))
 }
@@ -334,15 +343,26 @@ func (s *EthClient) FetchReceipts(ctx context.Context, blockHash common.Hash) (e
 func (s *EthClient) PreFetchReceipts(ctx context.Context, blockHash common.Hash) (bool, error) {
 	_, _, err, isFull := s.fetchReceiptsInner(ctx, blockHash, true)
 	if err != nil {
-		return nil, nil, fmt.Errorf("querying block: %w", err)
+		return false, err
 	}
+	if isFull {
+		return false, nil
+	}
+	return true, nil
+}
 
-	txHashes, _ := eth.TransactionsToHashes(txs), eth.ToBlockID(info)
-	receipts, err := s.recProvider.FetchReceipts(ctx, info, txHashes)
+func (s *EthClient) fetchReceiptsInner(ctx context.Context, blockHash common.Hash, isForPreFetch bool) (eth.BlockInfo, types.Receipts, error, bool) {
+	info, txs, err := s.infoAndTxsByHash(ctx, blockHash, !isForPreFetch)
 	if err != nil {
 		return nil, nil, fmt.Errorf("querying block: %w", err), false
 	}
-	return info, receipts, nil
+
+	txHashes, _ := eth.TransactionsToHashes(txs), eth.ToBlockID(info)
+	receipts, err, isFull := s.recProvider.FetchReceipts(ctx, info, txHashes, isForPreFetch)
+	if err != nil {
+		return nil, nil, err, isFull
+	}
+	return info, receipts, nil, isFull
 }
 
 // GetProof returns an account proof result, with any optional requested storage proofs.

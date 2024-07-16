@@ -1,5 +1,10 @@
 package eth
 
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+)
+
 type BlobSidecar struct {
 	Blob          Blob         `json:"blob"`
 	Index         Uint64String `json:"index"`
@@ -66,3 +71,19 @@ type APIVersionResponse struct {
 type VersionInformation struct {
 	Version string `json:"version"`
 }
+
+type BSCBlobTxSidecar struct {
+	Blobs       []Blob    `json:"blobs"`
+	Commitments []Bytes48 `json:"commitments"`
+	Proofs      []Bytes48 `json:"proofs"`
+}
+
+type BSCBlobSidecar struct {
+	BSCBlobTxSidecar `json:"blobSidecar"`
+	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	BlockHash        common.Hash     `json:"blockHash"`
+	TxIndex          *hexutil.Uint64 `json:"txIndex"`
+	TxHash           common.Hash     `json:"txHash"`
+}
+
+type BSCBlobSidecars []*BSCBlobSidecar

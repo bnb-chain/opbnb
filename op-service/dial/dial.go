@@ -80,3 +80,25 @@ func dialRPCClient(ctx context.Context, log log.Logger, addr string) (*rpc.Clien
 	}
 	return client, nil
 }
+
+// DialEthClientWithTimeoutAndFallback will try to dial within the timeout period and create an EthClient.
+// If the URL is a multi URL, then a fallbackClient will be created to add the fallback capability to the client
+func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64, m client.FallbackClientMetricer) (client.Client, error) {
+	isMultiUrl, urlList := client.MultiUrlParse(url)
+	if isMultiUrl {
+		firstEthClient, err := DialEthClientWithTimeout(ctx, timeout, l, urlList[0])
+		if err != nil {
+			return nil, err
+		}
+		fallbackClient := client.NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, m, func(url string) (client.Client, error) {
+			ethClientNew, err := DialEthClientWithTimeout(ctx, timeout, l, url)
+			if err != nil {
+				return nil, err
+			}
+			return ethClientNew, nil
+		})
+		return fallbackClient, nil
+	}
+
+	return DialEthClientWithTimeout(ctx, timeout, l, url)
+}

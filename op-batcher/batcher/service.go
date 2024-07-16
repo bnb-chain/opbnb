@@ -143,7 +143,7 @@ func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) er
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	bs.L1Client = client.NewInstrumentedClient(l1Client, bs.Metrics)
+	bs.L1Client = client.NewInstrumentedClientWithoutRPC(l1Client, &bs.Metrics)
 
 	var endpointProvider dial.L2EndpointProvider
 	if strings.Contains(cfg.RollupRpc, ",") && strings.Contains(cfg.L2EthRpc, ",") {

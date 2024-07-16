@@ -6,8 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
@@ -40,6 +38,10 @@ func (m *MockEngine) NewPayload(ctx context.Context, payload *eth.ExecutionPaylo
 
 func (m *MockEngine) ExpectNewPayload(payload *eth.ExecutionPayload, parentBeaconBlockRoot *common.Hash, result *eth.PayloadStatusV1, err error) {
 	m.Mock.On("NewPayload", mustJson(payload), mustJson(parentBeaconBlockRoot)).Once().Return(result, err)
+}
+
+func (m *MockEngine) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
+	return true
 }
 
 func mustJson[E any](elem E) string {
