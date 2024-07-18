@@ -10,7 +10,7 @@ import (
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	opcrypto "github.com/ethereum-optimism/optimism/op-service/crypto"
-	"github.com/ethereum-optimism/optimism/op-service/dial"
+	dial "github.com/ethereum-optimism/optimism/op-service/dummydial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	opsigner "github.com/ethereum-optimism/optimism/op-service/signer"
 	txmetrics "github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
