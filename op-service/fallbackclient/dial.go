@@ -1,5 +1,4 @@
-// dummydial is copied from op-service/dial/dial.go but removed DialRollupClientWithTimeout, to workaround cycle imports issue
-package dummydial
+package fallbackclient
 
 import (
 	"context"
@@ -25,7 +24,7 @@ const TxmgrFallbackThreshold int64 = 3
 // DialEthClientWithTimeout attempts to dial the L1 provider using the provided
 // URL. If the dial doesn't complete within defaultDialTimeout seconds, this
 // method will return an error.
-func DialEthClientWithTimeout(ctx context.Context, timeout time.Duration, log log.Logger, url string) (client.Client, error) {
+func DialEthClientWithTimeout(ctx context.Context, timeout time.Duration, log log.Logger, url string) (Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -69,14 +68,14 @@ func dialRPCClient(ctx context.Context, log log.Logger, addr string) (*rpc.Clien
 
 // DialEthClientWithTimeoutAndFallback will try to dial within the timeout period and create an EthClient.
 // If the URL is a multi URL, then a fallbackClient will be created to add the fallback capability to the client
-func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64, m client.FallbackClientMetricer) (client.Client, error) {
-	isMultiUrl, urlList := client.MultiUrlParse(url)
+func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeout time.Duration, l log.Logger, fallbackThreshold int64, m FallbackClientMetricer) (Client, error) {
+	isMultiUrl, urlList := MultiUrlParse(url)
 	if isMultiUrl {
 		firstEthClient, err := DialEthClientWithTimeout(ctx, timeout, l, urlList[0])
 		if err != nil {
 			return nil, err
 		}
-		fallbackClient := client.NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, m, func(url string) (client.Client, error) {
+		fallbackClient := NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, m, func(url string) (Client, error) {
 			ethClientNew, err := DialEthClientWithTimeout(ctx, timeout, l, url)
 			if err != nil {
 				return nil, err

@@ -325,7 +325,7 @@ func (n *OpNode) initL1Blob(ctx context.Context, cfg *Config) error {
 	}
 	instrumentedClients := make([]client.RPC, 0)
 	for _, rpc := range rpcClients {
-		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, n.metrics))
+		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, &n.metrics.RPCClientMetrics))
 	}
 	n.l1Blob = sources.NewBSCBlobClient(instrumentedClients)
 	return nil

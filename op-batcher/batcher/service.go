@@ -19,9 +19,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
-	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/fallbackclient"
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum-optimism/optimism/op-service/oppprof"
@@ -52,7 +52,7 @@ type BatcherConfig struct {
 type BatcherService struct {
 	Log              log.Logger
 	Metrics          metrics.Metricer
-	L1Client         client.Client
+	L1Client         fallbackclient.Client
 	EndpointProvider dial.L2EndpointProvider
 	TxManager        txmgr.TxManager
 	PlasmaDA         *plasma.DAClient
@@ -139,11 +139,11 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 }
 
 func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) error {
-	l1Client, err := dial.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, dial.DefaultDialTimeout, bs.Log, dial.BatcherFallbackThreshold, bs.Metrics)
+	l1Client, err := fallbackclient.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, fallbackclient.DefaultDialTimeout, bs.Log, dial.BatcherFallbackThreshold, bs.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}
-	bs.L1Client = client.NewInstrumentedClientWithoutRPC(l1Client, &bs.Metrics)
+	bs.L1Client = fallbackclient.NewInstrumentedClient(l1Client, bs.Metrics)
 
 	var endpointProvider dial.L2EndpointProvider
 	if strings.Contains(cfg.RollupRpc, ",") && strings.Contains(cfg.L2EthRpc, ",") {

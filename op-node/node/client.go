@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/fallbackclient"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -151,7 +152,7 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
 	}
 
-	isMultiUrl, urlList := client.MultiUrlParse(cfg.L1NodeAddr)
+	isMultiUrl, urlList := fallbackclient.MultiUrlParse(cfg.L1NodeAddr)
 	if isMultiUrl {
 		return fallbackClientWrap(ctx, log, urlList, cfg, rollupCfg, opts...)
 	}
@@ -291,7 +292,7 @@ func (cfg *L1BlobEndpointConfig) Setup(ctx context.Context, log log.Logger) ([]c
 	if cfg.RateLimit != 0 {
 		opts = append(opts, client.WithRateLimit(cfg.RateLimit, cfg.BatchSize))
 	}
-	isMultiUrl, urlList := client.MultiUrlParse(cfg.NodeAddrs)
+	isMultiUrl, urlList := fallbackclient.MultiUrlParse(cfg.NodeAddrs)
 
 	if isMultiUrl {
 		for _, url := range urlList {

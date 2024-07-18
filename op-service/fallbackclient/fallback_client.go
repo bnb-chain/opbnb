@@ -1,4 +1,4 @@
-package client
+package fallbackclient
 
 import (
 	"context"

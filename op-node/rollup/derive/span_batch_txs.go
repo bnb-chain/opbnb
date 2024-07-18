@@ -433,8 +433,8 @@ func (sbtx *spanBatchTxs) AddTxs(txs [][]byte, chainID *big.Int) error {
 			if tx.Protected() {
 				protectedBit = uint(1)
 			}
-			protectedBits.SetBit(protectedBits, int(totalLegacyTxCount), protectedBit)
-			totalLegacyTxCount++
+			sbtx.protectedBits.SetBit(sbtx.protectedBits, int(sbtx.totalLegacyTxCount), protectedBit)
+			sbtx.totalLegacyTxCount++
 		}
 		if tx.Protected() && tx.ChainId().Cmp(chainID) != 0 {
 			return fmt.Errorf("protected tx has chain ID %d, but expected chain ID %d", tx.ChainId(), chainID)

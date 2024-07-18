@@ -45,7 +45,7 @@ func (*noopMetrics) RecordBatchTxSubmitted() {}
 func (*noopMetrics) RecordBatchTxSuccess()   {}
 func (*noopMetrics) RecordBatchTxFailed()    {}
 func (*noopMetrics) RecordBlobUsedBytes(int) {}
-func (*noopMetrics) StartBalanceMetrics(log.Logger, *ethclient.Client, common.Address) io.Closer {
+func (*noopMetrics) StartBalanceMetrics(log.Logger, ethereum.ChainStateReader, common.Address) io.Closer {
 	return nil
 }
 func (*noopMetrics) RecordBlobsNumber(number int) {}

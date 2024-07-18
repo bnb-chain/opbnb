@@ -61,7 +61,7 @@ type FinalizerEngine interface {
 
 type FinalizerL1Interface interface {
 	L1BlockRefByNumber(context.Context, uint64) (eth.L1BlockRef, error)
-	L1ReceiptsFetcher
+	derive.L1ReceiptsFetcher
 }
 
 type Finalizer struct {
