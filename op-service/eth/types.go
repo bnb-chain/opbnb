@@ -338,6 +338,8 @@ const (
 	ExecutionInvalidBlockHash ExecutePayloadStatus = "INVALID_BLOCK_HASH"
 	// proof-of-stake transition only, not used in rollup
 	ExecutionInvalidTerminalBlock ExecutePayloadStatus = "INVALID_TERMINAL_BLOCK"
+	// given payload is invalid
+	ExecutionInconsistent ExecutePayloadStatus = "INCONSISTENT"
 )
 
 type PayloadStatusV1 struct {
