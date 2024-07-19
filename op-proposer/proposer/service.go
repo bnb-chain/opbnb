@@ -122,7 +122,7 @@ func (ps *ProposerService) initFromCLIConfig(ctx context.Context, version string
 }
 
 func (ps *ProposerService) initRPCClients(ctx context.Context, cfg *CLIConfig) error {
-	l1Client, err := fallbackclient.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, dial.DefaultDialTimeout, ps.Log, dial.ProposerFallbackThreshold, ps.Metrics)
+	l1Client, err := fallbackclient.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, fallbackclient.DefaultDialTimeout, ps.Log, fallbackclient.ProposerFallbackThreshold, ps.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}

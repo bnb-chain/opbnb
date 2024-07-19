@@ -54,7 +54,6 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// check the time of the next origin.
 	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+msd
 	// Limit the time to fetch next origin block by default
-	// Nolan
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()
 	if pastSeqDrift {

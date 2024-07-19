@@ -2,8 +2,6 @@ module github.com/ethereum-optimism/optimism
 
 go 1.21
 
-toolchain go1.21.6
-
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/DataDog/zstd v1.5.2

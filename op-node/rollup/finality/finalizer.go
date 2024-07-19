@@ -224,7 +224,6 @@ func (fi *Finalizer) PostProcessSafeL2(l2Safe eth.L2BlockRef, derivedFrom eth.L1
 			fi.log.Debug("updated finality-data", "last_l1", last.L1Block, "last_l2", last.L2Block)
 		}
 	}
-	// Nolan
 	fi.l1Fetcher.ClearReceiptsCacheBefore(l2Safe.L1Origin.Number)
 }
 

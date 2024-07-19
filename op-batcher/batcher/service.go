@@ -124,10 +124,6 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 	if err := bs.initPlasmaDA(cfg); err != nil {
 		return fmt.Errorf("failed to init plasma DA: %w", err)
 	}
-	// init before driver
-	if err := bs.initPlasmaDA(cfg); err != nil {
-		return fmt.Errorf("failed to init plasma DA: %w", err)
-	}
 	bs.initDriver(cfg)
 	if err := bs.initRPCServer(cfg); err != nil {
 		return fmt.Errorf("failed to start RPC server: %w", err)
@@ -139,7 +135,7 @@ func (bs *BatcherService) initFromCLIConfig(ctx context.Context, version string,
 }
 
 func (bs *BatcherService) initRPCClients(ctx context.Context, cfg *CLIConfig) error {
-	l1Client, err := fallbackclient.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, fallbackclient.DefaultDialTimeout, bs.Log, dial.BatcherFallbackThreshold, bs.Metrics)
+	l1Client, err := fallbackclient.DialEthClientWithTimeoutAndFallback(ctx, cfg.L1EthRpc, fallbackclient.DefaultDialTimeout, bs.Log, fallbackclient.BatcherFallbackThreshold, bs.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to dial L1 RPC: %w", err)
 	}

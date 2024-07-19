@@ -17,9 +17,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
-// When block produce is interrupted by high L1 latency, sequencer will build a full block periodically to avoid chain stuck
-const buildFullBlockInterval = 20
-
 type Downloader interface {
 	InfoByHash(ctx context.Context, hash common.Hash) (eth.BlockInfo, error)
 	FetchReceipts(ctx context.Context, blockHash common.Hash) (eth.BlockInfo, types.Receipts, error)
@@ -53,9 +50,6 @@ type Sequencer struct {
 	timeNow func() time.Time
 
 	nextAction time.Time
-
-	// if accEmptyBlocks > buildFullBlockInterval, will delay nextAction 600ms for full block building
-	accEmptyBlocks int
 }
 
 func NewSequencer(log log.Logger, rollupCfg *rollup.Config, engine derive.EngineControl, attributesBuilder derive.AttributesBuilder, l1OriginSelector L1OriginSelectorIface, metrics SequencerMetrics) *Sequencer {
@@ -258,9 +252,6 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			return nil, nil
 		} else {
 			payload := envelope.ExecutionPayload
-			if len(payload.Transactions) == 1 {
-				d.accEmptyBlocks += 1
-			}
 			d.attrBuilder.CachePayloadByHash(envelope)
 			d.log.Info("sequencer successfully built a new block", "block", payload.ID(), "time", uint64(payload.Timestamp), "txs", len(payload.Transactions))
 			return envelope, nil
@@ -285,11 +276,6 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			}
 		} else {
 			parent, buildingID, _ := d.engine.BuildingPayload() // we should have a new payload ID now that we're building a block
-			if d.accEmptyBlocks >= buildFullBlockInterval {
-				d.nextAction = d.timeNow().Add(600 * time.Millisecond)
-				d.accEmptyBlocks = 0
-				d.log.Info("sequencer delay next action 600ms and reset accEmptyBlocks")
-			}
 			d.log.Info("sequencer started building new block", "payload_id", buildingID, "l2_parent_block", parent, "l2_parent_block_time", parent.Time)
 			d.metrics.RecordSequencerStepTime("startBuildBlock", time.Since(start))
 		}

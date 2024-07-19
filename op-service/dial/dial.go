@@ -18,10 +18,6 @@ const DefaultDialTimeout = 1 * time.Minute
 const defaultRetryCount = 30
 const defaultRetryTime = 2 * time.Second
 
-const BatcherFallbackThreshold int64 = 10
-const ProposerFallbackThreshold int64 = 3
-const TxmgrFallbackThreshold int64 = 3
-
 // DialEthClientWithTimeout attempts to dial the L1 provider using the provided
 // URL. If the dial doesn't complete within defaultDialTimeout seconds, this
 // method will return an error.

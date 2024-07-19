@@ -1,3 +1,4 @@
+// TODO add opBNB fork(for now it's not required)
 package rollup
 
 import (

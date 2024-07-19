@@ -809,45 +809,6 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         splitDepth_ = SPLIT_DEPTH;
     }
 
-    /// @notice Returns the game duration.
-    function gameDuration() external view returns (Duration gameDuration_) {
-        gameDuration_ = GAME_DURATION;
-    }
-
-    /// @notice Returns the address of the VM.
-    function vm() external view returns (IBigStepper vm_) {
-        vm_ = VM;
-    }
-
-    /// @notice Returns the WETH contract for holding ETH.
-    function weth() external view returns (IDelayedWETH weth_) {
-        weth_ = WETH;
-    }
-
-    /// @notice Returns the chain ID of the L2 network this contract argues about.
-    function l2ChainId() external view returns (uint256 l2ChainId_) {
-        l2ChainId_ = L2_CHAIN_ID;
-    }
-
-    ////////////////////////////////////////////////////////////////
-    //                     IMMUTABLE GETTERS                      //
-    ////////////////////////////////////////////////////////////////
-
-    /// @notice Returns the absolute prestate of the instruction trace.
-    function absolutePrestate() external view returns (Claim absolutePrestate_) {
-        absolutePrestate_ = ABSOLUTE_PRESTATE;
-    }
-
-    /// @notice Returns the max game depth.
-    function maxGameDepth() external view returns (uint256 maxGameDepth_) {
-        maxGameDepth_ = MAX_GAME_DEPTH;
-    }
-
-    /// @notice Returns the split depth.
-    function splitDepth() external view returns (uint256 splitDepth_) {
-        splitDepth_ = SPLIT_DEPTH;
-    }
-
     /// @notice Returns the max clock duration.
     function maxClockDuration() external view returns (Duration maxClockDuration_) {
         maxClockDuration_ = MAX_CLOCK_DURATION;
