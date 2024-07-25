@@ -168,7 +168,7 @@ contract L2Genesis is Deployer {
         activateFjord();
 
         if (_mode == OutputMode.OUTPUT_ALL || _mode == OutputMode.DEFAULT_LATEST) {
-            writeGenesisAllocs(Config.stateDumpPath(""));
+            writeGenesisAllocs(Config.stateDumpPath("-fjord"));
         }
     }
 
