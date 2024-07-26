@@ -209,10 +209,12 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		fi := NewFinalizer(logger, &rollup.Config{}, l1F, ec)
 
 		// now say C1 was included in D and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refC1.L1Origin.Number)
 		fi.PostProcessSafeL2(refC1, refD)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refD))
 
 		// now say D0 was included in E and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refD0.L1Origin.Number)
 		fi.PostProcessSafeL2(refD0, refE)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refE))
 
@@ -236,10 +238,12 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		fi := NewFinalizer(logger, &rollup.Config{}, l1F, ec)
 
 		// now say C1 was included in D and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refC1.L1Origin.Number)
 		fi.PostProcessSafeL2(refC1, refD)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refD))
 
 		// now say D0 was included in E and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refD0.L1Origin.Number)
 		fi.PostProcessSafeL2(refD0, refE)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refE))
 
@@ -269,9 +273,11 @@ func TestEngineQueue_Finalize(t *testing.T) {
 
 		fi := NewFinalizer(logger, &rollup.Config{}, l1F, ec)
 
+		l1F.ExpectClearReceiptsCacheBefore(refC1.L1Origin.Number)
 		fi.PostProcessSafeL2(refC1, refD)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refD))
 
+		l1F.ExpectClearReceiptsCacheBefore(refD0.L1Origin.Number)
 		fi.PostProcessSafeL2(refD0, refE)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refE))
 
@@ -283,10 +289,15 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refG))
 		require.Equal(t, refD0, ec.Finalized(), "D0 was included in E, and should be finalized now")
 
+		l1F.ExpectClearReceiptsCacheBefore(refD1.L1Origin.Number)
 		fi.PostProcessSafeL2(refD1, refH)
+		l1F.ExpectClearReceiptsCacheBefore(refE0.L1Origin.Number)
 		fi.PostProcessSafeL2(refE0, refH)
+		l1F.ExpectClearReceiptsCacheBefore(refE1.L1Origin.Number)
 		fi.PostProcessSafeL2(refE1, refH)
+		l1F.ExpectClearReceiptsCacheBefore(refF0.L1Origin.Number)
 		fi.PostProcessSafeL2(refF0, refH)
+		l1F.ExpectClearReceiptsCacheBefore(refF1.L1Origin.Number)
 		fi.PostProcessSafeL2(refF1, refH)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refH))
 		require.Equal(t, refD0, ec.Finalized(), "D1-F1 were included in L1 blocks that have not been finalized yet")
@@ -311,10 +322,12 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		fi := NewFinalizer(logger, &rollup.Config{}, l1F, ec)
 
 		// now say B1 was included in C and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refB1.L1Origin.Number)
 		fi.PostProcessSafeL2(refB1, refC)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refC))
 
 		// now say C0 was included in E and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refC0.L1Origin.Number)
 		fi.PostProcessSafeL2(refC0, refE)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refE))
 
@@ -341,6 +354,7 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		fi := NewFinalizer(logger, &rollup.Config{}, l1F, ec)
 
 		// now say B1 was included in C and became the new safe head
+		l1F.ExpectClearReceiptsCacheBefore(refB1.L1Origin.Number)
 		fi.PostProcessSafeL2(refB1, refC)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refC))
 
@@ -367,7 +381,9 @@ func TestEngineQueue_Finalize(t *testing.T) {
 			ParentHash: refC.Hash,
 			Time:       refC.Time + l1Time,
 		}
+		l1F.ExpectClearReceiptsCacheBefore(refC0Alt.L1Origin.Number)
 		fi.PostProcessSafeL2(refC0Alt, refDAlt)
+		l1F.ExpectClearReceiptsCacheBefore(refC1Alt.L1Origin.Number)
 		fi.PostProcessSafeL2(refC1Alt, refDAlt)
 
 		// We get an early finality signal for F, of the chain that did not include refC0Alt and refC1Alt,
@@ -388,6 +404,7 @@ func TestEngineQueue_Finalize(t *testing.T) {
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refD))
 
 		// Include C0 in E
+		l1F.ExpectClearReceiptsCacheBefore(refC0.L1Origin.Number)
 		fi.PostProcessSafeL2(refC0, refE)
 		require.NoError(t, fi.OnDerivationL1End(context.Background(), refE))
 		// Due to the "finalityDelay" we don't repeat finality checks shortly after one another.

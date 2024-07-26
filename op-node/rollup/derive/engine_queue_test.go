@@ -655,9 +655,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 
 			// L1 chain reorgs so new origin is at same slot as refF but on a different fork
 			prev.origin = test.newOrigin
-			if test.verifyPass {
-				l1F.ExpectClearReceiptsCacheBefore(refB.Number)
-			}
+
 			err = eq.Step(context.Background())
 			if test.expectReset {
 				require.ErrorIs(t, err, ErrReset, "should reset pipeline due to mismatched origin")
@@ -763,7 +761,6 @@ func TestBlockBuildingRace(t *testing.T) {
 
 	// Expect initial forkchoice update
 	eng.ExpectForkchoiceUpdate(preFc, nil, preFcRes, nil)
-	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
 	// Expect initial building update, to process the attributes we queued up. Attributes get in
@@ -866,7 +863,6 @@ func TestResetLoop(t *testing.T) {
 	eq.ec.SetUnsafeHead(refA2)
 	eq.ec.SetSafeHead(refA1)
 	eq.ec.SetFinalizedHead(refA0)
-	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 
 	// Queue up the safe attributes
 	// Expect a FCU after during the first step
@@ -893,7 +889,6 @@ func TestResetLoop(t *testing.T) {
 	eng.ExpectForkchoiceUpdate(postFc, nil, nil, nil)
 	require.NoError(t, eq.Step(context.Background()), "clean forkchoice state after reset")
 
-	l1F.ExpectClearReceiptsCacheBefore(refA.Number)
 	// Crux of the test. Should be in a valid state after the reset.
 	require.ErrorIs(t, eq.Step(context.Background()), NotEnoughData, "Should be able to step after a reset")
 
