@@ -51,8 +51,8 @@ type Client interface {
 // InstrumentedClient is an Ethereum client that tracks
 // Prometheus metrics for each call.
 type InstrumentedClient struct {
-	c   Client
-	m   metrics.RPCClientMetricer
+	c Client
+	m metrics.RPCClientMetricer
 }
 
 // NewInstrumentedClient creates a new instrumented client. It takes
@@ -60,8 +60,8 @@ type InstrumentedClient struct {
 // instrumented client.
 func NewInstrumentedClient(c Client, m metrics.RPCClientMetricer) *InstrumentedClient {
 	return &InstrumentedClient{
-		c:   c,
-		m:   m,
+		c: c,
+		m: m,
 	}
 }
 

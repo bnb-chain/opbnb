@@ -67,7 +67,7 @@ type OpNode struct {
 	pprofService *oppprof.Service
 	metricsSrv   *httputil.HTTPServer
 
-	l1Blob    *sources.BSCBlobClient // L1 Blob Client to fetch blobs
+	l1Blob *sources.BSCBlobClient // L1 Blob Client to fetch blobs
 
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.

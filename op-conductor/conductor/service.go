@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-multierror"
@@ -213,7 +212,7 @@ func (oc *OpConductor) initRPCServer(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create execution rpc client")
 		}
-		executionProxy := conductorrpc.NewExecutionProxyBackend(oc.log, oc, execClient).(*ethclient.Client))
+		executionProxy := conductorrpc.NewExecutionProxyBackend(oc.log, oc, execClient)
 		server.AddAPI(rpc.API{
 			Namespace: conductorrpc.ExecutionRPCNamespace,
 			Service:   executionProxy,

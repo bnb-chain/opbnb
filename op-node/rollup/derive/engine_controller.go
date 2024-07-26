@@ -45,16 +45,16 @@ type ExecEngine interface {
 }
 
 type EngineController struct {
-	engine     ExecEngine // Underlying execution engine RPC
-	log        log.Logger
-	metrics    Metrics
-	syncMode   sync.Mode
-	syncStatus syncStatusEnum
+	engine       ExecEngine // Underlying execution engine RPC
+	log          log.Logger
+	metrics      Metrics
+	syncMode     sync.Mode
+	syncStatus   syncStatusEnum
 	elTriggerGap int
-	chainSpec  *rollup.ChainSpec
-	rollupCfg  *rollup.Config
-	elStart    time.Time
-	clock      clock.Clock
+	chainSpec    *rollup.ChainSpec
+	rollupCfg    *rollup.Config
+	elStart      time.Time
+	clock        clock.Clock
 
 	// Block Head State
 	unsafeHead       eth.L2BlockRef
@@ -84,15 +84,15 @@ func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rol
 	}
 
 	return &EngineController{
-		engine:     engine,
-		log:        log,
-		metrics:    metrics,
-		chainSpec:  rollup.NewChainSpec(rollupCfg),
-		rollupCfg:  rollupCfg,
+		engine:       engine,
+		log:          log,
+		metrics:      metrics,
+		chainSpec:    rollup.NewChainSpec(rollupCfg),
+		rollupCfg:    rollupCfg,
 		syncMode:     syncConfig.SyncMode,
 		elTriggerGap: syncConfig.ELTriggerGap,
-		syncStatus: syncStatus,
-		clock:      clock.SystemClock,
+		syncStatus:   syncStatus,
+		clock:        clock.SystemClock,
 	}
 }
 

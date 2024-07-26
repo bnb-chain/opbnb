@@ -256,7 +256,6 @@ func parseHTTPHeader(headerStr string) (http.Header, error) {
 	return h, nil
 }
 
-
 type L1BlobEndpointConfig struct {
 	// Address of L1 blob node endpoint to use, multiple alternative addresses separated by commas are supported, and will rotate when error
 	NodeAddrs string
