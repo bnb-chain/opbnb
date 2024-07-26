@@ -215,7 +215,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
 
       - uses: pnpm/action-setup@v3
         name: Install pnpm
@@ -282,7 +282,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
 
       - uses: pnpm/action-setup@v3
         name: Install pnpm
