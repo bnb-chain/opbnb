@@ -256,7 +256,7 @@ jobs:
       - name: Run tests
         working-directory: op-e2e
         run: |
-          OP_E2E_CANNON_ENABLED=false OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=true  gotestsum \
+          OP_E2E_CANNON_ENABLED=false OP_E2E_USE_L2OO=true OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=true  gotestsum \
             --format=testname --junitfile=/tmp/test-results/op-e2e_http_true.xml \
             -- -timeout=30m -parallel=2 . ./...
 
@@ -323,7 +323,7 @@ jobs:
       - name: Run tests
         working-directory: op-e2e
         run: |
-          OP_E2E_CANNON_ENABLED=false OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=false  gotestsum \
+          OP_E2E_CANNON_ENABLED=false OP_E2E_USE_L2OO=true OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=false  gotestsum \
             --format=testname --junitfile=/tmp/test-results/op-e2e_http_false.xml \
             -- -timeout=30m -parallel=2 . ./...
 
