@@ -182,7 +182,7 @@ var (
 	}
 	L1RPCMaxCacheSize = &cli.IntFlag{
 		Name:     "l1.rpc-max-cache-size",
-		Usage:    "The maximum cache size of the L1 client. it should be greater than or equal to the max lag of unsafe and safe block heights. Must be greater than or equal to 1",
+		Usage:    "The maximum cache size of the L1 client. it should be greater than or equal to the maximum height difference between the L1 blocks corresponding to the unsafe block height and the safe block height. Must be greater than or equal to 1",
 		EnvVars:  prefixEnvVars("L1_RPC_MAX_CACHE_SIZE"),
 		Value:    1000,
 		Category: L1RPCCategory,

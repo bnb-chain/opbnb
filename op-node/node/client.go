@@ -117,7 +117,8 @@ type L1EndpointConfig struct {
 	// BatchSize specifies the maximum batch-size, which also applies as L1 rate-limit burst amount (if set).
 	BatchSize int
 
-	// CacheSize specifies the maximum cache size of l1 client. it should be greater than or equal to the max lag of unsafe and safe block heights.
+	// CacheSize specifies the maximum cache size of l1 client.
+	// it should be greater than or equal to the maximum height difference between the L1 blocks corresponding to the unsafe block height and the safe block height.
 	CacheSize int
 
 	// MaxConcurrency specifies the maximum number of concurrent requests to the L1 RPC.
