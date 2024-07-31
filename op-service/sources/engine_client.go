@@ -3,6 +3,7 @@ package sources
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -136,6 +137,9 @@ func (s *EngineAPIClient) NewPayload(ctx context.Context, payload *eth.Execution
 
 	e.Trace("Received payload execution result", "status", result.Status, "latestValidHash", result.LatestValidHash, "message", result.ValidationError)
 	if err != nil {
+		if strings.Contains(err.Error(), "forced head needed for startup") {
+			return &result, err
+		}
 		e.Error("Payload execution failed", "err", err)
 		return nil, fmt.Errorf("failed to execute payload: %w", err)
 	}
