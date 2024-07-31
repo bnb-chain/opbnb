@@ -207,7 +207,8 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 									}
 									if !isSuccess {
 										s.log.Debug("The receipts cache may be full. "+
-											"please ensure the difference between the safe block height and the unsafe block height is less than or equal to the cache size.",
+											"please ensure the maximum height difference between the L1 blocks "+
+											"corresponding to the unsafe block height and the safe block height is less than or equal to the cache size.",
 											"blockHash", blockInfo.Hash, "blockNumber", blockNumber)
 										time.Sleep(1 * time.Second)
 										continue
