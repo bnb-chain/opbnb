@@ -180,6 +180,13 @@ var (
 		Value:    20,
 		Category: L1RPCCategory,
 	}
+	L1RPCMaxCacheSize = &cli.IntFlag{
+		Name:     "l1.rpc-max-cache-size",
+		Usage:    "The maximum cache size of the L1 client. it should be greater than or equal to the max lag of unsafe and safe block heights. Must be greater than or equal to 1",
+		EnvVars:  prefixEnvVars("L1_RPC_MAX_CACHE_SIZE"),
+		Value:    1000,
+		Category: L1RPCCategory,
+	}
 	L1HTTPPollInterval = &cli.DurationFlag{
 		Name:     "l1.http-poll-interval",
 		Usage:    "Polling interval for latest-block subscription when using an HTTP RPC provider. Ignored for other types of RPC endpoints.",
@@ -417,6 +424,7 @@ var optionalFlags = []cli.Flag{
 	L1RPCProviderKind,
 	L1RPCRateLimit,
 	L1RPCMaxBatchSize,
+	L1RPCMaxCacheSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
 	L1ArchiveBlobRpcAddr,
