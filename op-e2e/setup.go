@@ -923,6 +923,7 @@ func configureL1(rollupNodeCfg *rollupNode.Config, l1Node EthInstance) {
 		BatchSize:        20,
 		HttpPollInterval: time.Millisecond * 100,
 		MaxConcurrency:   10,
+		CacheSize:        1000,
 	}
 }
 
