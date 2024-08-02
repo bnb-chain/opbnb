@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/sources/caching"
@@ -137,7 +138,7 @@ func (s *EngineAPIClient) NewPayload(ctx context.Context, payload *eth.Execution
 
 	e.Trace("Received payload execution result", "status", result.Status, "latestValidHash", result.LatestValidHash, "message", result.ValidationError)
 	if err != nil {
-		if strings.Contains(err.Error(), "forced head needed for startup") {
+		if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
 			return &result, err
 		}
 		e.Error("Payload execution failed", "err", err)
