@@ -325,7 +325,7 @@ const (
 func AvailableReceiptsFetchingMethods(kind RPCProviderKind) ReceiptsFetchingMethod {
 	switch kind {
 	case RPCKindAlchemy:
-		return AlchemyGetTransactionReceipts | EthGetBlockReceipts | EthGetTransactionReceiptBatch
+		return EthGetTransactionReceiptBatch
 	case RPCKindQuickNode:
 		return DebugGetRawReceipts | EthGetBlockReceipts | EthGetTransactionReceiptBatch
 	case RPCKindInfura:
