@@ -109,6 +109,7 @@ config=$(cat << EOL
   "fermat": 0,
   "snowTimeOffset": "0x0",
   "haberTimeOffset": "0x0",
+  "wrightTimeOffset": "0x0",
   "fundDevAccounts": true,
   "proofMaturityDelaySeconds": 12,
   "disputeGameFinalityDelaySeconds": 6,

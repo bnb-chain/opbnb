@@ -276,6 +276,9 @@ def devnet_deploy(paths):
     deploy_config['l2GenesisDeltaTimeOffset'] = "0x0"
     deploy_config['fermat'] = 0
     deploy_config['L2GenesisEcotoneTimeOffset'] = "0x0"
+    deploy_config['snowTimeOffset'] = "0x0"
+    deploy_config['haberTimeOffset'] = "0x0"
+    deploy_config['wrightTimeOffset'] = "0x0"
     deploy_config['L2GenesisFjordTimeOffset'] = "0x0"
     write_json(devnet_cfg_orig, deploy_config)
 

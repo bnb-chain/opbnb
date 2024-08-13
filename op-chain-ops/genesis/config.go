@@ -256,6 +256,9 @@ type DeployConfig struct {
 	// HaberTimeOffset is the number of seconds after genesis block that haber hard fork activates.
 	// Set it to 0 to activate at genesis. Nil to disable haber fork.
 	HaberTimeOffset *hexutil.Uint64 `json:"haberTimeOffset,omitempty"`
+	// WrightTimeOffset is the number of seconds after genesis block that wright hard fork activates.
+	// Set it to 0 to activate at genesis. Nil to disable wright fork.
+	WrightTimeOffset *hexutil.Uint64 `json:"wrightTimeOffset,omitempty"`
 	// RequiredProtocolVersion indicates the protocol version that
 	// nodes are required to adopt, to stay in sync with the network.
 	RequiredProtocolVersion params.ProtocolVersion `json:"requiredProtocolVersion"`
@@ -632,6 +635,17 @@ func (d *DeployConfig) HaberTime(genesisTime uint64) *uint64 {
 	}
 	v := uint64(0)
 	if offset := *d.HaberTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
+func (d *DeployConfig) WrightTime(genesisTime uint64) *uint64 {
+	if d.WrightTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.WrightTimeOffset; offset > 0 {
 		v = genesisTime + uint64(offset)
 	}
 	return &v
