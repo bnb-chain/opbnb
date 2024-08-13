@@ -64,7 +64,7 @@
   "proofMaturityDelaySeconds": 12,
   "disputeGameFinalityDelaySeconds": 6,
   "respectedGameType": 254,
-  "useFaultProofs": true,
+  "useFaultProofs": false,
   "usePlasma": false,
   "daCommitmentType": "KeccakCommitment",
   "daChallengeWindow": 160,

@@ -72,7 +72,7 @@ def main():
     node_deploy_genesis_dir = pjoin(node_deploy_dir, 'genesis')
     contracts_bedrock_dir = pjoin(monorepo_dir, 'packages', 'contracts-bedrock')
     deployment_dir = pjoin(contracts_bedrock_dir, 'deployments', 'devnetL1')
-    forge_dump_path = pjoin(contracts_bedrock_dir, 'Deploy-900.json')
+    forge_l1_dump_path = pjoin(contracts_bedrock_dir, 'state-dump-900.json')
     op_node_dir = pjoin(args.monorepo_dir, 'op-node')
     ops_bedrock_dir = pjoin(monorepo_dir, 'ops-bedrock')
     deploy_config_dir = pjoin(contracts_bedrock_dir, 'deploy-config')
@@ -89,7 +89,7 @@ def main():
       node_deploy_genesis_dir=node_deploy_genesis_dir,
       contracts_bedrock_dir=contracts_bedrock_dir,
       deployment_dir=deployment_dir,
-      forge_dump_path=forge_dump_path,
+      forge_l1_dump_path=forge_l1_dump_path,
       l1_deployments_path=pjoin(deployment_dir, '.deploy'),
       deploy_config_dir=deploy_config_dir,
       devnet_config_path=devnet_config_path,
@@ -100,7 +100,7 @@ def main():
       sdk_dir=sdk_dir,
       genesis_l1_path=pjoin(devnet_dir, 'genesis-l1.json'),
       genesis_l2_path=pjoin(devnet_dir, 'genesis-l2.json'),
-      allocs_path=pjoin(devnet_dir, 'allocs-l1.json'),
+      allocs_l1_path=pjoin(devnet_dir, 'allocs-l1.json'),
       addresses_json_path=pjoin(devnet_dir, 'addresses.json'),
       sdk_addresses_json_path=pjoin(devnet_dir, 'sdk-addresses.json'),
       rollup_config_path=pjoin(devnet_dir, 'rollup.json')
@@ -115,6 +115,7 @@ def main():
 
     if args.allocs:
         devnet_l1_genesis(paths)
+        devnet_l2_allocs(paths)
         return
 
     if args.init:
@@ -145,15 +146,13 @@ def devnet_l1_genesis(paths):
 
     fqn = 'scripts/Deploy.s.sol:Deploy'
     run_command([
-        'forge', 'script', '--chain-id', '900', fqn, "--sig", "runWithStateDump()"
+        'forge', 'script', fqn, "--sig", "runWithStateDump()", "--sender", "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
     ], env={
       'DEPLOYMENT_OUTFILE': paths.l1_deployments_path,
       'DEPLOY_CONFIG_PATH': paths.devnet_config_path,
     }, cwd=paths.contracts_bedrock_dir)
 
-    forge_dump = read_json(paths.forge_dump_path)
-    write_json(paths.allocs_path, { "accounts": forge_dump })
-    os.remove(paths.forge_dump_path)
+    shutil.move(src=paths.forge_l1_dump_path, dst=paths.allocs_l1_path)
 
     shutil.copy(paths.l1_deployments_path, paths.addresses_json_path)
 
