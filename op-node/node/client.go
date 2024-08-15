@@ -117,6 +117,10 @@ type L1EndpointConfig struct {
 	// BatchSize specifies the maximum batch-size, which also applies as L1 rate-limit burst amount (if set).
 	BatchSize int
 
+	// CacheSize specifies the maximum cache size of l1 client.
+	// it should be greater than or equal to the maximum height difference between the L1 blocks corresponding to the unsafe block height and the safe block height.
+	CacheSize int
+
 	// MaxConcurrency specifies the maximum number of concurrent requests to the L1 RPC.
 	MaxConcurrency int
 
@@ -132,6 +136,9 @@ var _ L1EndpointSetup = (*L1EndpointConfig)(nil)
 func (cfg *L1EndpointConfig) Check() error {
 	if cfg.BatchSize < 1 || cfg.BatchSize > 500 {
 		return fmt.Errorf("batch size is invalid or unreasonable: %d", cfg.BatchSize)
+	}
+	if cfg.CacheSize < 1 {
+		return fmt.Errorf("cache size is invalid or unreasonable: %d", cfg.CacheSize)
 	}
 	if cfg.RateLimit < 0 {
 		return fmt.Errorf("rate limit cannot be negative")
@@ -163,6 +170,10 @@ func (cfg *L1EndpointConfig) Setup(ctx context.Context, log log.Logger, rollupCf
 	rpcCfg := sources.L1ClientDefaultConfig(rollupCfg, cfg.L1TrustRPC, cfg.L1RPCKind)
 	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
 	rpcCfg.MaxConcurrentRequests = cfg.MaxConcurrency
+	rpcCfg.ReceiptsCacheSize = cfg.CacheSize
+	rpcCfg.HeadersCacheSize = cfg.CacheSize
+	rpcCfg.TransactionsCacheSize = cfg.CacheSize
+	rpcCfg.PayloadsCacheSize = cfg.CacheSize
 	return l1Node, rpcCfg, nil
 }
 
@@ -177,6 +188,10 @@ func fallbackClientWrap(ctx context.Context, logger log.Logger, urlList []string
 	rpcCfg := sources.L1ClientDefaultConfig(rollupCfg, cfg.L1TrustRPC, cfg.L1RPCKind)
 	rpcCfg.MaxRequestsPerBatch = cfg.BatchSize
 	rpcCfg.MaxConcurrentRequests = cfg.MaxConcurrency
+	rpcCfg.ReceiptsCacheSize = cfg.CacheSize
+	rpcCfg.HeadersCacheSize = cfg.CacheSize
+	rpcCfg.TransactionsCacheSize = cfg.CacheSize
+	rpcCfg.PayloadsCacheSize = cfg.CacheSize
 	return l1Node, rpcCfg, nil
 }
 
