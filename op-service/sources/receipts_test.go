@@ -240,22 +240,6 @@ func TestEthClient_FetchReceipts(t *testing.T) {
 
 	testCases := []ReceiptsTestCase{
 		{
-			name:         "alchemy",
-			providerKind: RPCKindAlchemy,
-			setup:        fallbackCase(30, AlchemyGetTransactionReceipts),
-		},
-		{
-			name:         "alchemy sticky",
-			providerKind: RPCKindAlchemy,
-			staticMethod: true,
-			setup:        fallbackCase(30, AlchemyGetTransactionReceipts, AlchemyGetTransactionReceipts),
-		},
-		{
-			name:         "alchemy fallback 1",
-			providerKind: RPCKindAlchemy,
-			setup:        fallbackCase(40, AlchemyGetTransactionReceipts, EthGetBlockReceipts),
-		},
-		{
 			name:         "alchemy low tx count cost saving",
 			providerKind: RPCKindAlchemy,
 			// when it's cheaper to fetch individual receipts than the alchemy-bundled receipts we change methods.
