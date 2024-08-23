@@ -212,8 +212,7 @@ var OPBNBQANet = rollup.Config{
 	CanyonTime:             u64Ptr(0),
 	DeltaTime:              u64Ptr(0),
 	EcotoneTime:            u64Ptr(0),
-	// TODO update FjordTime
-	// FjordTime
+	FjordTime:              u64Ptr(1724392800), // AUG-23-2024 06:00 AM +UTC
 }
 
 func u64Ptr(v uint64) *uint64 {
