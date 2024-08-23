@@ -114,7 +114,7 @@ func newClientsFromContext(cliCtx *cli.Context) (*ethclient.Client, *sources.Eth
 		MethodResetDuration:   time.Minute,
 	}
 	cl := ethclient.NewClient(clients.L2RpcClient)
-	ethCl, err := sources.NewEthClient(client.NewBaseRPCClient(clients.L2RpcClient), log.Root(), nil, &ethClCfg)
+	ethCl, err := sources.NewEthClient(client.NewBaseRPCClient(clients.L2RpcClient), log.Root(), nil, &ethClCfg, false)
 	if err != nil {
 		return nil, nil, err
 	}
