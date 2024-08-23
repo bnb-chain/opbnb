@@ -76,7 +76,7 @@ func DialEthClientWithTimeoutAndFallback(ctx context.Context, url string, timeou
 			return nil, err
 		}
 		fallbackClient := NewFallbackClient(firstEthClient, urlList, l, fallbackThreshold, m, func(url string) (Client, error) {
-			ethClientNew, err := DialEthClientWithTimeout(ctx, timeout, l, url)
+			ethClientNew, err := DialEthClientWithTimeout(context.Background(), timeout, l, url)
 			if err != nil {
 				return nil, err
 			}
