@@ -1,5 +1,126 @@
 # Changelog
 
+## v0.4.3
+
+This is a minor release and upgrading is optional.
+
+### User Facing Changes
+
+* Support choose economic DA type automatically for op-batcher. #209
+* Add 2 configs for el-sync optimization and enable fastnode mode again. #201
+
+### What's Changed
+* feature: add haber fork config in deployment script by @redhdx in https://github.com/bnb-chain/opbnb/pull/202
+* feat(op-node): support multi clients to fetch blobs by @bnoieh in https://github.com/bnb-chain/opbnb/pull/199
+* feat: fastnode support by trigger el-sync when needed  by @krish-nr in https://github.com/bnb-chain/opbnb/pull/201
+* fix(blob-client): don't append L1ArchiveBlobRpcAddr flag to config if not set by @bnoieh in https://github.com/bnb-chain/opbnb/pull/207
+* fix(devnet): fork offset should be 0x by @welkin22 in https://github.com/bnb-chain/opbnb/pull/210
+* fix(devnet): batcher uses its address to submit transactions by @welkin22 in https://github.com/bnb-chain/opbnb/pull/211
+* feat:  op-batcher auto switch to economic DA type by @bnoieh in https://github.com/bnb-chain/opbnb/pull/209
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.4.3
+- ghcr.io/bnb-chain/op-batcher:v0.4.3
+- ghcr.io/bnb-chain/op-proposer:v0.4.3
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.4.2...v0.4.3
+
+## v0.4.2
+
+This is the mainnet hardfork release version.
+
+Four hard forks are scheduled to launch on the opBNB Mainnet:
+Shanghai/Canyon Time: 2024-06-20 08:00:00 AM UTC
+Delta Time: 2024-06-20 08:10:00 AM UTC
+Cancun/Ecotone Time: 2024-06-20 08:20:00 AM UTC
+Haber Time: 2024-06-20 08:30:00 AM UTC
+
+All mainnet `op-node` have to be upgraded to this version before 2024-06-20 08:00:00 AM UTC.
+The `op-geth` also have to be upgraded to v0.4.2 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.4.2) for more details.
+
+### User Facing Changes
+
+If you are upgrading from v0.3.x to this version, please note that there are some configuration changes.
+-  Removed `--l1.rpckind=bsc_fullnode`
+-  Removed `--l2.engine-sync`
+-  Removed `--l2.skip-sync-start-check`
+-  To start engine-sync, use `--syncmode=execution-layer` (default value is `consensus-layer`)
+-  Added `--l1.max-concurrency=20` to control the rate of requests to L1 endpoints.
+
+After the Cancun/Ecotone hard fork, DA data will be submitted to the BSC network in blob format. Regular BSC nodes only retain blob data from the past 18 days. If you are syncing data from the genesis block or are more than 18 days behind the latest block, you will need to ensure that your configured L1 endpoint supports persisting blob data for a longer period of time. We will ensure that the snapshot provided by this [snapshot repository](https://github.com/bnb-chain/opbnb-snapshot) is within the 18-day range, so you can also choose to use the snapshot to avoid relying on older blob data to start your new node.
+
+### What's Changed
+* feature: update deployment script for opBNB by @redhdx in https://github.com/bnb-chain/opbnb/pull/196
+* fix: fix CI after 4844 merge by @welkin22 in https://github.com/bnb-chain/opbnb/pull/198
+* op-node: set finalityDelay to 15 to speed up finality update by @bnoieh in https://github.com/bnb-chain/opbnb/pull/200
+* config: Mainnet canyon/delta/ecotone fork time by @welkin22 in https://github.com/bnb-chain/opbnb/pull/203
+
+### Docker Images
+- ghcr.io/bnb-chain/op-node:v0.4.2
+- ghcr.io/bnb-chain/op-batcher:v0.4.2
+- ghcr.io/bnb-chain/op-proposer:v0.4.2
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.4.1...v0.4.2
+
+## v0.4.1
+
+This is a minor release and upgrading is optional.
+
+### User Facing Changes
+
+- Add flag `--txmgr.blob-gas-price-limit` for op-batcher to limit the maximum gas price of submitted tx
+
+### Partial Changelog
+
+* fix: fix devnet after 1.7.2 upstream merge by @welkin22 in https://github.com/bnb-chain/opbnb/pull/194
+* op-batcher: optimize tx submitting and add metrics by @bnoieh in https://github.com/bnb-chain/opbnb/pull/195
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-batcher:v0.4.1
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.4.0...v0.4.1
+
+## v0.4.0
+
+This release includes code merging from the upstream version v1.7.2 to transition Testnet's DA data from calldata to blob format.
+
+Four hard forks are scheduled to launch on the opBNB Testnet:
+Snow Time: May-15-2024 06:00 AM +UTC
+Shanghai/Canyon Time: May-15-2024 06:10 AM +UTC
+Delta Time: May-15-2024 06:20 AM +UTC
+Cancun/Ecotone Time: May-15-2024 06:30 AM +UTC
+
+### User Facing Changes
+Nodes on the **Testnet** need to be upgraded to this version before the first hard fork time.
+**Note: This is a version prepared for Testnet, Mainnet nodes do not need to upgrade to this version.**
+
+**Note: After the Cancun/Ecotone hard fork, DA data will be submitted to the BSC network in blob format. Regular BSC nodes only retain blob data from the past 18 days. If you are syncing data from the genesis block or are more than 18 days behind the latest block, you will need to ensure that your configured L1 endpoint supports persisting blob data for a longer period of time. We will ensure that the Testnet snapshot provided by this [snapshot repository](https://github.com/bnb-chain/opbnb-snapshot) is within the 18-day range, so you can also choose to use the snapshot to avoid relying on older blob data to start your new node.**
+
+Changes in op-node configuration:
+-  Removed `--l1.rpckind=bsc_fullnode`
+-  Removed `--l2.engine-sync`
+-  Removed `--l2.skip-sync-start-check`
+-  To start engine-sync, use `--syncmode=execution-layer` (default value is `consensus-layer`)
+-  Added `--l1.max-concurrency=20` to control the rate of requests to L1 endpoints.
+
+### What's Changed
+* feature(op-node): update opBNB qanet info by @redhdx in https://github.com/bnb-chain/opbnb/pull/187
+* feat: update qanet config by @redhdx in https://github.com/bnb-chain/opbnb/pull/188
+* feature(op-node): add opBNB qanet hard fork config by @redhdx in https://github.com/bnb-chain/opbnb/pull/189
+* Fix blob parsing problem by @welkin22 in https://github.com/bnb-chain/opbnb/pull/190
+* chore: fork config for 4844-2 qanet by @welkin22 in https://github.com/bnb-chain/opbnb/pull/191
+* Merge upstream v1.7.2 by @bnoieh in https://github.com/bnb-chain/opbnb/pull/184
+* config: Testnet 4844 fork time by @welkin22 in https://github.com/bnb-chain/opbnb/pull/192
+
+### Docker Images
+ghcr.io/bnb-chain/op-node:v0.4.0
+ghcr.io/bnb-chain/op-batcher:v0.4.0
+ghcr.io/bnb-chain/op-proposer:v0.4.0
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.3.3...v0.4.0
+
 ## v0.3.3
 
 This is a minor release and upgrading is optional.
