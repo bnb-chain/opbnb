@@ -16,6 +16,7 @@ import (
 type CachingReceiptsProvider struct {
 	inner InnerReceiptsProvider
 	cache *caching.PreFetchCache[*ReceiptsHashPair]
+
 	// lock fetching process for each block hash to avoid duplicate requests
 	fetching   map[common.Hash]*sync.Mutex
 	fetchingMu sync.Mutex // only protects map
@@ -85,6 +86,10 @@ func (p *CachingReceiptsProvider) FetchReceipts(ctx context.Context, blockInfo e
 	// result now in cache, can delete fetching lock
 	p.deleteFetchingLock(block.Hash)
 	return r, nil, isFull
+}
+
+func (p *CachingReceiptsProvider) isInnerNil() bool {
+	return p.inner == nil
 }
 
 func (p *CachingReceiptsProvider) GetReceiptsCache() *caching.PreFetchCache[*ReceiptsHashPair] {

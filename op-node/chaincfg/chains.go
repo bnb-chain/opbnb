@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 )
 
-var Mainnet, Goerli, Sepolia *rollup.Config
+var Mainnet, Sepolia *rollup.Config
 
 func init() {
 	mustCfg := func(name string) *rollup.Config {
@@ -23,7 +23,6 @@ func init() {
 		return cfg
 	}
 	Mainnet = mustCfg("op-mainnet")
-	Goerli = mustCfg("op-goerli")
 	Sepolia = mustCfg("op-sepolia")
 }
 
@@ -46,8 +45,6 @@ func AvailableNetworks() []string {
 
 func handleLegacyName(name string) string {
 	switch name {
-	case "goerli":
-		return "op-goerli"
 	case "mainnet":
 		return "op-mainnet"
 	case "sepolia":
@@ -91,7 +88,7 @@ var NetworksByName = map[string]rollup.Config{
 var NetworksByChainId = map[string]rollup.Config{
 	"204":  OPBNBMainnet,
 	"5611": OPBNBTestnet,
-	"2484": OPBNBQANet,
+	"1081": OPBNBQANet,
 }
 
 func GetRollupConfigByNetwork(name string) (rollup.Config, error) {
@@ -185,16 +182,16 @@ var OPBNBTestnet = rollup.Config{
 var OPBNBQANet = rollup.Config{
 	Genesis: rollup.Genesis{
 		L1: eth.BlockID{
-			Hash:   common.HexToHash("0xd8b84c6811ad3eb68ad578e12312f797d84c59a97993a1f230409c1644fcb3d2"),
-			Number: 373422,
+			Hash:   common.HexToHash("0xdbbbe8b752ef975c4a0592472de646bc683b66c824dfedf5d12ecdcc97a5d0c9"),
+			Number: 3311074,
 		},
 		L2: eth.BlockID{
-			Hash:   common.HexToHash("0xe182e685b1ec05ca55f2374cb3a190d1ae8f3e196acb55a69efd61536fc3983f"),
+			Hash:   common.HexToHash("0x73eaf214333f29eed23c4902fdc17889b3e379372e52a42567d0069e1b10cdb0"),
 			Number: 0,
 		},
-		L2Time: 1714291718,
+		L2Time: 1723613564,
 		SystemConfig: eth.SystemConfig{
-			BatcherAddr: common.HexToAddress("0xbd6353a2e43a0d8eaa370b2eceb80481bc5c4094"),
+			BatcherAddr: common.HexToAddress("0xb3ad01bd1183bb8537f3e48c42889d828a89b55f"),
 			Overhead:    eth.Bytes32(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000834")),
 			Scalar:      eth.Bytes32(common.HexToHash("0x00000000000000000000000000000000000000000000000000000000000f4240")),
 			GasLimit:    100000000,
@@ -205,16 +202,17 @@ var OPBNBQANet = rollup.Config{
 	SeqWindowSize:          14400,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(714),
-	L2ChainID:              big.NewInt(2484),
-	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001484"),
-	DepositContractAddress: common.HexToAddress("0xb22e158785dbfb055edddb24ad97b4e7c51a6624"),
-	L1SystemConfigAddress:  common.HexToAddress("0xbf05c7e8ac1bd5ed042618762a7442f726ecae0b"),
+	L2ChainID:              big.NewInt(1081),
+	BatchInboxAddress:      common.HexToAddress("0xff00000000000000000000000000000000001081"),
+	DepositContractAddress: common.HexToAddress("0xbf33e25ac03e99dcbc63998471527f23dfbf811f"),
+	L1SystemConfigAddress:  common.HexToAddress("0x644daa12057118ce60d25a9ba707f571658911ae"),
 	RegolithTime:           u64Ptr(0),
 	Fermat:                 big.NewInt(0),
-	SnowTime:               u64Ptr(1714993200), // May-06-2024 11:00 AM +UTC
-	CanyonTime:             u64Ptr(1714993800), // May-06-2024 11:10 AM +UTC
-	DeltaTime:              u64Ptr(1714994400), // May-06-2024 11:20 AM +UTC
-	EcotoneTime:            u64Ptr(1714995000), // May-06-2024 11:30 AM +UTC
+	SnowTime:               u64Ptr(0),
+	CanyonTime:             u64Ptr(0),
+	DeltaTime:              u64Ptr(0),
+	EcotoneTime:            u64Ptr(0),
+	FjordTime:              u64Ptr(1724392800), // AUG-23-2024 06:00 AM +UTC
 }
 
 func u64Ptr(v uint64) *uint64 {

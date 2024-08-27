@@ -28,6 +28,12 @@ type AttributesBuilder interface {
 	CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool
 }
 
+type AttributesWithParent struct {
+	Attributes   *eth.PayloadAttributes
+	Parent       eth.L2BlockRef
+	IsLastInSpan bool
+}
+
 type AttributesQueue struct {
 	log          log.Logger
 	config       *rollup.Config

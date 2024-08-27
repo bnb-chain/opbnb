@@ -3,7 +3,7 @@ package metrics
 import (
 	"math/big"
 
-	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/fallbackclient"
 	"github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -22,7 +22,7 @@ type TxMetricer interface {
 	RecordBlobsNumber(int)
 	RecordTipCap(*big.Int)
 	RPCError()
-	client.FallbackClientMetricer
+	fallbackclient.FallbackClientMetricer
 	metrics.RPCMetricer
 }
 
@@ -43,7 +43,7 @@ type TxMetrics struct {
 	blobsNumber        prometheus.Gauge
 	tipCap             prometheus.Gauge
 	rpcError           prometheus.Counter
-	*client.FallbackClientMetrics
+	*fallbackclient.FallbackClientMetrics
 }
 
 func receiptStatusString(receipt *types.Receipt) string {
@@ -143,7 +143,7 @@ func MakeTxMetrics(ns string, factory metrics.Factory) TxMetrics {
 			Help:      "Temporary: Count of RPC errors (like timeouts) that have occurred",
 			Subsystem: "txmgr",
 		}),
-		FallbackClientMetrics: client.NewFallbackClientMetrics(ns, factory),
+		FallbackClientMetrics: fallbackclient.NewFallbackClientMetrics(ns, factory),
 	}
 }
 

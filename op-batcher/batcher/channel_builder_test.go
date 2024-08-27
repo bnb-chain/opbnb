@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
@@ -83,8 +84,9 @@ func newMiniL2BlockWithNumberParentAndL1Information(numTx int, l2Number *big.Int
 // which is presumably ErrTooManyRLPBytes.
 func addTooManyBlocks(cb *ChannelBuilder) error {
 	rng := rand.New(rand.NewSource(1234))
+	t := time.Now()
 	for i := 0; i < 10_000; i++ {
-		block := dtest.RandomL2BlockWithChainId(rng, 1000, defaultTestRollupConfig.L2ChainID)
+		block := dtest.RandomL2BlockWithChainIdAndTime(rng, 1000, defaultTestRollupConfig.L2ChainID, t.Add(time.Duration(i)*time.Second))
 		_, err := cb.AddBlock(block)
 		if err != nil {
 			return err
@@ -352,8 +354,9 @@ func TestChannelBuilder_NextFrame(t *testing.T) {
 }
 
 // TestChannelBuilder_OutputWrongFramePanic tests that a panic is thrown when a frame is pushed with an invalid frame id
-func TestChannelBuilder_OutputWrongFramePanic(t *testing.T) {
+func ChannelBuilder_OutputWrongFramePanic(t *testing.T, batchType uint) {
 	channelConfig := defaultTestChannelConfig()
+	channelConfig.BatchType = batchType
 
 	// Construct a channel builder
 	cb, err := NewChannelBuilder(channelConfig, defaultTestRollupConfig, latestL1BlockOrigin)
@@ -361,9 +364,10 @@ func TestChannelBuilder_OutputWrongFramePanic(t *testing.T) {
 
 	// Mock the internals of `ChannelBuilder.outputFrame`
 	// to construct a single frame
+	// the type of batch does not matter here because we are using it to construct a broken frame
 	c, err := channelConfig.CompressorConfig.NewCompressor()
 	require.NoError(t, err)
-	co, err := derive.NewChannelOut(derive.SingularBatchType, c, nil)
+	co, err := derive.NewSingularChannelOut(c)
 	require.NoError(t, err)
 	var buf bytes.Buffer
 	fn, err := co.OutputFrame(&buf, channelConfig.MaxFrameSize)
@@ -408,7 +412,8 @@ func TestChannelBuilder_OutputFrames(t *testing.T) {
 
 	// Check how many ready bytes
 	require.Greater(t, uint64(cb.co.ReadyBytes()+derive.FrameV0OverHeadSize), channelConfig.MaxFrameSize)
-	require.Equal(t, 0, cb.PendingFrames())
+
+	require.Equal(t, 0, cb.PendingFrames()) // always 0 because non compressor
 
 	// The channel should not be full
 	// but we want to output the frames for testing anyways
@@ -425,11 +430,27 @@ func TestChannelBuilder_OutputFrames(t *testing.T) {
 }
 
 func TestChannelBuilder_OutputFrames_SpanBatch(t *testing.T) {
+	for _, algo := range derive.CompressionAlgos {
+		t.Run("ChannelBuilder_OutputFrames_SpanBatch_"+algo.String(), func(t *testing.T) {
+			if algo.IsBrotli() {
+				ChannelBuilder_OutputFrames_SpanBatch(t, algo) // to fill faster for brotli
+			} else {
+				ChannelBuilder_OutputFrames_SpanBatch(t, algo)
+			}
+		})
+	}
+}
+
+func ChannelBuilder_OutputFrames_SpanBatch(t *testing.T, algo derive.CompressionAlgo) {
 	channelConfig := defaultTestChannelConfig()
 	channelConfig.MaxFrameSize = 20 + derive.FrameV0OverHeadSize
-	channelConfig.TargetNumFrames = 5
+	if algo.IsBrotli() {
+		channelConfig.TargetNumFrames = 3
+	} else {
+		channelConfig.TargetNumFrames = 5
+	}
 	channelConfig.BatchType = derive.SpanBatchType
-	channelConfig.InitRatioCompressor(1)
+	channelConfig.InitRatioCompressor(1, algo)
 
 	// Construct the channel builder
 	cb, err := NewChannelBuilder(channelConfig, defaultTestRollupConfig, latestL1BlockOrigin)
@@ -448,11 +469,15 @@ func TestChannelBuilder_OutputFrames_SpanBatch(t *testing.T) {
 	for {
 		err = addMiniBlock(cb)
 		if err == nil {
+			if cb.IsFull() {
+				// this happens when the data exactly fills the channel
+				break
+			}
 			require.False(t, cb.IsFull())
 			// There should be no ready bytes until the channel is full
 			require.Equal(t, cb.co.ReadyBytes(), 0)
 		} else {
-			require.ErrorIs(t, err, derive.CompressorFullErr)
+			require.ErrorIs(t, err, derive.ErrCompressorFull)
 			break
 		}
 	}
@@ -480,7 +505,7 @@ func TestChannelBuilder_OutputFrames_SpanBatch(t *testing.T) {
 func ChannelBuilder_MaxRLPBytesPerChannel(t *testing.T, batchType uint) {
 	t.Parallel()
 	channelConfig := defaultTestChannelConfig()
-	channelConfig.MaxFrameSize = derive.MaxRLPBytesPerChannel * 2
+	channelConfig.MaxFrameSize = rollup.SafeMaxRLPBytesPerChannel * 2
 	channelConfig.InitNoneCompressor()
 	channelConfig.BatchType = batchType
 
@@ -499,7 +524,7 @@ func ChannelBuilder_OutputFramesMaxFrameIndex(t *testing.T, batchType uint) {
 	channelConfig := defaultTestChannelConfig()
 	channelConfig.MaxFrameSize = derive.FrameV0OverHeadSize + 1
 	channelConfig.TargetNumFrames = math.MaxUint16 + 1
-	channelConfig.InitRatioCompressor(.1)
+	channelConfig.InitRatioCompressor(.1, derive.Zlib)
 	channelConfig.BatchType = batchType
 
 	rng := rand.New(rand.NewSource(123))
@@ -511,12 +536,13 @@ func ChannelBuilder_OutputFramesMaxFrameIndex(t *testing.T, batchType uint) {
 	require.NoError(t, err)
 	require.False(t, cb.IsFull())
 	require.Equal(t, 0, cb.PendingFrames())
-	for {
-		a := dtest.RandomL2BlockWithChainId(rng, 1000, defaultTestRollupConfig.L2ChainID)
+	ti := time.Now()
+	for i := 0; ; i++ {
+		a := dtest.RandomL2BlockWithChainIdAndTime(rng, 1000, defaultTestRollupConfig.L2ChainID, ti.Add(time.Duration(i)*time.Second))
 		_, err = cb.AddBlock(a)
 		if cb.IsFull() {
 			fullErr := cb.FullErr()
-			require.ErrorIs(t, fullErr, derive.CompressorFullErr)
+			require.ErrorIs(t, fullErr, derive.ErrCompressorFull)
 			break
 		}
 		require.NoError(t, err)
@@ -540,8 +566,8 @@ func TestChannelBuilder_FullShadowCompressor(t *testing.T) {
 		TargetNumFrames: 1,
 		BatchType:       derive.SpanBatchType,
 	}
-	cfg.InitShadowCompressor()
 
+	cfg.InitShadowCompressor(derive.Zlib)
 	cb, err := NewChannelBuilder(cfg, defaultTestRollupConfig, latestL1BlockOrigin)
 	require.NoError(err)
 
@@ -550,7 +576,7 @@ func TestChannelBuilder_FullShadowCompressor(t *testing.T) {
 	_, err = cb.AddBlock(a)
 	require.NoError(err)
 	_, err = cb.AddBlock(a)
-	require.ErrorIs(err, derive.CompressorFullErr)
+	require.ErrorIs(err, derive.ErrCompressorFull)
 	// without fix, adding the second block would succeed and then adding a
 	// third block would fail with full error and the compressor would be full.
 
@@ -571,7 +597,7 @@ func ChannelBuilder_AddBlock(t *testing.T, batchType uint) {
 	channelConfig.MaxFrameSize = 20 + derive.FrameV0OverHeadSize
 	channelConfig.TargetNumFrames = 2
 	// Configure the Input Threshold params so we observe a full channel
-	channelConfig.InitRatioCompressor(1)
+	channelConfig.InitRatioCompressor(1, derive.Zlib)
 
 	// Construct the channel builder
 	cb, err := NewChannelBuilder(channelConfig, defaultTestRollupConfig, latestL1BlockOrigin)
@@ -593,7 +619,7 @@ func ChannelBuilder_AddBlock(t *testing.T, batchType uint) {
 
 	// Since the channel output is full, the next call to AddBlock
 	// should return the channel out full error
-	require.ErrorIs(t, addMiniBlock(cb), derive.CompressorFullErr)
+	require.ErrorIs(t, addMiniBlock(cb), derive.ErrCompressorFull)
 }
 
 func TestChannelBuilder_CheckTimeout(t *testing.T) {
@@ -694,7 +720,7 @@ func ChannelBuilder_PendingFrames_TotalFrames(t *testing.T, batchType uint) {
 	cfg.MaxFrameSize = 1000
 	cfg.TargetNumFrames = tnf
 	cfg.BatchType = batchType
-	cfg.InitShadowCompressor()
+	cfg.InitShadowCompressor(derive.Zlib)
 	cb, err := NewChannelBuilder(cfg, defaultTestRollupConfig, latestL1BlockOrigin)
 	require.NoError(err)
 
@@ -702,9 +728,10 @@ func ChannelBuilder_PendingFrames_TotalFrames(t *testing.T, batchType uint) {
 	require.Zero(cb.PendingFrames())
 	require.Zero(cb.TotalFrames())
 
+	ti := time.Now()
 	// fill up
-	for {
-		block := dtest.RandomL2BlockWithChainId(rng, 4, defaultTestRollupConfig.L2ChainID)
+	for i := 0; ; i++ {
+		block := dtest.RandomL2BlockWithChainIdAndTime(rng, 4, defaultTestRollupConfig.L2ChainID, ti.Add(time.Duration(i)*time.Second))
 		_, err := cb.AddBlock(block)
 		if cb.IsFull() {
 			break
@@ -734,10 +761,10 @@ func ChannelBuilder_InputBytes(t *testing.T, batchType uint) {
 	rng := rand.New(rand.NewSource(4982432))
 	cfg := defaultTestChannelConfig()
 	cfg.BatchType = batchType
-	var spanBatchBuilder *derive.SpanBatchBuilder
+	var spanBatch *derive.SpanBatch
 	if batchType == derive.SpanBatchType {
 		chainId := big.NewInt(1234)
-		spanBatchBuilder = derive.NewSpanBatchBuilder(uint64(0), chainId)
+		spanBatch = derive.NewSpanBatch(uint64(0), chainId)
 	}
 	cb, err := NewChannelBuilder(cfg, defaultTestRollupConfig, latestL1BlockOrigin)
 	require.NoError(err)
@@ -745,15 +772,17 @@ func ChannelBuilder_InputBytes(t *testing.T, batchType uint) {
 	require.Zero(cb.InputBytes())
 
 	var l int
+	ti := time.Now()
 	for i := 0; i < 5; i++ {
-		block := dtest.RandomL2BlockWithChainId(rng, rng.Intn(32), defaultTestRollupConfig.L2ChainID)
+		block := dtest.RandomL2BlockWithChainIdAndTime(rng, rng.Intn(32), defaultTestRollupConfig.L2ChainID, ti.Add(time.Duration(i)*time.Second))
 		if batchType == derive.SingularBatchType {
 			l += blockBatchRlpSize(t, block)
 		} else {
 			singularBatch, l1Info, err := derive.BlockToSingularBatch(&defaultTestRollupConfig, block)
 			require.NoError(err)
-			spanBatchBuilder.AppendSingularBatch(singularBatch, l1Info.SequenceNumber)
-			rawSpanBatch, err := spanBatchBuilder.GetRawSpanBatch()
+			err = spanBatch.AppendSingularBatch(singularBatch, l1Info.SequenceNumber)
+			require.NoError(err)
+			rawSpanBatch, err := spanBatch.ToRawSpanBatch()
 			require.NoError(err)
 			batch := derive.NewBatchData(rawSpanBatch)
 			var buf bytes.Buffer
@@ -773,16 +802,17 @@ func ChannelBuilder_OutputBytes(t *testing.T, batchType uint) {
 	cfg.MaxFrameSize = 1000
 	cfg.TargetNumFrames = 16
 	cfg.BatchType = batchType
-	cfg.InitRatioCompressor(1.0)
+	cfg.InitRatioCompressor(1.0, derive.Zlib)
 	cb, err := NewChannelBuilder(cfg, defaultTestRollupConfig, latestL1BlockOrigin)
 	require.NoError(err, "NewChannelBuilder")
 
 	require.Zero(cb.OutputBytes())
 
-	for {
-		block := dtest.RandomL2BlockWithChainId(rng, rng.Intn(32), defaultTestRollupConfig.L2ChainID)
+	ti := time.Now()
+	for i := 0; ; i++ {
+		block := dtest.RandomL2BlockWithChainIdAndTime(rng, rng.Intn(32), defaultTestRollupConfig.L2ChainID, ti.Add(time.Duration(i)*time.Second))
 		_, err := cb.AddBlock(block)
-		if errors.Is(err, derive.CompressorFullErr) {
+		if errors.Is(err, derive.ErrCompressorFull) {
 			break
 		}
 		require.NoError(err)

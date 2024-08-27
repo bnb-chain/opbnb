@@ -259,6 +259,6 @@ func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
 }
 
 func (s *L1Client) Close() {
-	close(s.done)
+	s.done <- struct{}{}
 	s.EthClient.Close()
 }

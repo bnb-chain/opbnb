@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
+	"github.com/ethereum-optimism/optimism/op-dispute-mon/metrics"
 	monTypes "github.com/ethereum-optimism/optimism/op-dispute-mon/mon/types"
 	"github.com/ethereum-optimism/optimism/op-service/clock"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
@@ -24,7 +25,7 @@ func TestMonitor_MonitorGames(t *testing.T) {
 	t.Parallel()
 
 	t.Run("FailedFetchBlocknumber", func(t *testing.T) {
-		monitor, _, _, _, _ := setupMonitorTest(t)
+		monitor, _, _, _, _, _, _, _ := setupMonitorTest(t)
 		boom := errors.New("boom")
 		monitor.fetchBlockNumber = func(ctx context.Context) (uint64, error) {
 			return 0, boom
@@ -34,7 +35,7 @@ func TestMonitor_MonitorGames(t *testing.T) {
 	})
 
 	t.Run("FailedFetchBlockHash", func(t *testing.T) {
-		monitor, _, _, _, _ := setupMonitorTest(t)
+		monitor, _, _, _, _, _, _, _ := setupMonitorTest(t)
 		boom := errors.New("boom")
 		monitor.fetchBlockHash = func(ctx context.Context, number *big.Int) (common.Hash, error) {
 			return common.Hash{}, boom
@@ -44,23 +45,29 @@ func TestMonitor_MonitorGames(t *testing.T) {
 	})
 
 	t.Run("MonitorsWithNoGames", func(t *testing.T) {
-		monitor, factory, forecast, delays, bonds := setupMonitorTest(t)
+		monitor, factory, forecast, bonds, withdrawals, resolutions, claims, l2Challenges := setupMonitorTest(t)
 		factory.games = []*monTypes.EnrichedGameData{}
 		err := monitor.monitorGames()
 		require.NoError(t, err)
 		require.Equal(t, 1, forecast.calls)
-		require.Equal(t, 1, delays.calls)
 		require.Equal(t, 1, bonds.calls)
+		require.Equal(t, 1, resolutions.calls)
+		require.Equal(t, 1, claims.calls)
+		require.Equal(t, 1, withdrawals.calls)
+		require.Equal(t, 1, l2Challenges.calls)
 	})
 
 	t.Run("MonitorsMultipleGames", func(t *testing.T) {
-		monitor, factory, forecast, delays, bonds := setupMonitorTest(t)
+		monitor, factory, forecast, bonds, withdrawals, resolutions, claims, l2Challenges := setupMonitorTest(t)
 		factory.games = []*monTypes.EnrichedGameData{{}, {}, {}}
 		err := monitor.monitorGames()
 		require.NoError(t, err)
 		require.Equal(t, 1, forecast.calls)
-		require.Equal(t, 1, delays.calls)
 		require.Equal(t, 1, bonds.calls)
+		require.Equal(t, 1, resolutions.calls)
+		require.Equal(t, 1, claims.calls)
+		require.Equal(t, 1, withdrawals.calls)
+		require.Equal(t, 1, l2Challenges.calls)
 	})
 }
 
@@ -68,7 +75,7 @@ func TestMonitor_StartMonitoring(t *testing.T) {
 	t.Run("MonitorsGames", func(t *testing.T) {
 		addr1 := common.Address{0xaa}
 		addr2 := common.Address{0xbb}
-		monitor, factory, forecaster, _, _ := setupMonitorTest(t)
+		monitor, factory, forecaster, _, _, _, _, _ := setupMonitorTest(t)
 		factory.games = []*monTypes.EnrichedGameData{newEnrichedGameData(addr1, 9999), newEnrichedGameData(addr2, 9999)}
 		factory.maxSuccess = len(factory.games) // Only allow two successful fetches
 
@@ -81,7 +88,7 @@ func TestMonitor_StartMonitoring(t *testing.T) {
 	})
 
 	t.Run("FailsToFetchGames", func(t *testing.T) {
-		monitor, factory, forecaster, _, _ := setupMonitorTest(t)
+		monitor, factory, forecaster, _, _, _, _, _ := setupMonitorTest(t)
 		factory.fetchErr = errors.New("boom")
 
 		monitor.StartMonitoring()
@@ -103,7 +110,7 @@ func newEnrichedGameData(proxy common.Address, timestamp uint64) *monTypes.Enric
 	}
 }
 
-func setupMonitorTest(t *testing.T) (*gameMonitor, *mockExtractor, *mockForecast, *mockDelayCalculator, *mockBonds) {
+func setupMonitorTest(t *testing.T) (*gameMonitor, *mockExtractor, *mockForecast, *mockBonds, *mockMonitor, *mockResolutionMonitor, *mockMonitor, *mockMonitor) {
 	logger := testlog.Logger(t, log.LvlDebug)
 	fetchBlockNum := func(ctx context.Context) (uint64, error) {
 		return 1, nil
@@ -117,28 +124,43 @@ func setupMonitorTest(t *testing.T) (*gameMonitor, *mockExtractor, *mockForecast
 	extractor := &mockExtractor{}
 	forecast := &mockForecast{}
 	bonds := &mockBonds{}
-	delays := &mockDelayCalculator{}
+	resolutions := &mockResolutionMonitor{}
+	claims := &mockMonitor{}
+	withdrawals := &mockMonitor{}
+	l2Challenges := &mockMonitor{}
 	monitor := newGameMonitor(
 		context.Background(),
 		logger,
 		cl,
+		metrics.NoopMetrics,
 		monitorInterval,
 		10*time.Second,
-		delays.RecordClaimResolutionDelayMax,
 		forecast.Forecast,
 		bonds.CheckBonds,
+		resolutions.CheckResolutions,
+		claims.Check,
+		withdrawals.Check,
+		l2Challenges.Check,
 		extractor.Extract,
 		fetchBlockNum,
 		fetchBlockHash,
 	)
-	return monitor, extractor, forecast, delays, bonds
+	return monitor, extractor, forecast, bonds, withdrawals, resolutions, claims, l2Challenges
 }
 
-type mockDelayCalculator struct {
+type mockResolutionMonitor struct {
 	calls int
 }
 
-func (m *mockDelayCalculator) RecordClaimResolutionDelayMax(games []*monTypes.EnrichedGameData) {
+func (m *mockResolutionMonitor) CheckResolutions(games []*monTypes.EnrichedGameData) {
+	m.calls++
+}
+
+type mockMonitor struct {
+	calls int
+}
+
+func (m *mockMonitor) Check(games []*monTypes.EnrichedGameData) {
 	m.calls++
 }
 
@@ -146,7 +168,7 @@ type mockForecast struct {
 	calls int
 }
 
-func (m *mockForecast) Forecast(ctx context.Context, games []*monTypes.EnrichedGameData) {
+func (m *mockForecast) Forecast(_ []*monTypes.EnrichedGameData, _, _ int) {
 	m.calls++
 }
 
@@ -159,23 +181,25 @@ func (m *mockBonds) CheckBonds(_ []*monTypes.EnrichedGameData) {
 }
 
 type mockExtractor struct {
-	fetchErr   error
-	calls      int
-	maxSuccess int
-	games      []*monTypes.EnrichedGameData
+	fetchErr     error
+	calls        int
+	maxSuccess   int
+	games        []*monTypes.EnrichedGameData
+	ignoredCount int
+	failedCount  int
 }
 
 func (m *mockExtractor) Extract(
 	_ context.Context,
 	_ common.Hash,
 	_ uint64,
-) ([]*monTypes.EnrichedGameData, error) {
+) ([]*monTypes.EnrichedGameData, int, int, error) {
 	m.calls++
 	if m.fetchErr != nil {
-		return nil, m.fetchErr
+		return nil, 0, 0, m.fetchErr
 	}
 	if m.calls > m.maxSuccess && m.maxSuccess != 0 {
-		return nil, mockErr
+		return nil, 0, 0, mockErr
 	}
-	return m.games, nil
+	return m.games, m.ignoredCount, m.failedCount, nil
 }

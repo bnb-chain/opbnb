@@ -2,13 +2,14 @@ package flags
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/urfave/cli/v2"
-	"golang.org/x/exp/slices"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/compressor"
+	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	openum "github.com/ethereum-optimism/optimism/op-service/enum"
@@ -99,6 +100,15 @@ var (
 			return nil
 		},
 	}
+	CompressionAlgoFlag = &cli.GenericFlag{
+		Name:    "compression-algo",
+		Usage:   "The compression algorithm to use. Valid options: " + openum.EnumString(derive.CompressionAlgos),
+		EnvVars: prefixEnvVars("COMPRESSION_ALGO"),
+		Value: func() *derive.CompressionAlgo {
+			out := derive.Zlib
+			return &out
+		}(),
+	}
 	StoppedFlag = &cli.BoolFlag{
 		Name:    "stopped",
 		Usage:   "Initialize the batcher in a stopped state. The batcher can be started using the admin_startBatcher RPC",
@@ -127,6 +137,20 @@ var (
 		Value:   2 * time.Minute,
 		EnvVars: prefixEnvVars("ACTIVE_SEQUENCER_CHECK_DURATION"),
 	}
+	CheckRecentTxsDepthFlag = &cli.IntFlag{
+		Name: "check-recent-txs-depth",
+		Usage: "Indicates how many blocks back the batcher should look during startup for a recent batch tx on L1. This can " +
+			"speed up waiting for node sync. It should be set to the verifier confirmation depth of the sequencer (e.g. 4).",
+		Value:   0,
+		EnvVars: prefixEnvVars("CHECK_RECENT_TXS_DEPTH"),
+	}
+	WaitNodeSyncFlag = &cli.BoolFlag{
+		Name: "wait-node-sync",
+		Usage: "Indicates if, during startup, the batcher should wait for a recent batcher tx on L1 to " +
+			"finalize (via more block confirmations). This should help avoid duplicate batcher txs.",
+		Value:   false,
+		EnvVars: prefixEnvVars("WAIT_NODE_SYNC"),
+	}
 	// Legacy Flags
 	SequencerHDPathFlag = txmgr.SequencerHDPathFlag
 )
@@ -138,6 +162,8 @@ var requiredFlags = []cli.Flag{
 }
 
 var optionalFlags = []cli.Flag{
+	WaitNodeSyncFlag,
+	CheckRecentTxsDepthFlag,
 	SubSafetyMarginFlag,
 	PollIntervalFlag,
 	MaxPendingTransactionsFlag,
@@ -151,6 +177,7 @@ var optionalFlags = []cli.Flag{
 	BatchTypeFlag,
 	DataAvailabilityTypeFlag,
 	ActiveSequencerCheckDurationFlag,
+	CompressionAlgoFlag,
 }
 
 func init() {

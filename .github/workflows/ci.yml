@@ -215,12 +215,12 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
 
       - uses: pnpm/action-setup@v3
         name: Install pnpm
         with:
-          version: 8
+          version: 9
           run_install: false
 
       - name: Get pnpm store directory
@@ -256,7 +256,7 @@ jobs:
       - name: Run tests
         working-directory: op-e2e
         run: |
-          OP_E2E_CANNON_ENABLED=false OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=true  gotestsum \
+          OP_E2E_CANNON_ENABLED=false OP_E2E_USE_L2OO=true OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=true  gotestsum \
             --format=testname --junitfile=/tmp/test-results/op-e2e_http_true.xml \
             -- -timeout=30m -parallel=2 . ./...
 
@@ -265,70 +265,3 @@ jobs:
         if: success() || failure() # always run even if the previous step fails
         with:
           report_paths: '/tmp/test-results/op-e2e_http_true.xml'
-
-  op-e2e-ws-test:
-    runs-on: ubuntu-latest
-    needs: [op-node-test, op-batcher-test, op-proposer-test, op-e2e-http-test]
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version-file: go.mod
-
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - uses: pnpm/action-setup@v3
-        name: Install pnpm
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Build dependencies
-        run: pnpm build
-
-      - name: Make file
-        run: make cannon-prestate && make devnet-allocs
-
-      - name: Install gotestsum
-        uses: autero1/action-gotestsum@v2.0.0
-        with:
-          gotestsum_version: 1.10.0
-
-      - name: Run tests
-        working-directory: op-e2e
-        run: |
-          OP_E2E_CANNON_ENABLED=false OP_TESTLOG_DISABLE_COLOR=true OP_E2E_DISABLE_PARALLEL=false OP_E2E_USE_HTTP=false  gotestsum \
-            --format=testname --junitfile=/tmp/test-results/op-e2e_http_false.xml \
-            -- -timeout=30m -parallel=2 . ./...
-
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v3
-        if: success() || failure() # always run even if the previous step fails
-        with:
-          report_paths: '/tmp/test-results/op-e2e_http_false.xml'

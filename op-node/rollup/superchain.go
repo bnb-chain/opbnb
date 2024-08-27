@@ -12,21 +12,9 @@ import (
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 )
 
-var OPStackSupport = params.ProtocolVersionV0{Build: [8]byte{}, Major: 6, Minor: 0, Patch: 0, PreRelease: 0}.Encode()
+var OPStackSupport = params.ProtocolVersionV0{Build: [8]byte{}, Major: 7, Minor: 0, Patch: 0, PreRelease: 0}.Encode()
 
 const (
-	opMainnet = 10
-	opGoerli  = 420
-	opSepolia = 11155420
-
-	labsGoerliDevnet   = 997
-	labsGoerliChaosnet = 888
-	labsSepoliaDevnet0 = 11155421
-
-	baseGoerli  = 84531
-	baseMainnet = 8453
-
-	pgnMainnet = 424
 	pgnSepolia = 58008
 )
 
@@ -60,20 +48,16 @@ func LoadOPStackRollupConfig(chainID uint64) (*Config, error) {
 		return nil, fmt.Errorf("unable to retrieve deposit contract address")
 	}
 
-	regolithTime := uint64(0)
-	// three goerli testnets test-ran Bedrock and later upgraded to Regolith.
-	// All other OP-Stack chains have Regolith enabled from the start.
-	switch chainID {
-	case baseGoerli:
-		regolithTime = 1683219600
-	case opGoerli:
-		regolithTime = 1679079600
-	case labsGoerliDevnet:
-		regolithTime = 1677984480
-	case labsGoerliChaosnet:
-		regolithTime = 1692156862
+	var plasma *PlasmaConfig
+	if chConfig.Plasma != nil {
+		plasma = &PlasmaConfig{
+			DAChallengeAddress: common.Address(*chConfig.Plasma.DAChallengeAddress),
+			DAChallengeWindow:  *chConfig.Plasma.DAChallengeWindow,
+			DAResolveWindow:    *chConfig.Plasma.DAResolveWindow,
+		}
 	}
 
+	regolithTime := uint64(0)
 	cfg := &Config{
 		Genesis: Genesis{
 			L1: eth.BlockID{
@@ -105,13 +89,11 @@ func LoadOPStackRollupConfig(chainID uint64) (*Config, error) {
 		BatchInboxAddress:      common.Address(chConfig.BatchInboxAddr),
 		DepositContractAddress: common.Address(addrs.OptimismPortalProxy),
 		L1SystemConfigAddress:  common.Address(addrs.SystemConfigProxy),
+		PlasmaConfig:           plasma,
 	}
+
 	if superChain.Config.ProtocolVersionsAddr != nil { // Set optional protocol versions address
 		cfg.ProtocolVersionsAddress = common.Address(*superChain.Config.ProtocolVersionsAddr)
-	}
-	if chainID == labsGoerliDevnet || chainID == labsGoerliChaosnet {
-		cfg.ChannelTimeout = 120
-		cfg.MaxSequencerDrift = 1200
 	}
 	if chainID == pgnSepolia {
 		cfg.MaxSequencerDrift = 1000
