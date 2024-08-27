@@ -4,7 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/async"
@@ -12,9 +17,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/sync"
 	"github.com/ethereum-optimism/optimism/op-service/clock"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type syncStatusEnum int
@@ -32,7 +34,14 @@ const (
 	syncStatusFinishedEL                // EL sync is done & we should be performing consolidation
 )
 
-var ErrNoFCUNeeded = errors.New("no FCU call was needed")
+var (
+	ErrNoFCUNeeded             = errors.New("no FCU call was needed")
+	ErrELSyncTriggerUnexpected = errors.New("forced head needed for startup")
+
+	maxFCURetryAttempts = 5
+	fcuRetryDelay       = 5 * time.Second
+	needSyncWithEngine  = false
+)
 
 var _ EngineControl = (*EngineController)(nil)
 var _ LocalEngineControl = (*EngineController)(nil)
@@ -326,6 +335,10 @@ func (e *EngineController) checkNewPayloadStatus(status eth.ExecutePayloadStatus
 		}
 		// Allow SYNCING and ACCEPTED if engine EL sync is enabled
 		return status == eth.ExecutionValid || status == eth.ExecutionSyncing || status == eth.ExecutionAccepted
+	} else if e.syncMode == sync.CLSync {
+		if status == eth.ExecutionInconsistent {
+			return true
+		}
 	}
 	return status == eth.ExecutionValid
 }
@@ -341,6 +354,16 @@ func (e *EngineController) checkForkchoiceUpdatedStatus(status eth.ExecutePayloa
 		return status == eth.ExecutionValid || status == eth.ExecutionSyncing
 	}
 	return status == eth.ExecutionValid
+}
+
+// checkELSyncTriggered checks returned err of engine_newPayloadV1
+func (e *EngineController) checkELSyncTriggered(status eth.ExecutePayloadStatus, err error) bool {
+	if err == nil {
+		return false
+	} else if strings.Contains(err.Error(), ErrELSyncTriggerUnexpected.Error()) {
+		return e.syncMode != sync.ELSync && status == eth.ExecutionSyncing
+	}
+	return false
 }
 
 // checkUpdateUnsafeHead checks if we can update current unsafeHead for op-node
@@ -410,25 +433,25 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	// Insert the payload & then call FCU
 	status, err := e.engine.NewPayload(ctx, envelope.ExecutionPayload, envelope.ParentBeaconBlockRoot)
 	if err != nil {
-		return NewTemporaryError(fmt.Errorf("failed to update insert payload: %w", err))
+		if strings.Contains(err.Error(), ErrELSyncTriggerUnexpected.Error()) {
+			log.Info("el sync triggered as unexpected")
+		} else {
+			return NewTemporaryError(fmt.Errorf("failed to update insert payload: %w", err))
+		}
 	}
 
+	var (
+		needResetSafeHead      bool
+		needResetFinalizedHead bool
+	)
+
 	//process inconsistent state
-	if status.Status == eth.ExecutionInconsistent {
+	if status.Status == eth.ExecutionInconsistent || e.checkELSyncTriggered(status.Status, err) {
 		currentL2Info, err := e.getCurrentL2Info(ctx)
 		if err != nil {
 			return NewTemporaryError(fmt.Errorf("failed to process inconsistent state: %w", err))
 		} else {
-			log.Info("engine has inconsistent state", "unsafe", currentL2Info.Unsafe.Number, "safe", currentL2Info.Safe.Number, "final", currentL2Info.Finalized.Number)
-			e.SetUnsafeHead(currentL2Info.Unsafe)
-			if currentL2Info.Safe.Number > currentL2Info.Unsafe.Number {
-				log.Info("current safe is higher than unsafe block, reset it", "set safe after", currentL2Info.Unsafe.Number, "set safe before", e.safeHead.Number)
-				e.SetSafeHead(currentL2Info.Unsafe)
-			}
-			if currentL2Info.Finalized.Number > currentL2Info.Unsafe.Number {
-				log.Info("current finalized is higher than unsafe block, reset it", "set Finalized after", currentL2Info.Unsafe.Number, "set Finalized before", e.safeHead.Number)
-				e.SetFinalizedHead(currentL2Info.Unsafe)
-			}
+			needResetSafeHead, needResetFinalizedHead = e.resetSafeAndFinalizedHead(currentL2Info)
 		}
 
 		fcuReq := eth.ForkchoiceState{
@@ -437,13 +460,9 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 			FinalizedBlockHash: e.finalizedHead.Hash,
 		}
 
-		fcuRes, err := e.engine.ForkchoiceUpdate(ctx, &fcuReq, nil)
-		if fcuRes.PayloadStatus.Status == eth.ExecutionValid {
-			log.Info("engine processed data successfully")
-			e.needFCUCall = false
-			return nil
-		} else {
-			return NewTemporaryError(fmt.Errorf("engine failed to process inconsistent data: %w", err))
+		needSyncWithEngine, err = e.trySyncingWithEngine(ctx, fcuReq)
+		if err != nil {
+			return NewTemporaryError(err)
 		}
 	}
 
@@ -461,19 +480,30 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	}
 
 	//update unsafe,safe,finalize and send fcu for sync
-	if status.Status == eth.ExecutionInconsistent {
-		log.Info("engine meet inconsistent here")
+	if needSyncWithEngine {
+		log.Info("engine meet inconsistent, sync status")
 		currentUnsafe, _ := e.engine.L2BlockRefByLabel(ctx, eth.Unsafe)
 		//reset unsafe
 		e.SetUnsafeHead(currentUnsafe)
-		//force reset safe,finalize
-		e.SetSafeHead(currentUnsafe)
-		e.SetFinalizedHead(currentUnsafe)
-
 		fc.HeadBlockHash = currentUnsafe.Hash
-		fc.SafeBlockHash = currentUnsafe.Hash
-		fc.FinalizedBlockHash = currentUnsafe.Hash
+
+		//force reset safe,finalize if needed
+		if needResetFinalizedHead {
+			e.SetFinalizedHead(currentUnsafe)
+			fc.FinalizedBlockHash = currentUnsafe.Hash
+			needResetFinalizedHead = false
+		}
+		if needResetSafeHead {
+			e.SetSafeHead(currentUnsafe)
+			fc.SafeBlockHash = currentUnsafe.Hash
+			needResetSafeHead = false
+		}
+
+		needSyncWithEngine = false
 	}
+	// Ensure that the variables are used even if needSyncWithEngine is false
+	_ = needResetSafeHead
+	_ = needResetFinalizedHead
 
 	if e.syncStatus == syncStatusFinishedELButNotFinalized {
 		fc.SafeBlockHash = envelope.ExecutionPayload.BlockHash
@@ -504,6 +534,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	}
 
 	e.needFCUCall = false
+	// unsafe will update to the latest broadcast block anyway, this will trigger an el sync in geth when meet an inconsistent state and accelerate recover progress.
 	if e.checkUpdateUnsafeHead(fcRes.PayloadStatus.Status) {
 		e.SetUnsafeHead(ref)
 	}
@@ -630,4 +661,51 @@ func (e *EngineController) getCurrentL2Info(ctx context.Context) (*sync.FindHead
 		Safe:      safe,
 		Finalized: finalized,
 	}, nil
+}
+
+// resetSafeAndFinalizedHead will reset current safe/finalized head to keep consistent with unsafe head from engine, reset safe/finalized head if current unsafe is behind them
+func (e *EngineController) resetSafeAndFinalizedHead(currentL2Info *sync.FindHeadsResult) (bool, bool) {
+	var needResetSafeHead, needResetFinalizedHead bool
+
+	log.Info("engine has inconsistent state", "unsafe", currentL2Info.Unsafe.Number, "safe", currentL2Info.Safe.Number, "final", currentL2Info.Finalized.Number)
+	e.SetUnsafeHead(currentL2Info.Unsafe)
+
+	if currentL2Info.Safe.Number > currentL2Info.Unsafe.Number {
+		log.Info("current safe is higher than unsafe block, reset it", "set safe after", currentL2Info.Unsafe.Number, "set safe before", e.safeHead.Number)
+		e.SetSafeHead(currentL2Info.Unsafe)
+		needResetSafeHead = true
+	}
+
+	if currentL2Info.Finalized.Number > currentL2Info.Unsafe.Number {
+		log.Info("current finalized is higher than unsafe block, reset it", "set Finalized after", currentL2Info.Unsafe.Number, "set Finalized before", e.safeHead.Number)
+		e.SetFinalizedHead(currentL2Info.Unsafe)
+		needResetFinalizedHead = true
+	}
+
+	return needResetSafeHead, needResetFinalizedHead
+}
+
+// trySyncingWithEngine will request engine to deleting data beyond diskroot to keep synced with current node status
+func (e *EngineController) trySyncingWithEngine(ctx context.Context, fcuReq eth.ForkchoiceState) (bool, error) {
+	for attempts := 0; attempts < maxFCURetryAttempts; attempts++ {
+		fcuRes, err := e.engine.ForkchoiceUpdate(ctx, &fcuReq, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				log.Warn("Failed to share forkchoice-updated signal", "attempt:", attempts+1, "err", err)
+				time.Sleep(fcuRetryDelay)
+				continue
+			}
+			return false, fmt.Errorf("engine failed to process due to error: %w", err)
+		}
+
+		if fcuRes.PayloadStatus.Status == eth.ExecutionValid {
+			log.Info("engine processed data successfully")
+			e.needFCUCall = false
+			return true, nil
+		} else {
+			return false, fmt.Errorf("engine failed to process inconsistent data")
+		}
+	}
+
+	return false, fmt.Errorf("max retry attempts reached for trySyncingWithEngine")
 }
