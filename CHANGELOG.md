@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.5.0
+
+This release includes code merging from the upstream version v1.7.7 along with several fixs and improvements. Fjord fork from upstream is included and will be activated on opBNB testnet in later release.
+
+### User Facing Changes
+
+* New flag `--wait-node-sync` added to op-batcher (default false), indicates if during startup, the batcher should wait for a recent batcher tx on L1 to finalize (via more block confirmations). This should help avoid duplicate batcher txs
+* New flag `--wait-node-sync` added to op-proposer (default false), indicates if during startup, the proposer should wait for the rollup node to sync to the current L1 tip before proceeding with its driver loop
+* New flag `--compression-algo` added to op-batcher (default zlib), user can choose brotli algo after Fjord fork
+* New flag `--l1.rpc-max-cache-size` added to op-node (default 1000), so user can config the the maximum cache size of the L1 client
+
+### What's Changed
+* Merge upstream v1.7.7 by @bnoieh in https://github.com/bnb-chain/opbnb/pull/216
+* feat(op-node): Keep consistent status when meet an unexpected el sync by @krish-nr in https://github.com/bnb-chain/opbnb/pull/222
+* feat(op-node): add l1 cache size config by @welkin22 in https://github.com/bnb-chain/opbnb/pull/225
+* feat(op-chain-ops): add Wright fork config into genesis file generation code by @welkin22 in https://github.com/bnb-chain/opbnb/pull/226
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.0
+- ghcr.io/bnb-chain/op-batcher:v0.5.0
+- ghcr.io/bnb-chain/op-proposer:v0.5.0
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.4.4...v0.5.0
+
+## v0.4.4
+
+This release includes important fixes to help pbss geth nodes automatically recover from ungraceful shutdowns.
+We recommend upgrading to this version if you are using the pbss mode.
+
+### User Facing Changes
+
+### What's Changed
+* fix(devnet): Modify the blob configuration of the bsc devnet by @welkin22 in #212
+* feat: auto recover from pbss geth unclean shutdown by @krish-nr in #214
+* fix: fix el bug by @krish-nr in #215
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.4.4
+- ghcr.io/bnb-chain/op-batcher:v0.4.4
+- ghcr.io/bnb-chain/op-proposer:v0.4.4
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.4.3...v0.4.4
+
 ## v0.4.3
 
 This is a minor release and upgrading is optional.
