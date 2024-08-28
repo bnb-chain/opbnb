@@ -2,10 +2,19 @@
 
 ## v0.5.0
 
-This release includes code merging from the upstream version v1.7.7 along with several fixs and improvements. Fjord fork from upstream is included and will be activated on opBNB testnet in later release.
+This release includes code merging from the upstream version v1.7.7 along with several fixs and improvements.
+
+Fjord fork from upstream is included. It is set to be activated on both the opBNB Mainnet and Testnet environments according to the following schedule:
+
+- Testnet: Sep-10-2024 06:00 AM +UTC
+- Mainnet: Sep-24-2024 06:00 AM +UTC
+
+All mainnet and testnet nodes must upgrade to this release before the hardfork time.
+Also note that the `op-geth` should be upgraded to v0.5.0 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.0) for more details.
 
 ### User Facing Changes
 
+* The L1 fee calculation is optimized. Check this [spec](https://specs.optimism.io/protocol/fjord/exec-engine.html) for more details.
 * New flag `--wait-node-sync` added to op-batcher (default false), indicates if during startup, the batcher should wait for a recent batcher tx on L1 to finalize (via more block confirmations). This should help avoid duplicate batcher txs
 * New flag `--wait-node-sync` added to op-proposer (default false), indicates if during startup, the proposer should wait for the rollup node to sync to the current L1 tip before proceeding with its driver loop
 * New flag `--compression-algo` added to op-batcher (default zlib), user can choose brotli algo after Fjord fork
