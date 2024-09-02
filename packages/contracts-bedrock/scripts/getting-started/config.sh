@@ -18,6 +18,10 @@ reqenv "GS_BATCHER_ADDRESS"
 reqenv "GS_PROPOSER_ADDRESS"
 reqenv "GS_SEQUENCER_ADDRESS"
 reqenv "L1_RPC_URL"
+reqenv "L1_CHAIN_ID"
+reqenv "L2_CHAIN_ID"
+reqenv "L1_BLOCK_TIME"
+reqenv "L2_BLOCK_TIME"
 
 # Get the finalized block timestamp and hash
 block=$(cast block finalized --rpc-url "$L1_RPC_URL")
@@ -30,10 +34,10 @@ config=$(cat << EOL
 {
   "l1StartingBlockTag": "$blockhash",
 
-  "l1ChainID": $l1chainId,
-  "l2ChainID": 901,
-  "l2BlockTime": 1,
-  "l1BlockTime": 3,
+  "l1ChainID": $L1_CHAIN_ID,
+  "l2ChainID": $L2_CHAIN_ID,
+  "l2BlockTime": $L2_BLOCK_TIME,
+  "l1BlockTime": $L1_BLOCK_TIME,
 
   "maxSequencerDrift": 600,
   "sequencerWindowSize": 3600,
@@ -66,7 +70,7 @@ config=$(cat << EOL
   "l1FeeVaultWithdrawalNetwork": 0,
   "sequencerFeeVaultWithdrawalNetwork": 0,
 
-  "gasPriceOracleOverhead": 2100,
+  "gasPriceOracleOverhead": 0,
   "gasPriceOracleScalar": 1000000,
 
   "enableGovernance": true,
@@ -82,7 +86,8 @@ config=$(cat << EOL
   "eip1559DenominatorCanyon": 250,
   "eip1559Elasticity": 6,
 
-  "l2GenesisDeltaTimeOffset": null,
+  "l2GenesisEcotoneTimeOffset": "0x0",
+  "l2GenesisDeltaTimeOffset": "0x0",
   "l2GenesisCanyonTimeOffset": "0x0",
 
   "systemConfigStartBlock": 0,
@@ -92,16 +97,19 @@ config=$(cat << EOL
 
   "faultGameAbsolutePrestate": "0x03c7ae758795765c6664a5d39bf63841c71ff191e9189522bad8ebff5d4eca98",
   "faultGameMaxDepth": 44,
-  "faultGameMaxDuration": 1200,
+  "faultGameClockExtension": 0,
+  "faultGameMaxClockDuration": 600,
   "faultGameGenesisBlock": 0,
   "faultGameGenesisOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "faultGameSplitDepth": 14,
+  "faultGameWithdrawalDelay": 604800,
 
   "preimageOracleMinProposalSize": 1800000,
-  "preimageOracleChallengePeriod": 86400,
+  "preimageOracleChallengePeriod": 86400
   "fermat": 0,
   "snowTimeOffset": "0x0",
   "haberTimeOffset": "0x0",
+  "wrightTimeOffset": "0x0",
   "fundDevAccounts": true,
   "proofMaturityDelaySeconds": 12,
   "disputeGameFinalityDelaySeconds": 6,
@@ -112,7 +120,6 @@ config=$(cat << EOL
   "daResolveWindow": 160,
   "daBondSize": 1000000,
   "daResolverRefundPercentage": 0,
-  "faultGameWithdrawalDelay": 604800
 }
 EOL
 )

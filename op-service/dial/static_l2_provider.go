@@ -3,7 +3,7 @@ package dial
 import (
 	"context"
 
-	"github.com/ethereum-optimism/optimism/op-service/client"
+	"github.com/ethereum-optimism/optimism/op-service/fallbackclient"
 	"github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -13,7 +13,9 @@ import (
 // It does this by extending the RollupProvider interface to add the ability to get an EthClient
 type L2EndpointProvider interface {
 	RollupProvider
-	// EthClient(ctx) returns the underlying ethclient pointing to the L2 execution node
+	// EthClient(ctx) returns the underlying ethclient pointing to the L2 execution node.
+	// Note: ctx should be a lifecycle context without an attached timeout as client selection may involve
+	// multiple network operations, specifically in the case of failover.
 	EthClient(ctx context.Context) (EthClientInterface, error)
 }
 
@@ -21,10 +23,10 @@ type L2EndpointProvider interface {
 // It is meant for scenarios where a single, unchanging (L2 rollup node, L2 execution node) pair is used
 type StaticL2EndpointProvider struct {
 	StaticL2RollupProvider
-	ethClient client.Client
+	ethClient fallbackclient.Client
 }
 
-func NewStaticL2EndpointProvider(ctx context.Context, log log.Logger, ethClientUrl string, rollupClientUrl string, metrics metrics.RPCMetricer) (*StaticL2EndpointProvider, error) {
+func NewStaticL2EndpointProvider(ctx context.Context, log log.Logger, ethClientUrl string, rollupClientUrl string, metrics metrics.RPCClientMetricer) (*StaticL2EndpointProvider, error) {
 	ethClient, err := DialEthClientWithTimeout(ctx, DefaultDialTimeout, log, ethClientUrl)
 	if err != nil {
 		return nil, err
@@ -35,7 +37,7 @@ func NewStaticL2EndpointProvider(ctx context.Context, log log.Logger, ethClientU
 	}
 	return &StaticL2EndpointProvider{
 		StaticL2RollupProvider: *rollupProvider,
-		ethClient:              client.NewInstrumentedClient(ethClient, metrics),
+		ethClient:              fallbackclient.NewInstrumentedClient(ethClient, metrics),
 	}, nil
 }
 

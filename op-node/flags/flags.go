@@ -34,8 +34,12 @@ func init() {
 	cli.VersionFlag.(*cli.BoolFlag).Category = MiscCategory
 }
 
-func prefixEnvVars(name string) []string {
-	return []string{EnvVarPrefix + "_" + name}
+func prefixEnvVars(names ...string) []string {
+	envs := make([]string, 0, len(names))
+	for _, name := range names {
+		envs = append(envs, EnvVarPrefix+"_"+name)
+	}
+	return envs
 }
 
 var (
@@ -76,11 +80,11 @@ var (
 		EnvVars:  prefixEnvVars("L1_BEACON_HEADER"),
 		Category: L1RPCCategory,
 	}
-	BeaconArchiverAddr = &cli.StringFlag{
-		Name:     "l1.beacon-archiver",
-		Usage:    "Address of L1 Beacon-node compatible HTTP endpoint to use. This is used to fetch blobs that the --l1.beacon does not have (i.e expired blobs).",
-		Required: false,
-		EnvVars:  prefixEnvVars("L1_BEACON_ARCHIVER"),
+	BeaconFallbackAddrs = &cli.StringSliceFlag{
+		Name:     "l1.beacon-fallbacks",
+		Aliases:  []string{"l1.beacon-archiver"},
+		Usage:    "Addresses of L1 Beacon-API compatible HTTP fallback endpoints. Used to fetch blob sidecars not availalbe at the l1.beacon (e.g. expired blobs).",
+		EnvVars:  prefixEnvVars("L1_BEACON_FALLBACKS", "L1_BEACON_ARCHIVER"),
 		Category: L1RPCCategory,
 	}
 	BeaconCheckIgnore = &cli.BoolFlag{
@@ -178,6 +182,13 @@ var (
 		Usage:    "Maximum number of RPC requests to bundle, e.g. during L1 blocks receipt fetching. The L1 RPC rate limit counts this as N items, but allows it to burst at once.",
 		EnvVars:  prefixEnvVars("L1_RPC_MAX_BATCH_SIZE"),
 		Value:    20,
+		Category: L1RPCCategory,
+	}
+	L1RPCMaxCacheSize = &cli.IntFlag{
+		Name:     "l1.rpc-max-cache-size",
+		Usage:    "The maximum cache size of the L1 client. it should be greater than or equal to the maximum height difference between the L1 blocks corresponding to the unsafe block height and the safe block height. Must be greater than or equal to 1",
+		EnvVars:  prefixEnvVars("L1_RPC_MAX_CACHE_SIZE"),
+		Value:    1000,
 		Category: L1RPCCategory,
 	}
 	L1HTTPPollInterval = &cli.DurationFlag{
@@ -324,14 +335,12 @@ var (
 		EnvVars:  prefixEnvVars("SAFEDB_PATH"),
 		Category: OperationsCategory,
 	}
-
 	FastnodeMode = &cli.BoolFlag{
 		Name:    "fastnode",
 		Usage:   "Fastnode has a strong dependency on a specific synchronization mode during synchronization, so please set this flag when running fastnode.",
 		EnvVars: prefixEnvVars("FASTNODE"),
 		Value:   false,
 	}
-
 	ELTriggerGap = &cli.IntFlag{
 		Name:    "el-trigger.gap",
 		Usage:   "gap to trigger el-sync",
@@ -405,7 +414,7 @@ var requiredFlags = []cli.Flag{
 var optionalFlags = []cli.Flag{
 	BeaconAddr,
 	BeaconHeader,
-	BeaconArchiverAddr,
+	BeaconFallbackAddrs,
 	BeaconCheckIgnore,
 	BeaconFetchAllSidecars,
 	SyncModeFlag,
@@ -417,6 +426,7 @@ var optionalFlags = []cli.Flag{
 	L1RPCProviderKind,
 	L1RPCRateLimit,
 	L1RPCMaxBatchSize,
+	L1RPCMaxCacheSize,
 	L1RPCMaxConcurrency,
 	L1HTTPPollInterval,
 	L1ArchiveBlobRpcAddr,

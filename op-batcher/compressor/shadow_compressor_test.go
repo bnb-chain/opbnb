@@ -41,19 +41,19 @@ func TestShadowCompressor(t *testing.T) {
 		targetOutputSize: 1 + derive.FrameV0OverHeadSize,
 		data:             [][]byte{bytes.Repeat([]byte{0}, 1024)},
 		errs:             []error{nil},
-		fullErr:          derive.CompressorFullErr,
+		fullErr:          derive.ErrCompressorFull,
 	}, {
 		name:             "large second block",
 		targetOutputSize: 1 + derive.FrameV0OverHeadSize,
 		data:             [][]byte{bytes.Repeat([]byte{0}, 512), bytes.Repeat([]byte{0}, 1024)},
-		errs:             []error{nil, derive.CompressorFullErr},
-		fullErr:          derive.CompressorFullErr,
+		errs:             []error{nil, derive.ErrCompressorFull},
+		fullErr:          derive.ErrCompressorFull,
 	}, {
 		name:             "random data",
 		targetOutputSize: 1 << 17,
 		data:             [][]byte{randomBytes((1 << 17) - 1000), randomBytes(512), randomBytes(512)},
-		errs:             []error{nil, nil, derive.CompressorFullErr},
-		fullErr:          derive.CompressorFullErr,
+		errs:             []error{nil, nil, derive.ErrCompressorFull},
+		fullErr:          derive.ErrCompressorFull,
 	}}
 	for _, test := range tests {
 		test := test
@@ -63,6 +63,7 @@ func TestShadowCompressor(t *testing.T) {
 
 			sc, err := NewShadowCompressor(Config{
 				TargetOutputSize: test.targetOutputSize,
+				CompressionAlgo:  derive.Zlib,
 			})
 			require.NoError(t, err)
 
@@ -115,6 +116,7 @@ func TestBoundInaccurateForLargeRandomData(t *testing.T) {
 
 	sc, err := NewShadowCompressor(Config{
 		TargetOutputSize: sizeLimit + 100,
+		CompressionAlgo:  derive.Zlib,
 	})
 	require.NoError(t, err)
 

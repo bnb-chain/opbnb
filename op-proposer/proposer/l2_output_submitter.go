@@ -20,7 +20,6 @@ func Main(version string) cliapp.LifecycleAction {
 		if err := opaws.KeyManager(context.Background(), cliCtx, opaws.OP_PROPOSER_SIGN_KEY); err != nil {
 			return nil, err
 		}
-
 		if err := flags.CheckRequired(cliCtx); err != nil {
 			return nil, err
 		}

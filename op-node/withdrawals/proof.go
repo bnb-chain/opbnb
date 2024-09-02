@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -75,12 +77,16 @@ func VerifyStorageProof(root common.Hash, proof common.StorageResult) error {
 }
 
 func VerifyProof(stateRoot common.Hash, proof *common.AccountResult) error {
+	balance, overflow := uint256.FromBig(proof.Balance)
+	if overflow {
+		return fmt.Errorf("proof balance overflows uint256: %d", proof.Balance)
+	}
 	err := VerifyAccountProof(
 		stateRoot,
 		proof.Address,
 		types.StateAccount{
 			Nonce:    proof.Nonce,
-			Balance:  proof.Balance,
+			Balance:  balance,
 			Root:     proof.StorageHash,
 			CodeHash: proof.CodeHash[:],
 		},

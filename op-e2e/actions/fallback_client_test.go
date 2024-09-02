@@ -9,6 +9,7 @@ import (
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
 	"github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/fallbackclient"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,7 +25,7 @@ func setupFallbackClientTest(t Testing, sd *e2eutils.SetupData, log log.Logger, 
 	miner := NewL1MinerWithPort(t, log, sd.L1Cfg, 8545)
 	l1_2 := NewL1ReplicaWithPort(t, log, sd.L1Cfg, 8546)
 	l1_3 := NewL1ReplicaWithPort(t, log, sd.L1Cfg, 8547)
-	isMultiUrl, urlList := client.MultiUrlParse(l1Url)
+	isMultiUrl, urlList := fallbackclient.MultiUrlParse(l1Url)
 	require.True(t, isMultiUrl)
 	opts := []client.RPCOption{
 		client.WithHttpPollInterval(0),

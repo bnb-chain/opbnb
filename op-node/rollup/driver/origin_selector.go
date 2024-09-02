@@ -21,17 +21,19 @@ type L1Blocks interface {
 }
 
 type L1OriginSelector struct {
-	log log.Logger
-	cfg *rollup.Config
+	log  log.Logger
+	cfg  *rollup.Config
+	spec *rollup.ChainSpec
 
 	l1 L1Blocks
 }
 
 func NewL1OriginSelector(log log.Logger, cfg *rollup.Config, l1 L1Blocks) *L1OriginSelector {
 	return &L1OriginSelector{
-		log: log,
-		cfg: cfg,
-		l1:  l1,
+		log:  log,
+		cfg:  cfg,
+		spec: rollup.NewChainSpec(cfg),
+		l1:   l1,
 	}
 }
 
@@ -44,12 +46,13 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	if err != nil {
 		return eth.L1BlockRef{}, err
 	}
+	msd := los.spec.MaxSequencerDrift(currentOrigin.Time)
 	log := los.log.New("current", currentOrigin, "current_time", currentOrigin.Time,
-		"l2_head", l2Head, "l2_head_time", l2Head.Time)
+		"l2_head", l2Head, "l2_head_time", l2Head.Time, "max_seq_drift", msd)
 
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
-	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+los.cfg.MaxSequencerDrift
+	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+msd
 	// Limit the time to fetch next origin block by default
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()

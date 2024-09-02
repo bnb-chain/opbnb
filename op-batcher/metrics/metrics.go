@@ -206,6 +206,7 @@ func NewMetrics(procName string) *Metrics {
 			Help:      "Blob size in bytes (of last blob only for multi-blob txs).",
 			Buckets:   prometheus.LinearBuckets(0.0, eth.MaxBlobDataSize/13, 14),
 		}),
+
 		autoChoosedDAType: factory.NewGauge(prometheus.GaugeOpts{
 			Namespace: ns,
 			Name:      "auto_choosed_da_type",

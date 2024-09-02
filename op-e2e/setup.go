@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	geth_eth "github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
@@ -40,7 +41,6 @@ import (
 
 	bss "github.com/ethereum-optimism/optimism/op-batcher/batcher"
 	batcherFlags "github.com/ethereum-optimism/optimism/op-batcher/flags"
-	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/genesis"
 	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
@@ -62,6 +62,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
+	"github.com/ethereum-optimism/optimism/op-service/predeploys"
 	"github.com/ethereum-optimism/optimism/op-service/sources"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
@@ -83,7 +84,7 @@ func newTxMgrConfig(l1Addr string, privKey *ecdsa.PrivateKey) txmgr.CLIConfig {
 	}
 }
 
-func DefaultSystemConfig(t *testing.T) SystemConfig {
+func DefaultSystemConfig(t testing.TB) SystemConfig {
 	config.ExternalL2TestParms.SkipIfNecessary(t)
 
 	secrets, err := e2eutils.DefaultMnemonicConfig.Secrets()
@@ -160,7 +161,7 @@ func DefaultSystemConfig(t *testing.T) SystemConfig {
 	}
 }
 
-func writeDefaultJWT(t *testing.T) string {
+func writeDefaultJWT(t testing.TB) string {
 	// Sadly the geth node config cannot load JWT secret from memory, it has to be a file
 	jwtPath := path.Join(t.TempDir(), "jwt_secret")
 	if err := os.WriteFile(jwtPath, []byte(hexutil.Encode(testingJWTSecret[:])), 0o600); err != nil {
@@ -464,14 +465,14 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 
 	for addr, amount := range cfg.Premine {
 		if existing, ok := l1Genesis.Alloc[addr]; ok {
-			l1Genesis.Alloc[addr] = core.GenesisAccount{
+			l1Genesis.Alloc[addr] = types.Account{
 				Code:    existing.Code,
 				Storage: existing.Storage,
 				Balance: amount,
 				Nonce:   existing.Nonce,
 			}
 		} else {
-			l1Genesis.Alloc[addr] = core.GenesisAccount{
+			l1Genesis.Alloc[addr] = types.Account{
 				Balance: amount,
 				Nonce:   0,
 			}
@@ -479,21 +480,30 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	}
 
 	l1Block := l1Genesis.ToBlock()
-	l2Genesis, err := genesis.BuildL2Genesis(cfg.DeployConfig, l1Block)
+	var allocsMode genesis.L2AllocsMode
+	allocsMode = genesis.L2AllocsDelta
+	if fjordTime := cfg.DeployConfig.FjordTime(l1Block.Time()); fjordTime != nil && *fjordTime <= 0 {
+		allocsMode = genesis.L2AllocsFjord
+	} else if ecotoneTime := cfg.DeployConfig.EcotoneTime(l1Block.Time()); ecotoneTime != nil && *ecotoneTime <= 0 {
+		allocsMode = genesis.L2AllocsEcotone
+	}
+	t.Log("Generating L2 genesis", "l2_allocs_mode", string(allocsMode))
+	l2Allocs := config.L2Allocs(allocsMode)
+	l2Genesis, err := genesis.BuildL2Genesis(cfg.DeployConfig, l2Allocs, l1Block)
 	if err != nil {
 		return nil, err
 	}
 	sys.L2GenesisCfg = l2Genesis
 	for addr, amount := range cfg.Premine {
 		if existing, ok := l2Genesis.Alloc[addr]; ok {
-			l2Genesis.Alloc[addr] = core.GenesisAccount{
+			l2Genesis.Alloc[addr] = types.Account{
 				Code:    existing.Code,
 				Storage: existing.Storage,
 				Balance: amount,
 				Nonce:   existing.Nonce,
 			}
 		} else {
-			l2Genesis.Alloc[addr] = core.GenesisAccount{
+			l2Genesis.Alloc[addr] = types.Account{
 				Balance: amount,
 				Nonce:   0,
 			}
@@ -767,13 +777,13 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 
 	// L2Output Submitter
 	var proposerCLIConfig *l2os.CLIConfig
-	if e2eutils.UseFPAC() {
+	if e2eutils.UseFaultProofs() {
 		proposerCLIConfig = &l2os.CLIConfig{
 			L1EthRpc:          sys.EthInstances["l1"].WSEndpoint(),
 			RollupRpc:         sys.RollupNodes["sequencer"].HTTPEndpoint(),
 			DGFAddress:        config.L1Deployments.DisputeGameFactoryProxy.Hex(),
 			ProposalInterval:  6 * time.Second,
-			DisputeGameType:   0,
+			DisputeGameType:   254, // Fast game type
 			PollInterval:      50 * time.Millisecond,
 			TxMgrConfig:       newTxMgrConfig(sys.EthInstances["l1"].WSEndpoint(), cfg.Secrets.Proposer),
 			AllowNonFinalized: cfg.NonFinalizedProposals,
@@ -818,6 +828,13 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	if batcherTargetNumFrames == 0 {
 		batcherTargetNumFrames = 1
 	}
+
+	var compressionAlgo derive.CompressionAlgo = derive.Zlib
+	// if opt has brotli key, set the compression algo as brotli
+	if _, ok := opts.Get("compressionAlgo", "brotli"); ok {
+		compressionAlgo = derive.Brotli10
+	}
+
 	batcherCLIConfig := &bss.CLIConfig{
 		L1EthRpc:                 sys.EthInstances["l1"].WSEndpoint(),
 		L2EthRpc:                 sys.EthInstances["sequencer"].WSEndpoint(),
@@ -838,6 +855,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		Stopped:              sys.Cfg.DisableBatcher, // Batch submitter may be enabled later
 		BatchType:            batchType,
 		DataAvailabilityType: sys.Cfg.DataAvailabilityType,
+		CompressionAlgo:      compressionAlgo,
 	}
 	// Batch Submitter
 	batcher, err := bss.BatcherServiceFromCLIConfig(context.Background(), "0.0.1", batcherCLIConfig, sys.Cfg.Loggers["batcher"])
@@ -923,6 +941,7 @@ func configureL1(rollupNodeCfg *rollupNode.Config, l1Node EthInstance) {
 		BatchSize:        20,
 		HttpPollInterval: time.Millisecond * 100,
 		MaxConcurrency:   10,
+		CacheSize:        1000,
 	}
 }
 

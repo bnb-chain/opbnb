@@ -133,7 +133,7 @@ func NewBeaconEndpointConfig(ctx *cli.Context) node.L1BeaconEndpointSetup {
 	return &node.L1BeaconEndpointConfig{
 		BeaconAddr:             ctx.String(flags.BeaconAddr.Name),
 		BeaconHeader:           ctx.String(flags.BeaconHeader.Name),
-		BeaconArchiverAddr:     ctx.String(flags.BeaconArchiverAddr.Name),
+		BeaconFallbackAddrs:    ctx.StringSlice(flags.BeaconFallbackAddrs.Name),
 		BeaconCheckIgnore:      ctx.Bool(flags.BeaconCheckIgnore.Name),
 		BeaconFetchAllSidecars: ctx.Bool(flags.BeaconFetchAllSidecars.Name),
 	}
@@ -158,6 +158,7 @@ func NewL1EndpointConfig(ctx *cli.Context) *node.L1EndpointConfig {
 		L1RPCKind:        sources.RPCProviderKind(strings.ToLower(ctx.String(flags.L1RPCProviderKind.Name))),
 		RateLimit:        ctx.Float64(flags.L1RPCRateLimit.Name),
 		BatchSize:        ctx.Int(flags.L1RPCMaxBatchSize.Name),
+		CacheSize:        ctx.Int(flags.L1RPCMaxCacheSize.Name),
 		HttpPollInterval: ctx.Duration(flags.L1HTTPPollInterval.Name),
 		MaxConcurrency:   ctx.Int(flags.L1RPCMaxConcurrency.Name),
 	}
@@ -276,6 +277,10 @@ func applyOverrides(ctx *cli.Context, rollupConfig *rollup.Config) {
 		ecotone := ctx.Uint64(opflags.EcotoneOverrideFlagName)
 		rollupConfig.EcotoneTime = &ecotone
 	}
+	if ctx.IsSet(opflags.FjordOverrideFlagName) {
+		fjord := ctx.Uint64(opflags.FjordOverrideFlagName)
+		rollupConfig.FjordTime = &fjord
+	}
 }
 
 func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {
@@ -294,7 +299,7 @@ func NewSnapshotLogger(ctx *cli.Context) (log.Logger, error) {
 
 func NewSyncConfig(ctx *cli.Context, log log.Logger) (*sync.Config, error) {
 	if ctx.IsSet(flags.L2EngineSyncEnabled.Name) && ctx.IsSet(flags.SyncModeFlag.Name) {
-		return nil, errors.New("cannot set both --l2.engine-sync and --syncmode at the same time.")
+		return nil, errors.New("cannot set both --l2.engine-sync and --syncmode at the same time")
 	} else if ctx.IsSet(flags.L2EngineSyncEnabled.Name) {
 		log.Error("l2.engine-sync is deprecated and will be removed in a future release. Use --syncmode=execution-layer instead.")
 	}
@@ -310,7 +315,6 @@ func NewSyncConfig(ctx *cli.Context, log log.Logger) (*sync.Config, error) {
 		// fastnode needs a smaller gap
 		elTriggerGap = 120
 	}
-
 	cfg := &sync.Config{
 		SyncMode:           mode,
 		SkipSyncStartCheck: ctx.Bool(flags.SkipSyncStartCheck.Name),
