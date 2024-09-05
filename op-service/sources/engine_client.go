@@ -139,6 +139,7 @@ func (s *EngineAPIClient) NewPayload(ctx context.Context, payload *eth.Execution
 	e.Trace("Received payload execution result", "status", result.Status, "latestValidHash", result.LatestValidHash, "message", result.ValidationError)
 	if err != nil {
 		if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
+			result.Status = eth.ExecutionSyncing
 			return &result, err
 		}
 		e.Error("Payload execution failed", "err", err)
