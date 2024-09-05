@@ -43,6 +43,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
 
   push-op-batcher:
     runs-on: ubuntu-latest
@@ -77,6 +78,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
 
   push-op-proposer:
     runs-on: ubuntu-latest
@@ -111,6 +113,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
 
   push-op-bootnode:
     runs-on: ubuntu-latest
@@ -145,3 +148,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
