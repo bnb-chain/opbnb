@@ -17,13 +17,6 @@ COPY ./go.sum /app/go.sum
 COPY ./.git /app/.git
 
 WORKDIR /app/op-node
-RUN wget https://musl.cc/aarch64-linux-musl-cross.tgz
-RUN tar zxf aarch64-linux-musl-cross.tgz
-RUN #ls ./
-RUN #ls /app/op-node/aarch64-linux-musl-cross/bin/
-ENV PATH=$PATH:/app/op-node/aarch64-linux-musl-cross/bin/
-RUN echo $PATH
-RUN #aarch64-linux-musl-gcc --version
 RUN go mod download
 
 ARG TARGETOS
