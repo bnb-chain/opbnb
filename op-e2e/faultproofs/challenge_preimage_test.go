@@ -17,12 +17,12 @@ func TestChallengeLargePreimages_ChallengeFirst(t *testing.T) {
 	t.SkipNow()
 	op_e2e.InitParallel(t)
 	ctx := context.Background()
-	sys, _ := startFaultDisputeSystem(t)
+	sys, _ := StartFaultDisputeSystem(t)
 	t.Cleanup(sys.Close)
 
 	disputeGameFactory := disputegame.NewFactoryHelper(t, ctx, sys)
 	disputeGameFactory.StartChallenger(ctx, "Challenger",
-		challenger.WithAlphabet(sys.RollupEndpoint("sequencer")),
+		challenger.WithAlphabet(),
 		challenger.WithPrivKey(sys.Cfg.Secrets.Alice))
 	preimageHelper := disputeGameFactory.PreimageHelper(ctx)
 	ident := preimageHelper.UploadLargePreimage(ctx, preimage.MinPreimageSize,
@@ -38,11 +38,11 @@ func TestChallengeLargePreimages_ChallengeMiddle(t *testing.T) {
 	t.SkipNow()
 	op_e2e.InitParallel(t)
 	ctx := context.Background()
-	sys, _ := startFaultDisputeSystem(t)
+	sys, _ := StartFaultDisputeSystem(t)
 	t.Cleanup(sys.Close)
 	disputeGameFactory := disputegame.NewFactoryHelper(t, ctx, sys)
 	disputeGameFactory.StartChallenger(ctx, "Challenger",
-		challenger.WithAlphabet(sys.RollupEndpoint("sequencer")),
+		challenger.WithAlphabet(),
 		challenger.WithPrivKey(sys.Cfg.Secrets.Mallory))
 	preimageHelper := disputeGameFactory.PreimageHelper(ctx)
 	ident := preimageHelper.UploadLargePreimage(ctx, preimage.MinPreimageSize,
@@ -58,11 +58,11 @@ func TestChallengeLargePreimages_ChallengeLast(t *testing.T) {
 	t.SkipNow()
 	op_e2e.InitParallel(t)
 	ctx := context.Background()
-	sys, _ := startFaultDisputeSystem(t)
+	sys, _ := StartFaultDisputeSystem(t)
 	t.Cleanup(sys.Close)
 	disputeGameFactory := disputegame.NewFactoryHelper(t, ctx, sys)
 	disputeGameFactory.StartChallenger(ctx, "Challenger",
-		challenger.WithAlphabet(sys.RollupEndpoint("sequencer")),
+		challenger.WithAlphabet(),
 		challenger.WithPrivKey(sys.Cfg.Secrets.Mallory))
 	preimageHelper := disputeGameFactory.PreimageHelper(ctx)
 	ident := preimageHelper.UploadLargePreimage(ctx, preimage.MinPreimageSize,

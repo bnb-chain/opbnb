@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/dial"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,6 +40,7 @@ var ErrBatcherNotRunning = errors.New("batcher is not running")
 
 type L1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
 	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 }
 
@@ -207,13 +209,15 @@ func (l *BatchSubmitter) loadBlocksIntoState(ctx context.Context) error {
 
 // loadBlockIntoState fetches & stores a single block into `state`. It returns the block it loaded.
 func (l *BatchSubmitter) loadBlockIntoState(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
 	l2Client, err := l.EndpointProvider.EthClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting L2 client: %w", err)
 	}
-	block, err := l2Client.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	block, err := l2Client.BlockByNumber(cCtx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		return nil, fmt.Errorf("getting L2 block: %w", err)
 	}
@@ -229,13 +233,15 @@ func (l *BatchSubmitter) loadBlockIntoState(ctx context.Context, blockNumber uin
 // calculateL2BlockRangeToStore determines the range (start,end] that should be loaded into the local state.
 // It also takes care of initializing some local state (i.e. will modify l.lastStoredBlock in certain conditions)
 func (l *BatchSubmitter) calculateL2BlockRangeToStore(ctx context.Context) (eth.BlockID, eth.BlockID, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
 	rollupClient, err := l.EndpointProvider.RollupClient(ctx)
 	if err != nil {
 		return eth.BlockID{}, eth.BlockID{}, fmt.Errorf("getting rollup client: %w", err)
 	}
-	syncStatus, err := rollupClient.SyncStatus(ctx)
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	syncStatus, err := rollupClient.SyncStatus(cCtx)
 	// Ensure that we have the sync status
 	if err != nil {
 		return eth.BlockID{}, eth.BlockID{}, fmt.Errorf("failed to get sync status: %w", err)
@@ -275,6 +281,13 @@ func (l *BatchSubmitter) calculateL2BlockRangeToStore(ctx context.Context) (eth.
 
 func (l *BatchSubmitter) loop() {
 	defer l.wg.Done()
+	if l.Config.WaitNodeSync {
+		err := l.waitNodeSync()
+		if err != nil {
+			l.Log.Error("Error waiting for node sync", "err", err)
+			return
+		}
+	}
 
 	receiptsCh := make(chan txmgr.TxReceipt[txID])
 	queue := txmgr.NewQueue[txID](l.killCtx, l.Txmgr, l.Config.MaxPendingTransactions)
@@ -378,6 +391,7 @@ func (l *BatchSubmitter) loop() {
 			l.Log.Info("Txmgr is closed, remaining channel data won't be sent")
 		}
 	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -487,6 +501,38 @@ func (l *BatchSubmitter) switchDAType(targetDAType flags.DataAvailabilityType) {
 	}
 }
 
+// waitNodeSync Check to see if there was a batcher tx sent recently that
+// still needs more block confirmations before being considered finalized
+func (l *BatchSubmitter) waitNodeSync() error {
+	ctx := l.shutdownCtx
+	rollupClient, err := l.EndpointProvider.RollupClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get rollup client: %w", err)
+	}
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	l1Tip, err := l.l1Tip(cCtx)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve l1 tip: %w", err)
+	}
+
+	l1TargetBlock := l1Tip.Number
+	if l.Config.CheckRecentTxsDepth != 0 {
+		l.Log.Info("Checking for recently submitted batcher transactions on L1")
+		recentBlock, found, err := eth.CheckRecentTxs(cCtx, l.L1Client, l.Config.CheckRecentTxsDepth, l.Txmgr.From())
+		if err != nil {
+			return fmt.Errorf("failed checking recent batcher txs: %w", err)
+		}
+		l.Log.Info("Checked for recently submitted batcher transactions on L1",
+			"l1_head", l1Tip, "l1_recent", recentBlock, "found", found)
+		l1TargetBlock = recentBlock
+	}
+
+	return dial.WaitRollupSync(l.shutdownCtx, l.Log, rollupClient, l1TargetBlock, time.Second*12)
+}
+
 // publishStateToL1 queues up all pending TxData to be published to the L1, returning when there is
 // no more data to queue for publishing or if there was an error queing the data.
 func (l *BatchSubmitter) publishStateToL1(queue *txmgr.Queue[txID], receiptsCh chan txmgr.TxReceipt[txID]) {
@@ -573,16 +619,16 @@ func (l *BatchSubmitter) publishTxToL1(ctx context.Context, queue *txmgr.Queue[t
 }
 
 func (l *BatchSubmitter) safeL1Origin(ctx context.Context) (eth.BlockID, error) {
-	ctx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
-	defer cancel()
-
 	c, err := l.EndpointProvider.RollupClient(ctx)
 	if err != nil {
 		log.Error("Failed to get rollup client", "err", err)
 		return eth.BlockID{}, fmt.Errorf("safe l1 origin: error getting rollup client: %w", err)
 	}
 
-	status, err := c.SyncStatus(ctx)
+	cCtx, cancel := context.WithTimeout(ctx, l.Config.NetworkTimeout)
+	defer cancel()
+
+	status, err := c.SyncStatus(cCtx)
 	if err != nil {
 		log.Error("Failed to get sync status", "err", err)
 		return eth.BlockID{}, fmt.Errorf("safe l1 origin: error getting sync status: %w", err)

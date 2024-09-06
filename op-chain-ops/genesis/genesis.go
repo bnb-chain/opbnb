@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
+	"github.com/ethereum-optimism/optimism/op-service/predeploys"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
@@ -66,6 +66,7 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		ShanghaiTime:                  config.CanyonTime(block.Time()),
 		CancunTime:                    config.EcotoneTime(block.Time()),
 		EcotoneTime:                   config.EcotoneTime(block.Time()),
+		FjordTime:                     config.FjordTime(block.Time()),
 		InteropTime:                   config.InteropTime(block.Time()),
 		Fermat:                        config.Fermat,
 		HaberTime:                     config.HaberTime(block.Time()),
@@ -113,7 +114,7 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		GasUsed:    uint64(config.L2GenesisBlockGasUsed),
 		ParentHash: config.L2GenesisBlockParentHash,
 		BaseFee:    baseFee.ToInt(),
-		Alloc:      map[common.Address]core.GenesisAccount{},
+		Alloc:      map[common.Address]types.Account{},
 	}
 
 	if optimismChainConfig.IsEcotone(genesis.Timestamp) {
@@ -202,7 +203,7 @@ func NewL1Genesis(config *DeployConfig) (*core.Genesis, error) {
 		GasUsed:    uint64(config.L1GenesisBlockGasUsed),
 		ParentHash: config.L1GenesisBlockParentHash,
 		BaseFee:    baseFee.ToInt(),
-		Alloc:      map[common.Address]core.GenesisAccount{},
+		Alloc:      map[common.Address]types.Account{},
 	}, nil
 }
 

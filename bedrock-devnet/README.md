@@ -70,3 +70,4 @@ Address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
 Private key: ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
+The easiest way to invoke this script is to run `make devnet-up` from the root of this repository. Otherwise, to use this script run `python3 main.py --monorepo-dir=<path to the monorepo>`. You may need to set `PYTHONPATH` to this directory if you are invoking the script from somewhere other than `bedrock-devnet`.

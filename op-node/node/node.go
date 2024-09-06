@@ -51,15 +51,14 @@ type OpNode struct {
 	l1SafeSub      ethereum.Subscription // Subscription to get L1 safe blocks, a.k.a. justified data (polling)
 	l1FinalizedSub ethereum.Subscription // Subscription to get L1 safe blocks, a.k.a. justified data (polling)
 
-	l1Source  *sources.L1Client      // L1 Client to fetch data from
-	l2Driver  *driver.Driver         // L2 Engine to Sync
-	l2Source  *sources.EngineClient  // L2 Execution Engine RPC bindings
-	l1Blob    *sources.BSCBlobClient // L1 Blob Client to fetch blobs
-	server    *rpcServer             // RPC server hosting the rollup-node API
-	p2pNode   *p2p.NodeP2P           // P2P node functionality
-	p2pSigner p2p.Signer             // p2p gogssip application messages will be signed with this signer
-	tracer    Tracer                 // tracer to get events for testing/debugging
-	runCfg    *RuntimeConfig         // runtime configurables
+	l1Source  *sources.L1Client     // L1 Client to fetch data from
+	l2Driver  *driver.Driver        // L2 Engine to Sync
+	l2Source  *sources.EngineClient // L2 Execution Engine RPC bindings
+	server    *rpcServer            // RPC server hosting the rollup-node API
+	p2pNode   *p2p.NodeP2P          // P2P node functionality
+	p2pSigner p2p.Signer            // p2p gossip application messages will be signed with this signer
+	tracer    Tracer                // tracer to get events for testing/debugging
+	runCfg    *RuntimeConfig        // runtime configurables
 
 	safeDB closableSafeDB
 
@@ -67,6 +66,8 @@ type OpNode struct {
 
 	pprofService *oppprof.Service
 	metricsSrv   *httputil.HTTPServer
+
+	l1Blob *sources.BSCBlobClient // L1 Blob Client to fetch blobs
 
 	// some resources cannot be stopped directly, like the p2p gossipsub router (not our design),
 	// and depend on this ctx to be closed.
@@ -174,7 +175,7 @@ func (n *OpNode) initL1(ctx context.Context, cfg *Config) error {
 	rpcCfg.EthClientConfig.RethDBPath = cfg.RethDBPath
 
 	n.l1Source, err = sources.NewL1Client(
-		client.NewInstrumentedRPC(l1Node, n.metrics), n.log, n.metrics.L1SourceCache, rpcCfg)
+		client.NewInstrumentedRPC(l1Node, &n.metrics.RPCMetrics.RPCClientMetrics), n.log, n.metrics.L1SourceCache, rpcCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create L1 source: %w", err)
 	}
@@ -317,13 +318,14 @@ func (n *OpNode) initL1Blob(ctx context.Context, cfg *Config) error {
 	if cfg.L1Blob == nil {
 		return fmt.Errorf("missing L1 Blob Endpoint configuration: this API is mandatory for Ecotone upgrade at t=%d", *cfg.Rollup.EcotoneTime)
 	}
+
 	rpcClients, err := cfg.L1Blob.Setup(ctx, n.log)
 	if err != nil {
 		return fmt.Errorf("failed to setup L1 blob client: %w", err)
 	}
 	instrumentedClients := make([]client.RPC, 0)
 	for _, rpc := range rpcClients {
-		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, n.metrics))
+		instrumentedClients = append(instrumentedClients, client.NewInstrumentedRPC(rpc, &n.metrics.RPCClientMetrics))
 	}
 	n.l1Blob = sources.NewBSCBlobClient(instrumentedClients)
 	return nil
@@ -336,7 +338,7 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	}
 
 	n.l2Source, err = sources.NewEngineClient(
-		client.NewInstrumentedRPC(rpcClient, n.metrics), n.log, n.metrics.L2SourceCache, rpcCfg,
+		client.NewInstrumentedRPC(rpcClient, &n.metrics.RPCClientMetrics), n.log, n.metrics.L2SourceCache, rpcCfg,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create Engine client: %w", err)
@@ -352,7 +354,7 @@ func (n *OpNode) initL2(ctx context.Context, cfg *Config, snapshotLog log.Logger
 	}
 
 	// if plasma is not explicitly activated in the node CLI, the config + any error will be ignored.
-	rpCfg, err := cfg.Rollup.PlasmaConfig()
+	rpCfg, err := cfg.Rollup.GetOPPlasmaConfig()
 	if cfg.Plasma.Enabled && err != nil {
 		return fmt.Errorf("failed to get plasma config: %w", err)
 	}

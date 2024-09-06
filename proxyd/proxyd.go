@@ -187,17 +187,47 @@ func Start(config *Config) (*Server, func(), error) {
 	backendGroups := make(map[string]*BackendGroup)
 	for bgName, bg := range config.BackendGroups {
 		backends := make([]*Backend, 0)
+		fallbackBackends := make(map[string]bool)
+		fallbackCount := 0
 		for _, bName := range bg.Backends {
 			if backendsByName[bName] == nil {
 				return nil, nil, fmt.Errorf("backend %s is not defined", bName)
 			}
 			backends = append(backends, backendsByName[bName])
+
+			for _, fb := range bg.Fallbacks {
+				if bName == fb {
+					fallbackBackends[bName] = true
+					log.Info("configured backend as fallback",
+						"backend_name", bName,
+						"backend_group", bgName,
+					)
+					fallbackCount++
+				}
+			}
+
+			if _, ok := fallbackBackends[bName]; !ok {
+				fallbackBackends[bName] = false
+				log.Info("configured backend as primary",
+					"backend_name", bName,
+					"backend_group", bgName,
+				)
+			}
+		}
+
+		if fallbackCount != len(bg.Fallbacks) {
+			return nil, nil,
+				fmt.Errorf(
+					"error: number of fallbacks instantiated (%d) did not match configured (%d) for backend group %s",
+					fallbackCount, len(bg.Fallbacks), bgName,
+				)
 		}
 
 		backendGroups[bgName] = &BackendGroup{
-			Name:            bgName,
-			Backends:        backends,
-			WeightedRouting: bg.WeightedRouting,
+			Name:             bgName,
+			Backends:         backends,
+			WeightedRouting:  bg.WeightedRouting,
+			FallbackBackends: fallbackBackends,
 		}
 	}
 
@@ -272,6 +302,14 @@ func Start(config *Config) (*Server, func(), error) {
 		return nil, nil, fmt.Errorf("error creating server: %w", err)
 	}
 
+	// Enable to support browser websocket connections.
+	// See https://pkg.go.dev/github.com/gorilla/websocket#hdr-Origin_Considerations
+	if config.Server.AllowAllOrigins {
+		srv.upgrader.CheckOrigin = func(r *http.Request) bool {
+			return true
+		}
+	}
+
 	if config.Metrics.Enabled {
 		addr := fmt.Sprintf("%s:%d", config.Metrics.Host, config.Metrics.Port)
 		log.Info("starting metrics server", "addr", addr)
@@ -338,6 +376,18 @@ func Start(config *Config) (*Server, func(), error) {
 			if bgcfg.ConsensusMaxBlockRange > 0 {
 				copts = append(copts, WithMaxBlockRange(bgcfg.ConsensusMaxBlockRange))
 			}
+			if bgcfg.ConsensusPollerInterval > 0 {
+				copts = append(copts, WithPollerInterval(time.Duration(bgcfg.ConsensusPollerInterval)))
+			}
+
+			for _, be := range bgcfg.Backends {
+				if fallback, ok := bg.FallbackBackends[be]; !ok {
+					log.Crit("error backend not found in backend fallback configurations", "backend_name", be)
+				} else {
+					log.Debug("configuring new backend for group", "backend_group", bgName, "backend_name", be, "fallback", fallback)
+					RecordBackendGroupFallbacks(bg, be, fallback)
+				}
+			}
 
 			var tracker ConsensusTracker
 			if bgcfg.ConsensusHA {
@@ -349,13 +399,14 @@ func Start(config *Config) (*Server, func(), error) {
 					topts = append(topts, WithLockPeriod(time.Duration(bgcfg.ConsensusHALockPeriod)))
 				}
 				if bgcfg.ConsensusHAHeartbeatInterval > 0 {
-					topts = append(topts, WithLockPeriod(time.Duration(bgcfg.ConsensusHAHeartbeatInterval)))
+					topts = append(topts, WithHeartbeatInterval(time.Duration(bgcfg.ConsensusHAHeartbeatInterval)))
 				}
 				consensusHARedisClient, err := NewRedisClient(bgcfg.ConsensusHARedis.URL)
 				if err != nil {
 					return nil, nil, err
 				}
-				tracker = NewRedisConsensusTracker(context.Background(), consensusHARedisClient, bg, bg.Name, topts...)
+				ns := fmt.Sprintf("%s:%s", bgcfg.ConsensusHARedis.Namespace, bg.Name)
+				tracker = NewRedisConsensusTracker(context.Background(), consensusHARedisClient, bg, ns, topts...)
 				copts = append(copts, WithTracker(tracker))
 			}
 
