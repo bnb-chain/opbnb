@@ -84,7 +84,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
 		maxConcurrentRequests:          config.MaxConcurrentRequests,
-		done:                           make(chan struct{}),
+		done:                           make(chan struct{}, 1),
 	}, nil
 }
 
