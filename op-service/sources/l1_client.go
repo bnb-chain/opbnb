@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -62,9 +63,12 @@ type L1Client struct {
 	l1BlockRefsCache *caching.LRUCache[common.Hash, eth.L1BlockRef]
 
 	//ensure pre-fetch receipts only once
-	preFetchReceiptsOnce sync.Once
+	preFetchReceiptsOnce      sync.Once
+	isPreFetchReceiptsRunning atomic.Bool
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
+	preFetchReceiptsClosedChan     chan struct{}
+
 	//max concurrent requests
 	maxConcurrentRequests int
 	//done chan
@@ -140,12 +144,14 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 	s.preFetchReceiptsStartBlockChan <- l1Start
 	s.preFetchReceiptsOnce.Do(func() {
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
+		s.isPreFetchReceiptsRunning.Store(true)
 		go func() {
 			var currentL1Block uint64
 			var parentHash common.Hash
 			for {
 				select {
 				case <-s.done:
+					s.preFetchReceiptsClosedChan <- struct{}{}
 					s.log.Info("pre-fetching receipts done")
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
@@ -259,6 +265,9 @@ func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
 }
 
 func (s *L1Client) Close() {
-	close(s.done)
+	if s.isPreFetchReceiptsRunning.Load() {
+		close(s.done)
+		<-s.preFetchReceiptsClosedChan
+	}
 	s.EthClient.Close()
 }
