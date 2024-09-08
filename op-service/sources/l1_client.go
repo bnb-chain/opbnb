@@ -84,7 +84,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
 		maxConcurrentRequests:          config.MaxConcurrentRequests,
-		done:                           make(chan struct{}, 1),
+		done:                           make(chan struct{}),
 	}, nil
 }
 
@@ -259,6 +259,6 @@ func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
 }
 
 func (s *L1Client) Close() {
-	s.done <- struct{}{}
+	close(s.done)
 	s.EthClient.Close()
 }
