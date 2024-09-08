@@ -87,6 +87,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache[common.Hash, eth.L1BlockRef](metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		preFetchReceiptsClosedChan:     make(chan struct{}),
 		maxConcurrentRequests:          config.MaxConcurrentRequests,
 		done:                           make(chan struct{}),
 	}, nil
