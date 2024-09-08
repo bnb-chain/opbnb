@@ -152,8 +152,8 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 			for {
 				select {
 				case <-s.done:
-					s.preFetchReceiptsClosedChan <- struct{}{}
 					s.log.Info("pre-fetching receipts done")
+					s.preFetchReceiptsClosedChan <- struct{}{}
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
