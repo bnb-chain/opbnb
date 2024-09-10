@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -62,9 +63,12 @@ type L1Client struct {
 	l1BlockRefsCache *caching.LRUCache[common.Hash, eth.L1BlockRef]
 
 	//ensure pre-fetch receipts only once
-	preFetchReceiptsOnce sync.Once
+	preFetchReceiptsOnce      sync.Once
+	isPreFetchReceiptsRunning atomic.Bool
 	//start block for pre-fetch receipts
 	preFetchReceiptsStartBlockChan chan uint64
+	preFetchReceiptsClosedChan     chan struct{}
+
 	//max concurrent requests
 	maxConcurrentRequests int
 	//done chan
@@ -83,6 +87,7 @@ func NewL1Client(client client.RPC, log log.Logger, metrics caching.Metrics, con
 		l1BlockRefsCache:               caching.NewLRUCache[common.Hash, eth.L1BlockRef](metrics, "blockrefs", config.L1BlockRefsCacheSize),
 		preFetchReceiptsOnce:           sync.Once{},
 		preFetchReceiptsStartBlockChan: make(chan uint64, 1),
+		preFetchReceiptsClosedChan:     make(chan struct{}),
 		maxConcurrentRequests:          config.MaxConcurrentRequests,
 		done:                           make(chan struct{}),
 	}, nil
@@ -140,6 +145,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 	s.preFetchReceiptsStartBlockChan <- l1Start
 	s.preFetchReceiptsOnce.Do(func() {
 		s.log.Info("pre-fetching receipts start", "startBlock", l1Start)
+		s.isPreFetchReceiptsRunning.Store(true)
 		go func() {
 			var currentL1Block uint64
 			var parentHash common.Hash
@@ -147,6 +153,7 @@ func (s *L1Client) GoOrUpdatePreFetchReceipts(ctx context.Context, l1Start uint6
 				select {
 				case <-s.done:
 					s.log.Info("pre-fetching receipts done")
+					s.preFetchReceiptsClosedChan <- struct{}{}
 					return
 				case currentL1Block = <-s.preFetchReceiptsStartBlockChan:
 					s.log.Debug("pre-fetching receipts currentL1Block changed", "block", currentL1Block)
@@ -259,6 +266,9 @@ func (s *L1Client) ClearReceiptsCacheBefore(blockNumber uint64) {
 }
 
 func (s *L1Client) Close() {
-	s.done <- struct{}{}
+	if s.isPreFetchReceiptsRunning.Load() {
+		close(s.done)
+		<-s.preFetchReceiptsClosedChan
+	}
 	s.EthClient.Close()
 }
