@@ -20,7 +20,13 @@ LDFLAGSSTRING +=-X main.Version=$(VERSION)
 LDFLAGS := -ldflags "$(LDFLAGSSTRING)"
 
 op-proposer:
+ifeq ($(TARGETARCH),arm64)
+	wget https://musl.cc/aarch64-linux-musl-cross.tgz
+	tar zxf aarch64-linux-musl-cross.tgz
+	export PATH=$$PATH:/app/op-proposer/aarch64-linux-musl-cross/bin/ && env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CC=aarch64-linux-musl-gcc CGO_ENABLED=1 go build -v $(LDFLAGS) -o ./bin/op-proposer ./cmd
+else
 	env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) go build -v $(LDFLAGS) -o ./bin/op-proposer ./cmd
+endif
 
 clean:
 	rm bin/op-proposer

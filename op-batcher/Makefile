@@ -25,7 +25,13 @@ ifeq ($(shell uname),Darwin)
 endif
 
 op-batcher:
+ifeq ($(TARGETARCH),arm64)
+	wget https://musl.cc/aarch64-linux-musl-cross.tgz
+	tar zxf aarch64-linux-musl-cross.tgz
+	export PATH=$$PATH:/app/op-batcher/aarch64-linux-musl-cross/bin/ && env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CC=aarch64-linux-musl-gcc CGO_ENABLED=1 go build -v $(LDFLAGS) -o ./bin/op-batcher ./cmd
+else
 	env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) go build -v $(LDFLAGS) -o ./bin/op-batcher ./cmd
+endif
 
 clean:
 	rm bin/op-batcher
