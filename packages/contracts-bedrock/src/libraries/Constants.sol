@@ -37,6 +37,14 @@ library Constants {
     ///         transactions.
     address internal constant DEPOSITOR_ACCOUNT = 0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001;
 
+    address internal constant BSCTESTNET_PROXY_ADMIN = 0xE4925bD8Ac30b2d4e2bD7b8Ba495a5c92d4c5156;
+
+    address internal constant BSCMAINNET_PROXY_ADMIN = 0x27a591Ec09AAfEEb39d7533AEf7C64E0305D1576;
+
+    // TODO update for test
+    address internal constant BSCQANET_PROXY_ADMIN = 0xE4925bD8Ac30b2d4e2bD7b8Ba495a5c92d4c5156;
+
+
     /// @notice Returns the default values for the ResourceConfig. These are the recommended values
     ///         for a production network.
     function DEFAULT_RESOURCE_CONFIG() internal pure returns (ResourceMetering.ResourceConfig memory) {
