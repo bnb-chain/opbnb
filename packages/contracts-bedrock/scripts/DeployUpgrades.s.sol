@@ -33,6 +33,7 @@ import { LibStateDiff } from "scripts/libraries/LibStateDiff.sol";
 import { EIP1967Helper } from "test/mocks/EIP1967Helper.sol";
 import { ForgeArtifacts } from "scripts/ForgeArtifacts.sol";
 import { Process } from "scripts/libraries/Process.sol";
+import { UpgradeHelper } from "scripts/UpgradeHelper.sol";
 
 /// @title Deploy
 /// @notice Script used to deploy a bedrock system. The entire system is deployed within the `run` function.
@@ -99,6 +100,9 @@ contract Deploy is Deployer {
     /// @notice Internal function containing the deploy logic.
     function _run() internal virtual {
         console.log("start of L1 Deploy!");
+        // TODO just for local poc, remove it
+        deployProxyAdmin();
+        console.log("set up ProxyAdmin!");
         setupSuperchain();
         console.log("set up superchain!");
         setupOpChain();
@@ -158,6 +162,28 @@ contract Deploy is Deployer {
         addr_ = address(setter);
     }
 
+    /// @notice Deploy the UpgradeHelper contract, used for upgrades.
+    function deployUpgradeHelper() public broadcast returns (address addr_) {
+        console.log("Deploying UpgradeHelper");
+        UpgradeHelper upgradeHelper = new UpgradeHelper{ salt: _implSalt() }();
+        console.log("UpgradeHelper deployed at: %s", address(upgradeHelper));
+        string memory version = upgradeHelper.version();
+        console.log("UpgradeHelper version: %s", version);
+        save("UpgradeHelper", address(upgradeHelper));
+        addr_ = address(upgradeHelper);
+    }
+
+    /// @notice Deploy the ProxyAdmin
+    function deployProxyAdmin() public broadcast returns (address addr_) {
+        console.log("Deploying ProxyAdmin");
+        ProxyAdmin admin = new ProxyAdmin({ _owner: msg.sender });
+        require(admin.owner() == msg.sender);
+        console.log("adminOwner is %s", admin.owner());
+        save("ProxyAdmin", address(admin));
+        console.log("ProxyAdmin deployed at %s", address(admin));
+        addr_ = address(admin);
+    }
+
     ////////////////////////////////////////////////////////////////
     //                Proxy Deployment Functions                  //
     ////////////////////////////////////////////////////////////////
@@ -167,14 +193,14 @@ contract Deploy is Deployer {
     /// @return addr_ The address of the deployed proxy contract.
     function deployERC1967Proxy(string memory _name) public returns (address addr_) {
         uint256 chainid = block.chainid;
-        address proxyAdmin;
-        if (chainid == Chains.BscTestnet) {
-            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
-        } else if (chainid == Chains.BscMainnet) {
-            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
-        } else if (chainid == Chains.BscQAnet) {
-            proxyAdmin = Constants.BSCQANET_PROXY_ADMIN;
-        }
+        address proxyAdmin = mustGetAddress("ProxyAdmin");
+//        if (chainid == Chains.BscTestnet) {
+//            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
+//        } else if (chainid == Chains.BscMainnet) {
+//            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
+//        } else if (chainid == Chains.BscQAnet) {
+//            proxyAdmin = Constants.BSCQANET_PROXY_ADMIN;
+//        }
         console.log("proxyAdmin is %s", proxyAdmin);
         addr_ = deployERC1967ProxyWithOwner(_name, proxyAdmin);
     }
