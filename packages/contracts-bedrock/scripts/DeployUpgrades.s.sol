@@ -100,9 +100,6 @@ contract Deploy is Deployer {
     /// @notice Internal function containing the deploy logic.
     function _run() internal virtual {
         console.log("start of L1 Deploy!");
-        // TODO just for local poc, remove it
-        deployProxyAdmin();
-        console.log("set up ProxyAdmin!");
         setupSuperchain();
         console.log("set up superchain!");
         setupOpChain();
@@ -193,15 +190,13 @@ contract Deploy is Deployer {
     /// @return addr_ The address of the deployed proxy contract.
     function deployERC1967Proxy(string memory _name) public returns (address addr_) {
         uint256 chainid = block.chainid;
-        address proxyAdmin = mustGetAddress("ProxyAdmin");
-//        if (chainid == Chains.BscTestnet) {
-//            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
-//        } else if (chainid == Chains.BscMainnet) {
-//            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
-//        } else if (chainid == Chains.BscQAnet) {
-//            proxyAdmin = Constants.BSCQANET_PROXY_ADMIN;
-//        }
-        console.log("proxyAdmin is %s", proxyAdmin);
+        if (chainid == Chains.BscTestnet) {
+            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
+        } else if (chainid == Chains.BscMainnet) {
+            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
+        } else if (chainid == Chains.BscQAnet) {
+            proxyAdmin = Constants.BSCQANET_PROXY_ADMIN;
+        }
         addr_ = deployERC1967ProxyWithOwner(_name, proxyAdmin);
     }
 
