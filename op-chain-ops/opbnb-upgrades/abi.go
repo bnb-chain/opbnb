@@ -1,4 +1,4 @@
-package main
+package opbnb_upgrades
 
 //go:generate ./abigen --abi old-contracts/L1CrossDomainMessenger.json --pkg L1CrossDomainMessenger --out old-contracts/bindings/L1CrossDomainMessenger.go
 //go:generate ./abigen --abi old-contracts/L1ERC721Bridge.json --pkg L1ERC721Bridge --out old-contracts/bindings/L1ERC721Bridge.go

@@ -14,7 +14,8 @@ import (
 	"os"
 	"time"
 
-	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/cmd/opbnb-upgrade/old-contracts/bindings"
+	"github.com/ethereum-optimism/optimism/op-chain-ops/opbnb-upgrades"
+	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/opbnb-upgrades/old-contracts/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/safe"
 	"github.com/ethereum-optimism/optimism/op-service/jsonutil"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
@@ -76,18 +77,18 @@ func entrypoint(ctx *cli.Context) error {
 		return err
 	}
 
-	proxyAddresses := BscQAnetProxyContracts
-	implAddresses := BscQAnetImplContracts
-	if l1ChainID.Uint64() == bscTestnet && !ctx.IsSet("qa_net") {
-		proxyAddresses = BscTestnetProxyContracts
-		implAddresses = BscTestnetImplContracts
+	proxyAddresses := opbnb_upgrades.BscQAnetProxyContracts
+	implAddresses := opbnb_upgrades.BscQAnetImplContracts
+	if l1ChainID.Uint64() == opbnb_upgrades.BscTestnet && !ctx.IsSet("qa_net") {
+		proxyAddresses = opbnb_upgrades.BscTestnetProxyContracts
+		implAddresses = opbnb_upgrades.BscTestnetImplContracts
 		fmt.Println("upgrade bscTestnet")
-	} else if l1ChainID.Uint64() == bscMainnet {
-		proxyAddresses = BscMainnetProxyContracts
-		implAddresses = BscMainnetImplContracts
+	} else if l1ChainID.Uint64() == opbnb_upgrades.BscMainnet {
+		proxyAddresses = opbnb_upgrades.BscMainnetProxyContracts
+		implAddresses = opbnb_upgrades.BscMainnetImplContracts
 		fmt.Println("upgrade bscMainnet")
 	} else {
-		fmt.Println("upgrade BscQAnet")
+		fmt.Println("upgrade bscQAnet")
 	}
 
 	if ctx.IsSet("transfer_owner") {
@@ -126,7 +127,7 @@ func entrypoint(ctx *cli.Context) error {
 		fmt.Printf("new proxyAdmin owner is %s\n", owner.String())
 	}
 
-	versions, err := GetProxyContractVersions(ctx.Context, proxyAddresses, client)
+	versions, err := opbnb_upgrades.GetProxyContractVersions(ctx.Context, proxyAddresses, client)
 	log.Info("current contract versions")
 	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", proxyAddresses["L1CrossDomainMessengerProxy"])
 	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", proxyAddresses["L1ERC721BridgeProxy"])
@@ -136,7 +137,7 @@ func entrypoint(ctx *cli.Context) error {
 	log.Info("OptimismPortal", "version", versions.OptimismPortal, "address", proxyAddresses["OptimismPortalProxy"])
 	log.Info("SystemConfig", "version", versions.SystemConfig, "address", proxyAddresses["SystemConfigProxy"])
 
-	versions, err = GetImplContractVersions(ctx.Context, implAddresses, client)
+	versions, err = opbnb_upgrades.GetImplContractVersions(ctx.Context, implAddresses, client)
 	log.Info("Upgrading to the following versions")
 	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", proxyAddresses["L1CrossDomainMessengerProxy"])
 	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", proxyAddresses["L1ERC721BridgeProxy"])
@@ -150,7 +151,7 @@ func entrypoint(ctx *cli.Context) error {
 	batch := safe.Batch{}
 
 	// Build the batch
-	if err := L1(&batch, proxyAddresses, implAddresses, client, l1ChainID); err != nil {
+	if err := opbnb_upgrades.L1(&batch, proxyAddresses, implAddresses, client, l1ChainID); err != nil {
 		return err
 	}
 

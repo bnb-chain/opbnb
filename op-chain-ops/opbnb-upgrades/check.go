@@ -1,9 +1,9 @@
-package main
+package opbnb_upgrades
 
 import (
 	"context"
 	"fmt"
-	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/cmd/opbnb-upgrade/old-contracts/bindings"
+	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/opbnb-upgrades/old-contracts/bindings"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )

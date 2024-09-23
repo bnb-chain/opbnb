@@ -1,10 +1,10 @@
-package main
+package opbnb_upgrades
 
 import "github.com/ethereum/go-ethereum/common"
 
 const (
-	bscTestnet = 97
-	bscMainnet = 56
+	BscTestnet = 97
+	BscMainnet = 56
 )
 
 const (

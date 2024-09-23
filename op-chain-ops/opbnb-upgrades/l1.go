@@ -1,4 +1,4 @@
-package main
+package opbnb_upgrades
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 
-	newBindings "github.com/ethereum-optimism/optimism/op-chain-ops/cmd/opbnb-upgrade/new-contracts/bindings"
-	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/cmd/opbnb-upgrade/old-contracts/bindings"
+	newBindings "github.com/ethereum-optimism/optimism/op-chain-ops/opbnb-upgrades/new-contracts/bindings"
+	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/opbnb-upgrades/old-contracts/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/safe"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/upgrades/bindings"
 )
