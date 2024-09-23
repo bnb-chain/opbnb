@@ -2,13 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mattn/go-isatty"
 	"github.com/urfave/cli/v2"
 	"os"
+	"time"
 
+	oldBindings "github.com/ethereum-optimism/optimism/op-chain-ops/cmd/opbnb-upgrade/old-contracts/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/safe"
 	"github.com/ethereum-optimism/optimism/op-service/jsonutil"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
@@ -32,6 +38,21 @@ func main() {
 				Name:    "outfile",
 				Usage:   "The file to write the output to. If not specified, output is written to stdout",
 				EnvVars: []string{"OUTFILE"},
+			},
+			&cli.PathFlag{
+				Name:    "transfer_owner",
+				Usage:   "Transfer proxyAdmin contract owner to the address",
+				EnvVars: []string{"TRANSFER_OWNER"},
+			},
+			&cli.PathFlag{
+				Name:    "private_key",
+				Usage:   "Owner private key to transfer new owner",
+				EnvVars: []string{"PRIVATE_KEY"},
+			},
+			&cli.PathFlag{
+				Name:    "qa_net",
+				Usage:   "set network is qanet",
+				EnvVars: []string{"QA_NET"},
 			},
 		},
 		Action: entrypoint,
@@ -57,7 +78,7 @@ func entrypoint(ctx *cli.Context) error {
 
 	proxyAddresses := BscQAnetProxyContracts
 	implAddresses := BscQAnetImplContracts
-	if l1ChainID.Uint64() == bscTestnet {
+	if l1ChainID.Uint64() == bscTestnet && !ctx.IsSet("qa_net") {
 		proxyAddresses = BscTestnetProxyContracts
 		implAddresses = BscTestnetImplContracts
 		fmt.Println("upgrade bscTestnet")
@@ -69,7 +90,43 @@ func entrypoint(ctx *cli.Context) error {
 		fmt.Println("upgrade BscQAnet")
 	}
 
-	versions, err := GetContractVersions(ctx.Context, proxyAddresses, client)
+	if ctx.IsSet("transfer_owner") {
+		if !ctx.IsSet("private_key") {
+			return errors.New("must set private key")
+		}
+		proxyAdmin, err := oldBindings.NewProxyAdmin(implAddresses["ProxyAdmin"], client)
+		if err != nil {
+			return err
+		}
+		owner, err := proxyAdmin.Owner(&bind.CallOpts{})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("old proxyAdmin owner is %s\n", owner.String())
+		transferOwner := ctx.String("transfer_owner")
+		privateKeyHex := ctx.String("private_key")
+		privateKey, err := crypto.HexToECDSA(privateKeyHex)
+		if err != nil {
+			return err
+		}
+		txOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, l1ChainID)
+		if err != nil {
+			return err
+		}
+		tx, err := proxyAdmin.TransferOwnership(txOpts, common.HexToAddress(transferOwner))
+		if err != nil {
+			return err
+		}
+		fmt.Printf("TransferOwnership tx hash is %s\n", tx.Hash())
+		time.Sleep(5 * time.Second)
+		owner, err = proxyAdmin.Owner(&bind.CallOpts{})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("new proxyAdmin owner is %s\n", owner.String())
+	}
+
+	versions, err := GetProxyContractVersions(ctx.Context, proxyAddresses, client)
 	log.Info("current contract versions")
 	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", proxyAddresses["L1CrossDomainMessengerProxy"])
 	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", proxyAddresses["L1ERC721BridgeProxy"])
@@ -79,7 +136,7 @@ func entrypoint(ctx *cli.Context) error {
 	log.Info("OptimismPortal", "version", versions.OptimismPortal, "address", proxyAddresses["OptimismPortalProxy"])
 	log.Info("SystemConfig", "version", versions.SystemConfig, "address", proxyAddresses["SystemConfigProxy"])
 
-	versions, err = GetContractVersions(ctx.Context, implAddresses, client)
+	versions, err = GetImplContractVersions(ctx.Context, implAddresses, client)
 	log.Info("Upgrading to the following versions")
 	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", proxyAddresses["L1CrossDomainMessengerProxy"])
 	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", proxyAddresses["L1ERC721BridgeProxy"])

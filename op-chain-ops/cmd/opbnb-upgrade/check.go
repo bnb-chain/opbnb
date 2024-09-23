@@ -22,8 +22,8 @@ type ContractVersions struct {
 	SuperchainConfig string `yaml:"superchain_config,omitempty"`
 }
 
-// getContractVersions will fetch the versions of all of the contracts.
-func GetContractVersions(ctx context.Context, addresses map[string]common.Address, backend bind.ContractBackend) (ContractVersions, error) {
+// GetProxyContractVersions will fetch the versions of all of the contracts.
+func GetProxyContractVersions(ctx context.Context, addresses map[string]common.Address, backend bind.ContractBackend) (ContractVersions, error) {
 	var versions ContractVersions
 	var err error
 
@@ -52,6 +52,42 @@ func GetContractVersions(ctx context.Context, addresses map[string]common.Addres
 		return versions, fmt.Errorf("OptimismPortal: %w", err)
 	}
 	versions.SystemConfig, err = getVersion(ctx, addresses["SystemConfigProxy"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("SystemConfig: %w", err)
+	}
+	return versions, err
+}
+
+// GetImplContractVersions will fetch the versions of all of the contracts.
+func GetImplContractVersions(ctx context.Context, addresses map[string]common.Address, backend bind.ContractBackend) (ContractVersions, error) {
+	var versions ContractVersions
+	var err error
+
+	versions.L1CrossDomainMessenger, err = getVersion(ctx, addresses["L1CrossDomainMessenger"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("L1CrossDomainMessenger: %w", err)
+	}
+	versions.L1ERC721Bridge, err = getVersion(ctx, addresses["L1ERC721Bridge"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("L1ERC721Bridge: %w", err)
+	}
+	versions.L1StandardBridge, err = getVersion(ctx, addresses["L1StandardBridge"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("L1StandardBridge: %w", err)
+	}
+	versions.L2OutputOracle, err = getVersion(ctx, addresses["L2OutputOracle"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("L2OutputOracle: %w", err)
+	}
+	versions.OptimismMintableERC20Factory, err = getVersion(ctx, addresses["OptimismMintableERC20Factory"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("OptimismMintableERC20Factory: %w", err)
+	}
+	versions.OptimismPortal, err = getVersion(ctx, addresses["OptimismPortal"], backend)
+	if err != nil {
+		return versions, fmt.Errorf("OptimismPortal: %w", err)
+	}
+	versions.SystemConfig, err = getVersion(ctx, addresses["SystemConfig"], backend)
 	if err != nil {
 		return versions, fmt.Errorf("SystemConfig: %w", err)
 	}

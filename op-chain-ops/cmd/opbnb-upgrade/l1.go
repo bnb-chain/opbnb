@@ -591,14 +591,13 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 		}
 
 		// set startBlock genesis block l1 origin
-		var startBlock common.Hash
-		if chainId.Uint64() == bscTestnet {
-			startBlock = common.BigToHash(new(big.Int).SetUint64(bscTestnetStartBlock))
-		} else if chainId.Uint64() == bscMainnet {
-			startBlock = common.BigToHash(new(big.Int).SetUint64(bscMainnetStartBlock))
-		} else {
-			startBlock = common.BigToHash(new(big.Int).SetUint64(bscQAnetStartBlock))
-		}
+		startBlock := common.BigToHash(new(big.Int).SetUint64(bscQAnetStartBlock))
+		// TODO qanet also using bscTestnet but this value is not important for test
+		//if chainId.Uint64() == bscTestnet {
+		//	startBlock = common.BigToHash(new(big.Int).SetUint64(bscTestnetStartBlock))
+		//} else if chainId.Uint64() == bscMainnet {
+		//	startBlock = common.BigToHash(new(big.Int).SetUint64(bscMainnetStartBlock))
+		//}
 
 		input := []bindings.StorageSetterSlot{
 			// https://github.com/ethereum-optimism/optimism/blob/86a96023ffd04d119296dff095d02fff79fa15de/packages/contracts-bedrock/.storage-layout#L82-L83
@@ -673,14 +672,13 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 	}
 
 	// set startBlock genesis block l1 origin
-	var batchInboxAddr common.Address
-	if chainId.Uint64() == bscTestnet {
-		batchInboxAddr = bscTestnetBatcherInbox
-	} else if chainId.Uint64() == bscMainnet {
-		batchInboxAddr = bscMainnetBatcherInbox
-	} else {
-		batchInboxAddr = bscQAnetBatcherInbox
-	}
+	batchInboxAddr := bscQAnetBatcherInbox
+	// TODO qanet also using bscTestnet need to modify
+	//if chainId.Uint64() == bscTestnet {
+	//	batchInboxAddr = bscTestnetBatcherInbox
+	//} else if chainId.Uint64() == bscMainnet {
+	//	batchInboxAddr = bscMainnetBatcherInbox
+	//}
 
 	// we not set _basefeeScalar, _blobbasefeeScalar and old contract don't have the vars
 	var _basefeeScalar uint32
