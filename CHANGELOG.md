@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.1
+
+This is a minor release and upgrading is optional.
+
+### What's Changed
+* fix(ci): support building arm64 architecture by @welkin22 in https://github.com/bnb-chain/opbnb/pull/239
+* fix(op-node): l1 client chan stuck when closed in ELSync mode by @welkin22 in https://github.com/bnb-chain/opbnb/pull/241
+* fix: add sync status when newpayload API meet the specific error by @krish-nr in https://github.com/bnb-chain/opbnb/pull/240
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.1
+- ghcr.io/bnb-chain/op-batcher:v0.5.1
+- ghcr.io/bnb-chain/op-proposer:v0.5.1
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.0...v0.5.1
+
 ## v0.5.0
 
 This release includes code merging from the upstream version v1.7.7 along with several fixs and improvements.
