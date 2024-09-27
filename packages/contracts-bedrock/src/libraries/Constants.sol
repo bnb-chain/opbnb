@@ -41,8 +41,7 @@ library Constants {
 
     address internal constant BSCMAINNET_PROXY_ADMIN = 0x27a591Ec09AAfEEb39d7533AEf7C64E0305D1576;
 
-    // TODO update for test
-    address internal constant BSCQANET_PROXY_ADMIN = 0xea9d156a3F51dC608cb46934C290fD254fac2DeF;
+    address internal constant BSCQANET_PROXY_ADMIN = 0xD7A103C65D65F0CEecFc4Abd2E534e0665938531;
 
 
     /// @notice Returns the default values for the ResourceConfig. These are the recommended values

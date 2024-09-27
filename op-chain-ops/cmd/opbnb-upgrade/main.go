@@ -40,20 +40,45 @@ func main() {
 				Usage:   "The file to write the output to. If not specified, output is written to stdout",
 				EnvVars: []string{"OUTFILE"},
 			},
-			&cli.PathFlag{
+			&cli.StringFlag{
 				Name:    "transfer_owner",
 				Usage:   "Transfer proxyAdmin contract owner to the address",
 				EnvVars: []string{"TRANSFER_OWNER"},
 			},
-			&cli.PathFlag{
+			&cli.StringFlag{
 				Name:    "private_key",
 				Usage:   "Owner private key to transfer new owner",
 				EnvVars: []string{"PRIVATE_KEY"},
 			},
-			&cli.PathFlag{
+			&cli.BoolFlag{
 				Name:    "qa_net",
 				Usage:   "set network is qanet",
 				EnvVars: []string{"QA_NET"},
+			},
+			&cli.BoolFlag{
+				Name:    "old_contracts_check",
+				Usage:   "check old contracts and output info",
+				EnvVars: []string{"OLD_CONTRACTS_CHECK"},
+			},
+			&cli.BoolFlag{
+				Name:    "new_contracts_check",
+				Usage:   "check new contracts and output info",
+				EnvVars: []string{"NEW_CONTRACTS_CHECK"},
+			},
+			&cli.BoolFlag{
+				Name:    "compare_contracts",
+				Usage:   "compare old contracts and new contracts",
+				EnvVars: []string{"COMPARE_CONTRACTS"},
+			},
+			&cli.PathFlag{
+				Name:    "old_contracts_file",
+				Usage:   "The old contracts file ",
+				EnvVars: []string{"OLD_CONTRACTS_FILE"},
+			},
+			&cli.PathFlag{
+				Name:    "new_contracts_file",
+				Usage:   "The new contracts file ",
+				EnvVars: []string{"NEW_CONTRACTS_FILE"},
 			},
 		},
 		Action: entrypoint,
@@ -79,16 +104,16 @@ func entrypoint(ctx *cli.Context) error {
 
 	proxyAddresses := opbnb_upgrades.BscQAnetProxyContracts
 	implAddresses := opbnb_upgrades.BscQAnetImplContracts
-	if l1ChainID.Uint64() == opbnb_upgrades.BscTestnet && !ctx.IsSet("qa_net") {
+	if l1ChainID.Uint64() == opbnb_upgrades.BscTestnet && !ctx.Bool("qa_net") {
 		proxyAddresses = opbnb_upgrades.BscTestnetProxyContracts
 		implAddresses = opbnb_upgrades.BscTestnetImplContracts
-		fmt.Println("upgrade bscTestnet")
+		fmt.Println("using bscTestnet")
 	} else if l1ChainID.Uint64() == opbnb_upgrades.BscMainnet {
 		proxyAddresses = opbnb_upgrades.BscMainnetProxyContracts
 		implAddresses = opbnb_upgrades.BscMainnetImplContracts
-		fmt.Println("upgrade bscMainnet")
+		fmt.Println("using bscMainnet")
 	} else {
-		fmt.Println("upgrade bscQAnet")
+		fmt.Println("using bscQAnet")
 	}
 
 	if ctx.IsSet("transfer_owner") {
@@ -119,12 +144,73 @@ func entrypoint(ctx *cli.Context) error {
 			return err
 		}
 		fmt.Printf("TransferOwnership tx hash is %s\n", tx.Hash())
-		time.Sleep(5 * time.Second)
+		_, err = client.TransactionReceipt(ctx.Context, tx.Hash())
+		for err != nil {
+			fmt.Println("wait tx confirmed...")
+			time.Sleep(5 * time.Second)
+			_, err = client.TransactionReceipt(ctx.Context, tx.Hash())
+		}
 		owner, err = proxyAdmin.Owner(&bind.CallOpts{})
 		if err != nil {
 			return err
 		}
 		fmt.Printf("new proxyAdmin owner is %s\n", owner.String())
+		return nil
+	}
+
+	if ctx.Bool("old_contracts_check") {
+		data, err := opbnb_upgrades.CheckOldContracts(proxyAddresses, client)
+		if err != nil {
+			return err
+		}
+		if outfile := ctx.Path("outfile"); outfile != "" {
+			if err := jsonutil.WriteJSON(outfile, data, 0o666); err != nil {
+				return err
+			}
+		} else {
+			data, err := json.MarshalIndent(data, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(data))
+		}
+		return nil
+	}
+
+	if ctx.Bool("new_contracts_check") {
+		data, err := opbnb_upgrades.CheckNewContracts(proxyAddresses, client)
+		if err != nil {
+			return err
+		}
+		if outfile := ctx.Path("outfile"); outfile != "" {
+			if err := jsonutil.WriteJSON(outfile, data, 0o666); err != nil {
+				return err
+			}
+		} else {
+			data, err := json.MarshalIndent(data, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(data))
+		}
+		return nil
+	}
+
+	if ctx.Bool("compare_contracts") {
+		oldContractsFile := ctx.Path("old_contracts_file")
+		if oldContractsFile == "" {
+			return errors.New("must set old_contracts_file")
+		}
+		newContractsFile := ctx.Path("new_contracts_file")
+		if newContractsFile == "" {
+			return errors.New("must set new_contracts_file")
+		}
+		err := opbnb_upgrades.CompareContracts(oldContractsFile, newContractsFile)
+		if err != nil {
+			return err
+		}
+		fmt.Println("compare contracts successfully")
+		return nil
 	}
 
 	versions, err := opbnb_upgrades.GetProxyContractVersions(ctx.Context, proxyAddresses, client)

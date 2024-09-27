@@ -168,12 +168,11 @@ contract Deploy is Deployer {
     function deployERC1967Proxy(string memory _name) public returns (address addr_) {
         uint256 chainid = block.chainid;
         address proxyAdmin = Constants.BSCQANET_PROXY_ADMIN;
-        // TODO update for pro env, because qanet using bsc testnet too
-//        if (chainid == Chains.BscTestnet) {
-//            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
-//        } else if (chainid == Chains.BscMainnet) {
-//            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
-//        }
+        if (chainid == Chains.BscTestnet) {
+            proxyAdmin = Constants.BSCTESTNET_PROXY_ADMIN;
+        } else if (chainid == Chains.BscMainnet) {
+            proxyAdmin = Constants.BSCMAINNET_PROXY_ADMIN;
+        }
         console.log("superChainConfig proxyAdmin at %s", address(proxyAdmin));
         addr_ = deployERC1967ProxyWithOwner(_name, proxyAdmin);
     }

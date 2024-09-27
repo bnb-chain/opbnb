@@ -10,15 +10,19 @@ const (
 const (
 	bscTestnetStartBlock = 30727847
 	bscMainnetStartBlock = 30758357
-	// TODO update for qa test
-	bscQAnetStartBlock = 0
+	bscQAnetStartBlock   = 44147099
+)
+
+const (
+	// all networks are the same
+	BasefeeScalar    uint32 = 68000
+	Blobbasefeescala uint32 = 655000
 )
 
 var (
 	bscTestnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000005611")
 	bscMainnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000000204")
-	// TODO update for qa test
-	bscQAnetBatcherInbox = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	bscQAnetBatcherInbox   = common.HexToAddress("0xff00000000000000000000000000000000008848")
 )
 
 var BscTestnetProxyContracts = map[string]common.Address{
@@ -32,6 +36,19 @@ var BscTestnetProxyContracts = map[string]common.Address{
 	"SystemConfigProxy":                 common.HexToAddress("0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B"),
 }
 
+var BscTestnetImplContracts = map[string]common.Address{
+	"SuperChainConfig":             common.HexToAddress(""),
+	"L1CrossDomainMessenger":       common.HexToAddress(""),
+	"L1ERC721Bridge":               common.HexToAddress(""),
+	"L1StandardBridge":             common.HexToAddress(""),
+	"L2OutputOracle":               common.HexToAddress(""),
+	"OptimismMintableERC20Factory": common.HexToAddress(""),
+	"OptimismPortal":               common.HexToAddress(""),
+	"SystemConfig":                 common.HexToAddress(""),
+	"ProxyAdmin":                   common.HexToAddress(""),
+	"StorageSetter":                common.HexToAddress(""),
+}
+
 var BscMainnetProxyContracts = map[string]common.Address{
 	"SuperChainConfigProxy":             common.HexToAddress("0x0000000000000000000000000000000000000000"),
 	"L1CrossDomainMessengerProxy":       common.HexToAddress("0xd95D508f13f7029CCF0fb61984d5dfD11b879c4f"),
@@ -41,30 +58,6 @@ var BscMainnetProxyContracts = map[string]common.Address{
 	"OptimismMintableERC20FactoryProxy": common.HexToAddress("0xAa53ddCDC64A53F65A5f570cc13eB13529d780f1"),
 	"OptimismPortalProxy":               common.HexToAddress("0x1876EA7702C0ad0C6A2ae6036DE7733edfBca519"),
 	"SystemConfigProxy":                 common.HexToAddress("0x7AC836148C14c74086D57F7828F2D065672Db3B8"),
-}
-
-var BscQAnetProxyContracts = map[string]common.Address{
-	"SuperChainConfigProxy":             common.HexToAddress("0xcd5eA393ED6b7636837B7966c43084e59B4979A0"),
-	"L1CrossDomainMessengerProxy":       common.HexToAddress("0xa606600E682e11233eC2aba2a05C0f317A963b58"),
-	"L1ERC721BridgeProxy":               common.HexToAddress("0xE5367760eBC15d9B233600Ee267088b8311801ef"),
-	"L1StandardBridgeProxy":             common.HexToAddress("0x3B64E6f473fc9c0B0e2095276d66160e4A52bd2A"),
-	"L2OutputOracleProxy":               common.HexToAddress("0xab229f64359CB33A0c9f0FF82A8b3Ba4f816E1D5"),
-	"OptimismMintableERC20FactoryProxy": common.HexToAddress("0xCDE19a8d97d3450e813fa0ad0286Ee53D5B1d2EF"),
-	"OptimismPortalProxy":               common.HexToAddress("0xB0F2324bA4BF690dA650aECB088DC20826254a79"),
-	"SystemConfigProxy":                 common.HexToAddress("0x58187c488e9708183e08da9d7cBA3A4B45F9Ea76"),
-}
-
-var BscTestnetImplContracts = map[string]common.Address{
-	"SuperChainConfig":             common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"L1CrossDomainMessenger":       common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"L1ERC721Bridge":               common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"L1StandardBridge":             common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"L2OutputOracle":               common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"OptimismMintableERC20Factory": common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"OptimismPortal":               common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"SystemConfig":                 common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"ProxyAdmin":                   common.HexToAddress("0x0000000000000000000000000000000000000000"),
-	"StorageSetter":                common.HexToAddress("0x0000000000000000000000000000000000000000"),
 }
 
 var BscMainnetImplContracts = map[string]common.Address{
@@ -80,15 +73,26 @@ var BscMainnetImplContracts = map[string]common.Address{
 	"StorageSetter":                common.HexToAddress(""),
 }
 
+var BscQAnetProxyContracts = map[string]common.Address{
+	"SuperChainConfigProxy":             common.HexToAddress("0x83Fa2e9cA2DF536fF3cdC80c33e33a625cE75C0f"),
+	"L1CrossDomainMessengerProxy":       common.HexToAddress("0x192EB5D7C741A8Ab047Ee16065672E13b75fD778"),
+	"L1ERC721BridgeProxy":               common.HexToAddress("0xc45a6EeAa0ed6D07B000A60ea8Ef720247aa79DC"),
+	"L1StandardBridgeProxy":             common.HexToAddress("0x8614FBaE2c54a8149F3DEDEe89b5Cf6e848f4d9E"),
+	"L2OutputOracleProxy":               common.HexToAddress("0x9906a258D0adb25de3a73d57f27Bff73Eb1078b8"),
+	"OptimismMintableERC20FactoryProxy": common.HexToAddress("0xe5e4733d55305D7266148781C7534AC02C6F2861"),
+	"OptimismPortalProxy":               common.HexToAddress("0xDe279cb3237b7b322449E5cbc141BaE0EB450137"),
+	"SystemConfigProxy":                 common.HexToAddress("0x38e24297458C0B6Aa4a44497086cbE7839dafb70"),
+}
+
 var BscQAnetImplContracts = map[string]common.Address{
-	"SuperChainConfig":             common.HexToAddress("0xc671C6c27A0138058E012317EBb1913e04eb5253"),
-	"L1CrossDomainMessenger":       common.HexToAddress("0xEeD7BE74B1BFe8af300A303a75b9dCF71c75ada9"),
-	"L1ERC721Bridge":               common.HexToAddress("0x2433c43608708A5b8Ca4D0f501F9D9166DCBb859"),
-	"L1StandardBridge":             common.HexToAddress("0xC8b4bffaEFF2035AC9ad8DFc24D05f3148eF22A4"),
-	"L2OutputOracle":               common.HexToAddress("0x539471d9F5AEB63fD144DEb33de81b6Ca90f219C"),
-	"OptimismMintableERC20Factory": common.HexToAddress("0xD32CC03a5C7e2A7118aB311ABf0cc68aEB552833"),
-	"OptimismPortal":               common.HexToAddress("0x84687764cfCc61D233F6e0247d3Ae36B3A537da6"),
-	"SystemConfig":                 common.HexToAddress("0xCD747f007eF3B8E70642137B7DB9aeaa5089E1A0"),
-	"ProxyAdmin":                   common.HexToAddress("0xea9d156a3F51dC608cb46934C290fD254fac2DeF"),
-	"StorageSetter":                common.HexToAddress("0xD0554D38Fff88762Ee2425B180Cdf8efF996e357"),
+	"SuperChainConfig":             common.HexToAddress("0x96eE40cEe4Db1A59AF5Fb62AA8110eE3909B3A24"),
+	"L1CrossDomainMessenger":       common.HexToAddress("0xb811d5c3169df318cd7aaE4f518AF2B0591Be82b"),
+	"L1ERC721Bridge":               common.HexToAddress("0x9b46a0729Db9D7db74a0a6447E56cd8eFBdbb7b2"),
+	"L1StandardBridge":             common.HexToAddress("0xAd65f684432aA24166145b55492630797306888d"),
+	"L2OutputOracle":               common.HexToAddress("0x96B8e03E9BE5eB60507e16b59B1A1Ea3c8199ba9"),
+	"OptimismMintableERC20Factory": common.HexToAddress("0xcda36E872a271416cEaA62db667ef4334Db2C46c"),
+	"OptimismPortal":               common.HexToAddress("0x9Afdf32859305A203d201e450b1860e92aeC15F3"),
+	"SystemConfig":                 common.HexToAddress("0x448beed7e0a1D7ec5671A96Cb5703a4EE1282908"),
+	"ProxyAdmin":                   common.HexToAddress("0x28Fa925aD1CC9C8F0c4daF601BfaB0b36e576a71"),
+	"StorageSetter":                common.HexToAddress("0x954E3c51483BAb314e23F740bd9Ff9A4cDEA74dd"),
 }

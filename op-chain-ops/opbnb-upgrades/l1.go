@@ -407,7 +407,6 @@ func L2OutputOracle(batch *safe.Batch, proxyAddresses map[string]common.Address,
 	if err != nil {
 		return err
 	}
-
 	calldata, err := l2OutputOracleABI.Pack(
 		"initialize",
 		l2OutputOracleSubmissionInterval,
@@ -592,12 +591,11 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 
 		// set startBlock genesis block l1 origin
 		startBlock := common.BigToHash(new(big.Int).SetUint64(bscQAnetStartBlock))
-		// TODO qanet also using bscTestnet but this value is not important for test
-		//if chainId.Uint64() == bscTestnet {
-		//	startBlock = common.BigToHash(new(big.Int).SetUint64(bscTestnetStartBlock))
-		//} else if chainId.Uint64() == bscMainnet {
-		//	startBlock = common.BigToHash(new(big.Int).SetUint64(bscMainnetStartBlock))
-		//}
+		if chainId.Uint64() == BscTestnet {
+			startBlock = common.BigToHash(new(big.Int).SetUint64(bscTestnetStartBlock))
+		} else if chainId.Uint64() == BscMainnet {
+			startBlock = common.BigToHash(new(big.Int).SetUint64(bscMainnetStartBlock))
+		}
 
 		input := []bindings.StorageSetterSlot{
 			// https://github.com/ethereum-optimism/optimism/blob/86a96023ffd04d119296dff095d02fff79fa15de/packages/contracts-bedrock/.storage-layout#L82-L83
@@ -636,16 +634,6 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 		return err
 	}
 
-	//gasPriceOracleOverhead, err := systemConfig.Overhead(&bind.CallOpts{})
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//gasPriceOracleScalar, err := systemConfig.Scalar(&bind.CallOpts{})
-	//if err != nil {
-	//	return err
-	//}
-
 	batcherHash, err := systemConfig.BatcherHash(&bind.CallOpts{})
 	if err != nil {
 		return err
@@ -673,16 +661,13 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 
 	// set startBlock genesis block l1 origin
 	batchInboxAddr := bscQAnetBatcherInbox
-	// TODO qanet also using bscTestnet need to modify
-	//if chainId.Uint64() == bscTestnet {
-	//	batchInboxAddr = bscTestnetBatcherInbox
-	//} else if chainId.Uint64() == bscMainnet {
-	//	batchInboxAddr = bscMainnetBatcherInbox
-	//}
-
-	// we not set _basefeeScalar, _blobbasefeeScalar and old contract don't have the vars
-	var _basefeeScalar uint32
-	var _blobbasefeeScalar uint32
+	if chainId.Uint64() == BscTestnet {
+		batchInboxAddr = bscTestnetBatcherInbox
+	} else if chainId.Uint64() == BscMainnet {
+		batchInboxAddr = bscMainnetBatcherInbox
+	}
+	_basefeeScalar := BasefeeScalar
+	_blobbasefeeScalar := Blobbasefeescala
 	calldata, err := systemConfigABI.Pack(
 		"initialize",
 		finalSystemOwner,
