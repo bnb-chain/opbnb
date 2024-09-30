@@ -139,7 +139,7 @@ func (s *EngineAPIClient) NewPayload(ctx context.Context, payload *eth.Execution
 	e.Trace("Received payload execution result", "status", result.Status, "latestValidHash", result.LatestValidHash, "message", result.ValidationError)
 	if err != nil {
 		if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
-			result.Status = eth.ExecutionSyncing
+			result.Status = eth.ExecutionSyncing // why?
 			return &result, err
 		}
 		e.Error("Payload execution failed", "err", err)
@@ -164,6 +164,37 @@ func (s *EngineAPIClient) GetPayload(ctx context.Context, payloadInfo eth.Payloa
 			code := eth.ErrorCode(rpcErr.ErrorCode())
 			switch code {
 			case eth.UnknownPayload:
+				return nil, eth.InputError{
+					Inner: err,
+					Code:  code,
+				}
+			default:
+				return nil, fmt.Errorf("unrecognized rpc error: %w", err)
+			}
+		}
+		return nil, err
+	}
+	e.Trace("Received payload")
+	return &result, nil
+}
+
+func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState) (*eth.SealPayloadResponse, error) {
+	e := s.log.New("payload_id", payloadInfo.ID)
+	e.Trace("sealing payload")
+	var result eth.SealPayloadResponse
+	method := "engine_opSealPayload"
+	err := s.RPC.CallContext(ctx, &result, string(method), payloadInfo.ID, fc)
+	if err != nil {
+		e.Warn("Failed to seal payload", "payload_id", payloadInfo.ID, "err", err)
+		if rpcErr, ok := err.(rpc.Error); ok {
+			code := eth.ErrorCode(rpcErr.ErrorCode())
+			switch code {
+			case eth.UnknownPayload:
+				return nil, eth.InputError{
+					Inner: err,
+					Code:  code,
+				}
+			case eth.InvalidForkchoiceState, eth.InvalidPayloadAttributes:
 				return nil, eth.InputError{
 					Inner: err,
 					Code:  code,

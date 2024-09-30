@@ -251,6 +251,12 @@ var (
 		EnvVars:  prefixEnvVars("SEQUENCER_PRIORITY"),
 		Category: SequencerCategory,
 	}
+	SequencerCombinedEngineFlag = &cli.BoolFlag{
+		Name:     "sequencer.combined-engine",
+		Usage:    "Enable sequencer select combined engine api when sealing payload.",
+		EnvVars:  prefixEnvVars("SEQUENCER_COMBINED_ENGINE"),
+		Category: SequencerCategory,
+	}
 	SequencerL1Confs = &cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
 		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
@@ -437,6 +443,7 @@ var optionalFlags = []cli.Flag{
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
 	SequencerPriorityFlag,
+	SequencerCombinedEngineFlag,
 	SequencerL1Confs,
 	L1EpochPollIntervalFlag,
 	RuntimeConfigReloadIntervalFlag,

@@ -367,6 +367,12 @@ type ForkchoiceUpdatedResult struct {
 	PayloadID *PayloadID `json:"payloadId"`
 }
 
+type SealPayloadResponse struct {
+	Stage         string                    `json:"stage"`
+	PayloadStatus PayloadStatusV1           `json:"payloadStatus"`
+	Payload       *ExecutionPayloadEnvelope `json:"payload"`
+}
+
 // SystemConfig represents the rollup system configuration that carries over in every L2 block,
 // and may be changed through L1 system config events.
 // The initial SystemConfig at rollup genesis is embedded in the rollup configuration.
