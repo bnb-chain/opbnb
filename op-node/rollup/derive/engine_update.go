@@ -208,3 +208,58 @@ func confirmPayload(
 		"txs", len(payload.Transactions), "update_safe", updateSafe)
 	return envelope, BlockInsertOK, nil
 }
+
+func confirmPayloadCombined(
+	ctx context.Context,
+	log log.Logger,
+	eng ExecEngine,
+	fc eth.ForkchoiceState,
+	payloadInfo eth.PayloadInfo,
+	updateSafe bool,
+	agossip async.AsyncGossiper,
+	sequencerConductor conductor.SequencerConductor,
+	metrics Metrics,
+) (out *eth.ExecutionPayloadEnvelope, errTyp BlockInsertionErrType, err error) {
+	start := time.Now()
+	sealRes, err := eng.SealPayload(ctx, payloadInfo, &fc)
+
+	if err != nil {
+		var inputErr eth.InputError
+		if errors.As(err, &inputErr) {
+			switch inputErr.Code {
+			case eth.InvalidForkchoiceState:
+				return nil, BlockInsertPayloadErr, fmt.Errorf("post-block-creation forkchoice update was inconsistent with engine, need reset to resolve: %w", inputErr.Unwrap())
+			default:
+				return nil, BlockInsertPrestateErr, fmt.Errorf("unexpected error code in forkchoice-updated response: %w", err)
+			}
+		} else {
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to make the new L2 block canonical via forkchoice: %w", err)
+		}
+	}
+
+	if sealRes.PayloadStatus.Status != eth.ExecutionValid {
+		switch sealRes.Stage {
+		case "newPayload":
+			if sealRes.PayloadStatus.Status == eth.ExecutionInvalid || sealRes.PayloadStatus.Status == eth.ExecutionInvalidBlockHash {
+				return nil, BlockInsertPayloadErr, fmt.Errorf("new payload BlockInsertPayloadErr %v", sealRes.PayloadStatus.ValidationError)
+			}
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("new payload BlockInsertTemporaryErr %v", sealRes.PayloadStatus.ValidationError)
+		case "forkchoiceUpdate":
+			return nil, BlockInsertPayloadErr, fmt.Errorf("forkchoiceUpdate BlockInsertPayloadErr %v", sealRes.PayloadStatus.ValidationError)
+		}
+	}
+
+	if err := sequencerConductor.CommitUnsafePayload(ctx, sealRes.Payload); err != nil {
+		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to commit unsafe payload to conductor: %w", err)
+	}
+	agossip.Gossip(sealRes.Payload)
+	agossip.Clear()
+
+	payload := sealRes.Payload.ExecutionPayload
+	metrics.RecordSequencerStepTime("sealPayload", time.Since(start))
+	log.Info("inserted block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber),
+		"state_root", payload.StateRoot, "timestamp", uint64(payload.Timestamp), "parent", payload.ParentHash,
+		"prev_randao", payload.PrevRandao, "fee_recipient", payload.FeeRecipient,
+		"txs", len(payload.Transactions), "update_safe", updateSafe)
+	return sealRes.Payload, BlockInsertOK, nil
+}

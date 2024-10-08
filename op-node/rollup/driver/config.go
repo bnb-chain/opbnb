@@ -23,4 +23,6 @@ type Config struct {
 
 	// SequencerPriority is true when sequencer step takes precedence over other steps.
 	SequencerPriority bool `json:"sequencer_priority"`
+
+	SequencerCombinedEngine bool `json:"sequencer_combined_engine"`
 }

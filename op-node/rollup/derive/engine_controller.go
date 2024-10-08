@@ -50,6 +50,7 @@ type ExecEngine interface {
 	GetPayload(ctx context.Context, payloadInfo eth.PayloadInfo) (*eth.ExecutionPayloadEnvelope, error)
 	ForkchoiceUpdate(ctx context.Context, state *eth.ForkchoiceState, attr *eth.PayloadAttributes) (*eth.ForkchoiceUpdatedResult, error)
 	NewPayload(ctx context.Context, payload *eth.ExecutionPayload, parentBeaconBlockRoot *common.Hash) (*eth.PayloadStatusV1, error)
+	SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState) (*eth.SealPayloadResponse, error)
 	L2BlockRefByLabel(ctx context.Context, label eth.BlockLabel) (eth.L2BlockRef, error)
 }
 
@@ -84,9 +85,11 @@ type EngineController struct {
 	buildingInfo eth.PayloadInfo
 	buildingSafe bool
 	safeAttrs    *AttributesWithParent
+
+	combinedAPI bool
 }
 
-func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncConfig *sync.Config) *EngineController {
+func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rollupCfg *rollup.Config, syncConfig *sync.Config, combinedAPI bool) *EngineController {
 	syncStatus := syncStatusCL
 	if syncConfig.SyncMode == sync.ELSync {
 		syncStatus = syncStatusWillStartEL
@@ -102,6 +105,7 @@ func NewEngineController(engine ExecEngine, log log.Logger, metrics Metrics, rol
 		elTriggerGap: syncConfig.ELTriggerGap,
 		syncStatus:   syncStatus,
 		clock:        clock.SystemClock,
+		combinedAPI:  combinedAPI,
 	}
 }
 
@@ -267,7 +271,13 @@ func (e *EngineController) ConfirmPayload(ctx context.Context, agossip async.Asy
 	}
 	// Update the safe head if the payload is built with the last attributes in the batch.
 	updateSafe := e.buildingSafe && e.safeAttrs != nil && e.safeAttrs.IsLastInSpan
-	envelope, errTyp, err := confirmPayload(ctx, e.log, e.engine, fc, e.buildingInfo, updateSafe, agossip, sequencerConductor, e.metrics)
+
+	var envelope *eth.ExecutionPayloadEnvelope
+	if e.combinedAPI {
+		envelope, errTyp, err = confirmPayloadCombined(ctx, e.log, e.engine, fc, e.buildingInfo, updateSafe, agossip, sequencerConductor, e.metrics)
+	} else {
+		envelope, errTyp, err = confirmPayload(ctx, e.log, e.engine, fc, e.buildingInfo, updateSafe, agossip, sequencerConductor, e.metrics)
+	}
 	if err != nil {
 		return nil, errTyp, fmt.Errorf("failed to complete building on top of L2 chain %s, id: %s, error (%d): %w", e.buildingOnto, e.buildingInfo.ID, errTyp, err)
 	}
