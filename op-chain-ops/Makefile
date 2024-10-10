@@ -15,6 +15,9 @@ receipt-reference-builder:
 op-upgrade:
 	go build -o ./bin/op-upgrade ./cmd/op-upgrade/main.go
 
+opbnb-upgrade:
+	go build -o ./bin/opbnb-upgrade ./cmd/opbnb-upgrade/main.go
+
 test:
 	go test ./...
 

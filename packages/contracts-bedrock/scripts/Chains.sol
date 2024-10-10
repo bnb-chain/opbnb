@@ -14,4 +14,8 @@ library Chains {
     uint256 internal constant GethDevnet = 1337;
     uint256 internal constant Hardhat = 31337;
     uint256 internal constant BscDevnet = 714;
+    uint256 internal constant BscTestnet = 97;
+    uint256 internal constant BscMainnet = 56;
+    // TODO update for test
+    uint256 internal constant BscQAnet = 1;
 }
