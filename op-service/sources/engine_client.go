@@ -178,12 +178,14 @@ func (s *EngineAPIClient) GetPayload(ctx context.Context, payloadInfo eth.Payloa
 	return &result, nil
 }
 
-func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState) (*eth.SealPayloadResponse, error) {
+func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool) (*eth.SealPayloadResponse, error) {
 	e := s.log.New("payload_id", payloadInfo.ID)
 	e.Trace("sealing payload")
 	var result eth.SealPayloadResponse
 	method := "engine_opSealPayload"
-	err := s.RPC.CallContext(ctx, &result, string(method), payloadInfo.ID, fc)
+	start := time.Now()
+	err := s.RPC.CallContext(ctx, &result, string(method), payloadInfo.ID, fc, needPayload)
+	e.Info("perf-trace eng.SealPayload", "duration", time.Since(start), "payload", payloadInfo.ID)
 	if err != nil {
 		e.Warn("Failed to seal payload", "payload_id", payloadInfo.ID, "err", err)
 		if rpcErr, ok := err.(rpc.Error); ok {

@@ -221,8 +221,30 @@ func confirmPayloadCombined(
 	metrics Metrics,
 ) (out *eth.ExecutionPayloadEnvelope, errTyp BlockInsertionErrType, err error) {
 	start := time.Now()
-	sealRes, err := eng.SealPayload(ctx, payloadInfo, &fc)
 
+	type SealPayloadRet struct {
+		res *eth.SealPayloadResponse
+		err error
+	}
+	sealPayloadRetCh := make(chan SealPayloadRet)
+	go func() {
+		res, err := eng.SealPayload(ctx, payloadInfo, &fc, false)
+		sealPayloadRetCh <- SealPayloadRet{res, err}
+	}()
+
+	type GetPayloadRet struct {
+		res *eth.ExecutionPayloadEnvelope
+		err error
+	}
+	getPayloadRetCh := make(chan GetPayloadRet)
+	go func() {
+		res, err := eng.GetPayload(ctx, payloadInfo)
+		getPayloadRetCh <- GetPayloadRet{res, err}
+	}()
+
+	sealPayloadRet := <-sealPayloadRetCh
+	sealRes := sealPayloadRet.res
+	err = sealPayloadRet.err
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {
@@ -249,17 +271,26 @@ func confirmPayloadCombined(
 		}
 	}
 
-	if err := sequencerConductor.CommitUnsafePayload(ctx, sealRes.Payload); err != nil {
+	getPayloadRet := <-getPayloadRetCh
+	envelope := getPayloadRet.res
+	err = getPayloadRet.err
+	if err != nil {
+		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get sealed payload: %w", err)
+	}
+	payload := envelope.ExecutionPayload
+	if err := sanityCheckPayload(payload); err != nil {
+		return nil, BlockInsertPayloadErr, err
+	}
+	if err := sequencerConductor.CommitUnsafePayload(ctx, envelope); err != nil {
 		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to commit unsafe payload to conductor: %w", err)
 	}
-	agossip.Gossip(sealRes.Payload)
+	agossip.Gossip(envelope)
 	agossip.Clear()
 
-	payload := sealRes.Payload.ExecutionPayload
 	metrics.RecordSequencerStepTime("sealPayload", time.Since(start))
-	log.Info("inserted block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber),
+	log.Info("perf-trace inserted block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber), "duration", time.Since(start),
 		"state_root", payload.StateRoot, "timestamp", uint64(payload.Timestamp), "parent", payload.ParentHash,
 		"prev_randao", payload.PrevRandao, "fee_recipient", payload.FeeRecipient,
 		"txs", len(payload.Transactions), "update_safe", updateSafe)
-	return sealRes.Payload, BlockInsertOK, nil
+	return envelope, BlockInsertOK, nil
 }
