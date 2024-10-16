@@ -58,13 +58,15 @@
     "SystemConfig": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B",
     "Guardian": "0x9e1A970683f6Cf53a4e3F13faCFaDC1c7E37D9bc",
     "SuperChainConfig": "",
-    "Balance": "282513270126855175611174"
+    "Balance": "282865745286885175611178"
   },
   {
     "SystemConfigInfo": "",
     "Name": "SystemConfig",
     "Address": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B",
     "Version": "1.3.0",
+    "Owner": "0x9e1A970683f6Cf53a4e3F13faCFaDC1c7E37D9bc",
+    "UnsafeBlockSigner": "0x23264E1F3C04efBe84108E666a187D240DDAfcED",
     "Overhead": "0",
     "Scalar": "452312848583266388373324160190187140051835877600158453279134000734489610656",
     "BatcherHash": "0000000000000000000000001fd6a75cc72f39147756a663f3ef1fc95ef89495",
@@ -79,7 +81,15 @@
     },
     "StartBlock": "",
     "BaseFeeScalar": "",
-    "BlobBaseFeeScalar": ""
+    "BlobBaseFeeScalar": "",
+    "BatcherInbox": "",
+    "L1CrossDomainMessengerAddress": "",
+    "L1ERC721BridgeAddress": "",
+    "L1StandardBridgeAddress": "",
+    "DisputeGameFactoryAddress": "",
+    "OptimismPortalAddress": "",
+    "OptimismMintableERC20FactoryAddress": "",
+    "GasPayingTokenAddress": ""
   }
 ]
 

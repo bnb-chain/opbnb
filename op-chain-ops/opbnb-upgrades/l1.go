@@ -590,11 +590,11 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 		}
 
 		// set startBlock genesis block l1 origin
-		startBlock := common.BigToHash(new(big.Int).SetUint64(bscQAnetStartBlock))
+		startBlock := common.BigToHash(new(big.Int).SetUint64(BscQAnetStartBlock))
 		if chainId.Uint64() == BscTestnet {
-			startBlock = common.BigToHash(new(big.Int).SetUint64(bscTestnetStartBlock))
+			startBlock = common.BigToHash(new(big.Int).SetUint64(BscTestnetStartBlock))
 		} else if chainId.Uint64() == BscMainnet {
-			startBlock = common.BigToHash(new(big.Int).SetUint64(bscMainnetStartBlock))
+			startBlock = common.BigToHash(new(big.Int).SetUint64(BscMainnetStartBlock))
 		}
 
 		input := []bindings.StorageSetterSlot{
@@ -660,11 +660,11 @@ func SystemConfig(batch *safe.Batch, proxyAddresses map[string]common.Address, i
 	}
 
 	// set startBlock genesis block l1 origin
-	batchInboxAddr := bscQAnetBatcherInbox
+	batchInboxAddr := BscQAnetBatcherInbox
 	if chainId.Uint64() == BscTestnet {
-		batchInboxAddr = bscTestnetBatcherInbox
+		batchInboxAddr = BscTestnetBatcherInbox
 	} else if chainId.Uint64() == BscMainnet {
-		batchInboxAddr = bscMainnetBatcherInbox
+		batchInboxAddr = BscMainnetBatcherInbox
 	}
 	_basefeeScalar := BasefeeScalar
 	_blobbasefeeScalar := Blobbasefeescala

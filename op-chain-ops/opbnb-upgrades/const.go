@@ -8,9 +8,9 @@ const (
 )
 
 const (
-	bscTestnetStartBlock = 30727847
-	bscMainnetStartBlock = 30758357
-	bscQAnetStartBlock   = 44147099
+	BscTestnetStartBlock = 30727847
+	BscMainnetStartBlock = 30758357
+	BscQAnetStartBlock   = 44147099
 )
 
 const (
@@ -19,10 +19,15 @@ const (
 	Blobbasefeescala uint32 = 655000
 )
 
+const (
+	ETHER       = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+	ZeroAddress = "0x0000000000000000000000000000000000000000"
+)
+
 var (
-	bscTestnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000005611")
-	bscMainnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000000204")
-	bscQAnetBatcherInbox   = common.HexToAddress("0xff00000000000000000000000000000000008848")
+	BscTestnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000005611")
+	BscMainnetBatcherInbox = common.HexToAddress("0xff00000000000000000000000000000000000204")
+	BscQAnetBatcherInbox   = common.HexToAddress("0xff00000000000000000000000000000000008848")
 )
 
 var BscTestnetProxyContracts = map[string]common.Address{

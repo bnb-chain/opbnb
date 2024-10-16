@@ -104,13 +104,16 @@ func entrypoint(ctx *cli.Context) error {
 
 	proxyAddresses := opbnb_upgrades.BscQAnetProxyContracts
 	implAddresses := opbnb_upgrades.BscQAnetImplContracts
+	batchInboxAddr := opbnb_upgrades.BscQAnetBatcherInbox
 	if l1ChainID.Uint64() == opbnb_upgrades.BscTestnet && !ctx.Bool("qa_net") {
 		proxyAddresses = opbnb_upgrades.BscTestnetProxyContracts
 		implAddresses = opbnb_upgrades.BscTestnetImplContracts
+		batchInboxAddr = opbnb_upgrades.BscTestnetBatcherInbox
 		fmt.Println("using bscTestnet")
 	} else if l1ChainID.Uint64() == opbnb_upgrades.BscMainnet {
 		proxyAddresses = opbnb_upgrades.BscMainnetProxyContracts
 		implAddresses = opbnb_upgrades.BscMainnetImplContracts
+		batchInboxAddr = opbnb_upgrades.BscMainnetBatcherInbox
 		fmt.Println("using bscMainnet")
 	} else {
 		fmt.Println("using bscQAnet")
@@ -205,7 +208,7 @@ func entrypoint(ctx *cli.Context) error {
 		if newContractsFile == "" {
 			return errors.New("must set new_contracts_file")
 		}
-		err := opbnb_upgrades.CompareContracts(oldContractsFile, newContractsFile)
+		err := opbnb_upgrades.CompareContracts(oldContractsFile, newContractsFile, proxyAddresses, batchInboxAddr)
 		if err != nil {
 			return err
 		}

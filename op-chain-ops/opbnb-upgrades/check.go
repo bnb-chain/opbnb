@@ -96,18 +96,28 @@ type OptimismPortalInfo struct {
 }
 
 type SystemConfigInfo struct {
-	SystemConfigInfo  string                         `yaml:"system_config_info"`
-	Name              string                         `yaml:"name"`
-	Address           string                         `yaml:"address"`
-	Version           string                         `yaml:"version"`
-	Overhead          string                         `yaml:"overhead"`
-	Scalar            string                         `yaml:"scalar"`
-	BatcherHash       string                         `yaml:"batcher_hash"`
-	GasLimit          string                         `yaml:"gas_limit"`
-	ResourceConfig    ResourceMeteringResourceConfig `yaml:"resource_config"`
-	StartBlock        string                         `yaml:"start_block"`
-	BaseFeeScalar     string                         `yaml:"base_fee_scalar"`
-	BlobBaseFeeScalar string                         `yaml:"blob_base_fee_scalar"`
+	SystemConfigInfo                    string                         `yaml:"system_config_info"`
+	Name                                string                         `yaml:"name"`
+	Address                             string                         `yaml:"address"`
+	Version                             string                         `yaml:"version"`
+	Owner                               string                         `yaml:"owner"`
+	UnsafeBlockSigner                   string                         `yaml:"unsafe_block_signer"`
+	Overhead                            string                         `yaml:"overhead"`
+	Scalar                              string                         `yaml:"scalar"`
+	BatcherHash                         string                         `yaml:"batcher_hash"`
+	GasLimit                            string                         `yaml:"gas_limit"`
+	ResourceConfig                      ResourceMeteringResourceConfig `yaml:"resource_config"`
+	StartBlock                          string                         `yaml:"start_block"`
+	BaseFeeScalar                       string                         `yaml:"base_fee_scalar"`
+	BlobBaseFeeScalar                   string                         `yaml:"blob_base_fee_scalar"`
+	BatcherInbox                        string                         `yaml:"batcher_inbox"`
+	L1CrossDomainMessengerAddress       string                         `yaml:"l1_cross_domain_messenger_address"`
+	L1ERC721BridgeAddress               string                         `yaml:"l1_erc_721_bridge_address"`
+	L1StandardBridgeAddress             string                         `yaml:"l1_standard_bridge_address"`
+	DisputeGameFactoryAddress           string                         `yaml:"dispute_game_factory_address"`
+	OptimismPortalAddress               string                         `yaml:"optimism_portal_address"`
+	OptimismMintableERC20FactoryAddress string                         `yaml:"optimism_mintable_erc20_factory_address"`
+	GasPayingTokenAddress               string                         `yaml:"gas_paying_token_address"`
 }
 
 // ResourceMeteringResourceConfig is an auto generated low-level Go binding around an user-defined struct.
@@ -277,6 +287,14 @@ func CheckOldContracts(proxyAddresses map[string]common.Address, backend *ethcli
 	if err != nil {
 		return nil, err
 	}
+	owner, err := systemConfig.Owner(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	unsafeBlockSigner, err := systemConfig.UnsafeBlockSigner(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
 	overhead, err := systemConfig.Overhead(&bind.CallOpts{})
 	if err != nil {
 		return nil, err
@@ -306,14 +324,16 @@ func CheckOldContracts(proxyAddresses map[string]common.Address, backend *ethcli
 		MaximumBaseFee:              resourceConfig.MaximumBaseFee.String(),
 	}
 	oldSystemConfig := SystemConfigInfo{
-		Name:           "SystemConfig",
-		Address:        proxyAddresses["SystemConfigProxy"].String(),
-		Version:        version,
-		Overhead:       overhead.String(),
-		Scalar:         scalar.String(),
-		BatcherHash:    hex.EncodeToString(batcherHash[:]),
-		GasLimit:       strconv.FormatUint(gasLimit, 10),
-		ResourceConfig: newResourceConfig,
+		Name:              "SystemConfig",
+		Address:           proxyAddresses["SystemConfigProxy"].String(),
+		Owner:             owner.String(),
+		UnsafeBlockSigner: unsafeBlockSigner.String(),
+		Version:           version,
+		Overhead:          overhead.String(),
+		Scalar:            scalar.String(),
+		BatcherHash:       hex.EncodeToString(batcherHash[:]),
+		GasLimit:          strconv.FormatUint(gasLimit, 10),
+		ResourceConfig:    newResourceConfig,
 	}
 	data := []interface{}{oldL1CrossDomainMessenger, oldL1ERC721Bridge,
 		oldL1StandardBridge, oldL2OutputOracle, oldOptimismMintableERC20Factory, oldOptimismPortal, oldSystemConfig}
@@ -503,6 +523,14 @@ func CheckNewContracts(proxyAddresses map[string]common.Address, backend *ethcli
 		SuperChainConfig: superChainConfig.String(),
 	}
 	systemConfig, err := newBindings.NewSystemConfigCaller(proxyAddresses["SystemConfigProxy"], backend)
+	owner, err := systemConfig.Owner(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	unsafeBlockSigner, err := systemConfig.UnsafeBlockSigner(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
 	version, err = systemConfig.Version(&bind.CallOpts{})
 	if err != nil {
 		return nil, err
@@ -547,25 +575,67 @@ func CheckNewContracts(proxyAddresses map[string]common.Address, backend *ethcli
 	if err != nil {
 		return nil, err
 	}
+	batchInbox, err := systemConfig.BatchInbox(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	l1CrossDomainMessengerAddress, err := systemConfig.L1CrossDomainMessenger(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	l1ERC721BridgeAddress, err := systemConfig.L1ERC721Bridge(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	l1StandardBridgeAddress, err := systemConfig.L1StandardBridge(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	disputeGameFactoryAddress, err := systemConfig.DisputeGameFactory(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	optimismPortalAddress, err := systemConfig.OptimismPortal(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	optimismMintableERC20FactoryAddress, err := systemConfig.OptimismMintableERC20Factory(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	gasPayingTokenAddress, err := systemConfig.GasPayingToken(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
 	newSystemConfig := SystemConfigInfo{
-		Name:              "SystemConfig",
-		Address:           proxyAddresses["SystemConfigProxy"].String(),
-		Version:           version,
-		Overhead:          overhead.String(),
-		Scalar:            scalar.String(),
-		BatcherHash:       hex.EncodeToString(batcherHash[:]),
-		GasLimit:          strconv.FormatUint(gasLimit, 10),
-		ResourceConfig:    newResourceConfig,
-		StartBlock:        startBlock.String(),
-		BaseFeeScalar:     strconv.FormatUint(uint64(baseFeeScalar), 10),
-		BlobBaseFeeScalar: strconv.FormatUint(uint64(blobBaseFeeScalar), 10),
+		Name:                                "SystemConfig",
+		Address:                             proxyAddresses["SystemConfigProxy"].String(),
+		Version:                             version,
+		Owner:                               owner.String(),
+		UnsafeBlockSigner:                   unsafeBlockSigner.String(),
+		Overhead:                            overhead.String(),
+		Scalar:                              scalar.String(),
+		BatcherHash:                         hex.EncodeToString(batcherHash[:]),
+		GasLimit:                            strconv.FormatUint(gasLimit, 10),
+		ResourceConfig:                      newResourceConfig,
+		StartBlock:                          startBlock.String(),
+		BaseFeeScalar:                       strconv.FormatUint(uint64(baseFeeScalar), 10),
+		BlobBaseFeeScalar:                   strconv.FormatUint(uint64(blobBaseFeeScalar), 10),
+		BatcherInbox:                        batchInbox.String(),
+		L1CrossDomainMessengerAddress:       l1CrossDomainMessengerAddress.String(),
+		L1ERC721BridgeAddress:               l1ERC721BridgeAddress.String(),
+		L1StandardBridgeAddress:             l1StandardBridgeAddress.String(),
+		DisputeGameFactoryAddress:           disputeGameFactoryAddress.String(),
+		OptimismPortalAddress:               optimismPortalAddress.String(),
+		OptimismMintableERC20FactoryAddress: optimismMintableERC20FactoryAddress.String(),
+		GasPayingTokenAddress:               gasPayingTokenAddress.Addr.String(),
 	}
 	data := []interface{}{newL1CrossDomainMessenger, newL1ERC721Bridge,
 		newL1StandardBridge, newL2OutputOracle, newOptimismMintableERC20Factory, newOptimismPortal, newSystemConfig}
 	return data, nil
 }
 
-func CompareContracts(oldContractsFilePath string, newContractsFilePath string) error {
+func CompareContracts(oldContractsFilePath string, newContractsFilePath string, proxyAddresses map[string]common.Address, batchInboxAddr common.Address) error {
 	oldContractsFile, err := os.Open(oldContractsFilePath)
 	if err != nil {
 		return err
@@ -775,9 +845,15 @@ func CompareContracts(oldContractsFilePath string, newContractsFilePath string) 
 	if newSystemConfigInfo.Overhead != oldSystemConfigInfo.Overhead {
 		return fmt.Errorf("SystemConfig Overhead var check diff, expect %s actual %s", oldSystemConfigInfo.Overhead, newSystemConfigInfo.Overhead)
 	}
-	//if newSystemConfigInfo.Scalar != oldSystemConfigInfo.Scalar {
-	//	return fmt.Errorf("SystemConfig Scalar var check diff, expect %s actual %s", oldSystemConfigInfo.Scalar, newSystemConfigInfo.Scalar)
-	//}
+	if newSystemConfigInfo.Scalar != oldSystemConfigInfo.Scalar {
+		return fmt.Errorf("SystemConfig Scalar var check diff, expect %s actual %s", oldSystemConfigInfo.Scalar, newSystemConfigInfo.Scalar)
+	}
+	if newSystemConfigInfo.Owner != oldSystemConfigInfo.Owner {
+		return fmt.Errorf("SystemConfig Owner var check diff, expect %s actual %s", oldSystemConfigInfo.Owner, newSystemConfigInfo.Owner)
+	}
+	if newSystemConfigInfo.UnsafeBlockSigner != oldSystemConfigInfo.UnsafeBlockSigner {
+		return fmt.Errorf("SystemConfig UnsafeBlockSigner var check diff, expect %s actual %s", oldSystemConfigInfo.UnsafeBlockSigner, newSystemConfigInfo.UnsafeBlockSigner)
+	}
 	if newSystemConfigInfo.BatcherHash != oldSystemConfigInfo.BatcherHash {
 		return fmt.Errorf("SystemConfig BatcherHash var check diff, expect %s actual %s", oldSystemConfigInfo.BatcherHash, newSystemConfigInfo.BatcherHash)
 	}
@@ -807,6 +883,30 @@ func CompareContracts(oldContractsFilePath string, newContractsFilePath string) 
 	}
 	if newSystemConfigInfo.ResourceConfig.MaximumBaseFee != oldSystemConfigInfo.ResourceConfig.MaximumBaseFee {
 		return fmt.Errorf("SystemConfig ResourceConfig.MaximumBaseFee var check diff, expect %s actual %s", oldSystemConfigInfo.ResourceConfig.MaximumBaseFee, newSystemConfigInfo.ResourceConfig.MaximumBaseFee)
+	}
+	if newSystemConfigInfo.BatcherInbox != batchInboxAddr.String() {
+		return fmt.Errorf("SystemConfig BatcherInbox var check diff, expect %s actual %s", batchInboxAddr.String(), newSystemConfigInfo.BatcherInbox)
+	}
+	if newSystemConfigInfo.L1CrossDomainMessengerAddress != proxyAddresses["L1CrossDomainMessengerProxy"].String() {
+		return fmt.Errorf("SystemConfig L1CrossDomainMessengerAddress var check diff, expect %s actual %s", proxyAddresses["L1CrossDomainMessengerProxy"].String(), newSystemConfigInfo.L1CrossDomainMessengerAddress)
+	}
+	if newSystemConfigInfo.L1ERC721BridgeAddress != proxyAddresses["L1ERC721BridgeProxy"].String() {
+		return fmt.Errorf("SystemConfig L1ERC721BridgeAddress var check diff, expect %s actual %s", proxyAddresses["L1ERC721BridgeProxy"].String(), newSystemConfigInfo.L1ERC721BridgeAddress)
+	}
+	if newSystemConfigInfo.L1StandardBridgeAddress != proxyAddresses["L1StandardBridgeProxy"].String() {
+		return fmt.Errorf("SystemConfig L1StandardBridgeAddress var check diff, expect %s actual %s", proxyAddresses["L1StandardBridgeAddressProxy"].String(), newSystemConfigInfo.L1StandardBridgeAddress)
+	}
+	if newSystemConfigInfo.DisputeGameFactoryAddress != ZeroAddress {
+		return fmt.Errorf("SystemConfig L1StandardBridgeAddress var check diff, expect %s actual %s", ZeroAddress, newSystemConfigInfo.DisputeGameFactoryAddress)
+	}
+	if newSystemConfigInfo.OptimismPortalAddress != proxyAddresses["OptimismPortalProxy"].String() {
+		return fmt.Errorf("SystemConfig OptimismPortalAddress var check diff, expect %s actual %s", proxyAddresses["OptimismPortalAddressProxy"].String(), newSystemConfigInfo.OptimismPortalAddress)
+	}
+	if newSystemConfigInfo.OptimismMintableERC20FactoryAddress != proxyAddresses["OptimismMintableERC20FactoryProxy"].String() {
+		return fmt.Errorf("SystemConfig OptimismMintableERC20FactoryAddress var check diff, expect %s actual %s", proxyAddresses["OptimismMintableERC20FactoryProxy"].String(), newSystemConfigInfo.OptimismMintableERC20FactoryAddress)
+	}
+	if newSystemConfigInfo.GasPayingTokenAddress != ETHER {
+		return fmt.Errorf("SystemConfig GasPayingTokenAddress var check diff, expect %s actual %s", ETHER, newSystemConfigInfo.GasPayingTokenAddress)
 	}
 	return nil
 }
