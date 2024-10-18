@@ -61,6 +61,7 @@ type EngineVersionProvider interface {
 	ForkchoiceUpdatedVersion(attr *eth.PayloadAttributes) eth.EngineAPIMethod
 	NewPayloadVersion(timestamp uint64) eth.EngineAPIMethod
 	GetPayloadVersion(timestamp uint64) eth.EngineAPIMethod
+	SealPayloadVersion(timestamp uint64) eth.EngineAPIMethod
 }
 
 func NewEngineAPIClient(rpc client.RPC, l log.Logger, evp EngineVersionProvider) *EngineAPIClient {
@@ -178,37 +179,62 @@ func (s *EngineAPIClient) GetPayload(ctx context.Context, payloadInfo eth.Payloa
 	return &result, nil
 }
 
-func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool) (*eth.SealPayloadResponse, error) {
+// SealPayload is a combined call of GetPayload, NewPayload, ForkchoiceUpdated via engine_opSealPayload API
+func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool) (*eth.SealPayloadResponse, string, error) {
 	e := s.log.New("payload_id", payloadInfo.ID)
 	e.Trace("sealing payload")
+	sCtx, sCancel := context.WithTimeout(ctx, time.Second*10)
+	defer sCancel()
 	var result eth.SealPayloadResponse
-	method := "engine_opSealPayload"
+	method := s.evp.SealPayloadVersion(payloadInfo.Timestamp)
 	start := time.Now()
-	err := s.RPC.CallContext(ctx, &result, string(method), payloadInfo.ID, fc, needPayload)
+	err := s.RPC.CallContext(sCtx, &result, string(method), payloadInfo.ID, fc, needPayload)
 	e.Info("perf-trace eng.SealPayload", "duration", time.Since(start), "payload", payloadInfo.ID)
 	if err != nil {
-		e.Warn("Failed to seal payload", "payload_id", payloadInfo.ID, "err", err)
-		if rpcErr, ok := err.(rpc.Error); ok {
-			code := eth.ErrorCode(rpcErr.ErrorCode())
-			switch code {
-			case eth.UnknownPayload:
-				return nil, eth.InputError{
-					Inner: err,
-					Code:  code,
+		e.Error("Failed to seal payload", "payload_id", payloadInfo.ID, "err", err)
+		switch result.ErrStage {
+		case eth.GetPayloadStage:
+			if rpcErr, ok := err.(rpc.Error); ok {
+				code := eth.ErrorCode(rpcErr.ErrorCode())
+				switch code {
+				case eth.UnknownPayload:
+					return nil, result.ErrStage, eth.InputError{
+						Inner: err,
+						Code:  code,
+					}
+				default:
+					return nil, result.ErrStage, fmt.Errorf("seal payload unrecognized rpc error: %w", err)
 				}
-			case eth.InvalidForkchoiceState, eth.InvalidPayloadAttributes:
-				return nil, eth.InputError{
-					Inner: err,
-					Code:  code,
-				}
-			default:
-				return nil, fmt.Errorf("unrecognized rpc error: %w", err)
 			}
+			return nil, result.ErrStage, err
+		case eth.NewPayloadStage:
+			e.Error("Seal payload execution failed", "err", err)
+			if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
+				result.PayloadStatus.Status = eth.ExecutionSyncing // why?
+				return &result, result.ErrStage, err
+			}
+			return nil, result.ErrStage, fmt.Errorf("seal payload failed to execute payload: %w", err)
+		case eth.ForkchoiceUpdatedStage:
+			e.Error("Seal payload failed to share forkchoice-updated signal", "err", err)
+			if rpcErr, ok := err.(rpc.Error); ok {
+				code := eth.ErrorCode(rpcErr.ErrorCode())
+				switch code {
+				case eth.InvalidForkchoiceState, eth.InvalidPayloadAttributes:
+					return nil, result.ErrStage, eth.InputError{
+						Inner: err,
+						Code:  code,
+					}
+				default:
+					return nil, result.ErrStage, fmt.Errorf("seal payload unrecognized rpc error: %w", err)
+				}
+			}
+			return nil, result.ErrStage, err
+		default:
+			return nil, result.ErrStage, err
 		}
-		return nil, err
 	}
-	e.Trace("Received payload")
-	return &result, nil
+	e.Trace("Sealed payload")
+	return &result, result.ErrStage, nil
 }
 
 func (s *EngineAPIClient) SignalSuperchainV1(ctx context.Context, recommended, required params.ProtocolVersion) (params.ProtocolVersion, error) {

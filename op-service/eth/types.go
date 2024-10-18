@@ -26,6 +26,12 @@ const (
 	InvalidPayloadAttributes ErrorCode = -38003 // Payload attributes are invalid / inconsistent.
 )
 
+const (
+	GetPayloadStage        = "getPayload"
+	NewPayloadStage        = "newPayload"
+	ForkchoiceUpdatedStage = "forkchoiceUpdated"
+)
+
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")
 
 // InputError distinguishes an user-input error from regular rpc errors,
@@ -368,7 +374,7 @@ type ForkchoiceUpdatedResult struct {
 }
 
 type SealPayloadResponse struct {
-	Stage         string                    `json:"stage"`
+	ErrStage      string                    `json:"errStage"`
 	PayloadStatus PayloadStatusV1           `json:"payloadStatus"`
 	Payload       *ExecutionPayloadEnvelope `json:"payload"`
 }
@@ -518,4 +524,7 @@ const (
 
 	GetPayloadV2 EngineAPIMethod = "engine_getPayloadV2"
 	GetPayloadV3 EngineAPIMethod = "engine_getPayloadV3"
+
+	SealPayloadV2 EngineAPIMethod = "engine_opSealPayloadV2"
+	SealPayloadV3 EngineAPIMethod = "engine_opSealPayloadV3"
 )

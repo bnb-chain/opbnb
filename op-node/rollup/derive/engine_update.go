@@ -209,6 +209,7 @@ func confirmPayload(
 	return envelope, BlockInsertOK, nil
 }
 
+// confirmPayloadCombined is equal to confirmPayload but using engine_opSealPayload API to combine GetPayload, NewPayload, ForckchoiceUpdated calls
 func confirmPayloadCombined(
 	ctx context.Context,
 	log log.Logger,
@@ -221,15 +222,15 @@ func confirmPayloadCombined(
 	metrics Metrics,
 ) (out *eth.ExecutionPayloadEnvelope, errTyp BlockInsertionErrType, err error) {
 	start := time.Now()
-
 	type SealPayloadRet struct {
-		res *eth.SealPayloadResponse
-		err error
+		res      *eth.SealPayloadResponse
+		errStage string
+		err      error
 	}
 	sealPayloadRetCh := make(chan SealPayloadRet)
 	go func() {
-		res, err := eng.SealPayload(ctx, payloadInfo, &fc, false)
-		sealPayloadRetCh <- SealPayloadRet{res, err}
+		res, errStage, err := eng.SealPayload(ctx, payloadInfo, &fc, false)
+		sealPayloadRetCh <- SealPayloadRet{res, errStage, err}
 	}()
 
 	type GetPayloadRet struct {
@@ -242,53 +243,84 @@ func confirmPayloadCombined(
 		getPayloadRetCh <- GetPayloadRet{res, err}
 	}()
 
-	sealPayloadRet := <-sealPayloadRetCh
-	sealRes := sealPayloadRet.res
-	err = sealPayloadRet.err
-	if err != nil {
-		var inputErr eth.InputError
-		if errors.As(err, &inputErr) {
-			switch inputErr.Code {
-			case eth.InvalidForkchoiceState:
-				return nil, BlockInsertPayloadErr, fmt.Errorf("post-block-creation forkchoice update was inconsistent with engine, need reset to resolve: %w", inputErr.Unwrap())
-			default:
-				return nil, BlockInsertPrestateErr, fmt.Errorf("unexpected error code in forkchoice-updated response: %w", err)
-			}
-		} else {
-			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to make the new L2 block canonical via forkchoice: %w", err)
-		}
-	}
-
-	if sealRes.PayloadStatus.Status != eth.ExecutionValid {
-		switch sealRes.Stage {
-		case "newPayload":
-			if sealRes.PayloadStatus.Status == eth.ExecutionInvalid || sealRes.PayloadStatus.Status == eth.ExecutionInvalidBlockHash {
-				return nil, BlockInsertPayloadErr, fmt.Errorf("new payload BlockInsertPayloadErr %v", sealRes.PayloadStatus.ValidationError)
-			}
-			return nil, BlockInsertTemporaryErr, fmt.Errorf("new payload BlockInsertTemporaryErr %v", sealRes.PayloadStatus.ValidationError)
-		case "forkchoiceUpdate":
-			return nil, BlockInsertPayloadErr, fmt.Errorf("forkchoiceUpdate BlockInsertPayloadErr %v", sealRes.PayloadStatus.ValidationError)
-		}
-	}
-
 	getPayloadRet := <-getPayloadRetCh
 	envelope := getPayloadRet.res
-	err = getPayloadRet.err
-	if err != nil {
-		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get sealed payload: %w", err)
+	getPayloadErr := getPayloadRet.err
+	validatePayloadErr := error(nil)
+	if getPayloadErr == nil {
+		payload := envelope.ExecutionPayload
+		validatePayloadErr = sanityCheckPayload(payload)
+		if validatePayloadErr == nil {
+			// TODO handle sequencerConductor component
+			if err := sequencerConductor.CommitUnsafePayload(ctx, envelope); err != nil {
+				log.Error("failed to commit unsafe payload to conductor", "payloadID", payloadInfo.ID, "err", err)
+			}
+			agossip.Gossip(envelope)
+		}
 	}
-	payload := envelope.ExecutionPayload
-	if err := sanityCheckPayload(payload); err != nil {
-		return nil, BlockInsertPayloadErr, err
-	}
-	if err := sequencerConductor.CommitUnsafePayload(ctx, envelope); err != nil {
-		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to commit unsafe payload to conductor: %w", err)
-	}
-	agossip.Gossip(envelope)
-	agossip.Clear()
 
+	sealPayloadRet := <-sealPayloadRetCh
+	sealRes := sealPayloadRet.res
+	errStage := sealPayloadRet.errStage
+	sealPayloadErr := sealPayloadRet.err
+	switch errStage {
+	case eth.GetPayloadStage:
+		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to get execution payload: %w", sealPayloadErr)
+	case eth.NewPayloadStage:
+		if sealPayloadErr != nil {
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to insert execution payload: %w", sealPayloadErr)
+		}
+		if sealRes.PayloadStatus.Status == eth.ExecutionInvalid || sealRes.PayloadStatus.Status == eth.ExecutionInvalidBlockHash {
+			agossip.Clear()
+			log.Error("Seal payload failed to new payload", "payloadID", payloadInfo.ID, "status", sealRes.PayloadStatus)
+			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+		}
+		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+		}
+	case eth.ForkchoiceUpdatedStage:
+		if sealPayloadErr != nil {
+			var inputErr eth.InputError
+			if errors.As(sealPayloadErr, &inputErr) {
+				switch inputErr.Code {
+				case eth.InvalidForkchoiceState:
+					// if we succeed to update the forkchoice pre-payload, but fail post-payload, then it is a payload error
+					agossip.Clear()
+					return nil, BlockInsertPayloadErr, fmt.Errorf("post-block-creation forkchoice update was inconsistent with engine, need reset to resolve: %w", inputErr.Unwrap())
+				default:
+					agossip.Clear()
+					return nil, BlockInsertPrestateErr, fmt.Errorf("unexpected error code in forkchoice-updated response: %w", sealPayloadErr)
+				}
+			} else {
+				agossip.Clear()
+				return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to make the new L2 block canonical via forkchoice: %w", sealPayloadErr))
+			}
+		}
+		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
+			agossip.Clear()
+			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to forkchoice update, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+		}
+	default:
+		if sealPayloadErr != nil {
+			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload: %w", sealPayloadErr))
+		}
+		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
+			agossip.Clear()
+			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to seal payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+		}
+	}
+
+	if getPayloadErr != nil {
+		return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to get payload: %w", getPayloadErr))
+	}
+	if validatePayloadErr != nil {
+		return nil, BlockInsertPayloadErr, NewCriticalError(fmt.Errorf("failed to validate payload but seal succeed: %w", validatePayloadErr))
+	}
+
+	agossip.Clear()
+	payload := envelope.ExecutionPayload
 	metrics.RecordSequencerStepTime("sealPayload", time.Since(start))
-	log.Info("perf-trace inserted block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber), "duration", time.Since(start),
+	log.Info("perf-trace sealed block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber), "duration", time.Since(start),
 		"state_root", payload.StateRoot, "timestamp", uint64(payload.Timestamp), "parent", payload.ParentHash,
 		"prev_randao", payload.PrevRandao, "fee_recipient", payload.FeeRecipient,
 		"txs", len(payload.Transactions), "update_safe", updateSafe)
