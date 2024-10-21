@@ -40,6 +40,15 @@ func (m *MockEngine) ExpectNewPayload(payload *eth.ExecutionPayload, parentBeaco
 	m.Mock.On("NewPayload", mustJson(payload), mustJson(parentBeaconBlockRoot)).Once().Return(result, err)
 }
 
+func (m *MockEngine) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool) (*eth.SealPayloadResponse, string, error) {
+	out := m.Mock.Called(payloadInfo.ID, fc, needPayload)
+	return out.Get(0).(*eth.SealPayloadResponse), out.Get(1).(string), out.Error(1)
+}
+
+func (m *MockEngine) ExpectSealPayload(payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool, result *eth.SealPayloadResponse, errStage string, err error) {
+	m.Mock.On("SealPayload", payloadInfo, fc, needPayload).Once().Return(result, errStage, err)
+}
+
 func (m *MockEngine) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
 	return true
 }
