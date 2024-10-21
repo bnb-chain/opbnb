@@ -89,6 +89,10 @@ func (o *OracleEngine) NewPayload(ctx context.Context, payload *eth.ExecutionPay
 	}
 }
 
+func (o *OracleEngine) SealPayload(ctx context.Context, payloadInfo eth.PayloadInfo, fc *eth.ForkchoiceState, needPayload bool) (*eth.SealPayloadResponse, string, error) {
+	return nil, "", nil
+}
+
 func (o *OracleEngine) PayloadByHash(ctx context.Context, hash common.Hash) (*eth.ExecutionPayloadEnvelope, error) {
 	block := o.backend.GetBlockByHash(hash)
 	if block == nil {
