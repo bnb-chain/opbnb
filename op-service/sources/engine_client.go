@@ -140,7 +140,7 @@ func (s *EngineAPIClient) NewPayload(ctx context.Context, payload *eth.Execution
 	e.Trace("Received payload execution result", "status", result.Status, "latestValidHash", result.LatestValidHash, "message", result.ValidationError)
 	if err != nil {
 		if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
-			result.Status = eth.ExecutionSyncing // why?
+			result.Status = eth.ExecutionSyncing
 			return &result, err
 		}
 		e.Error("Payload execution failed", "err", err)
@@ -187,9 +187,7 @@ func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.Paylo
 	defer sCancel()
 	var result eth.SealPayloadResponse
 	method := s.evp.SealPayloadVersion(payloadInfo.Timestamp)
-	start := time.Now()
 	err := s.RPC.CallContext(sCtx, &result, string(method), payloadInfo.ID, fc, needPayload)
-	e.Info("perf-trace eng.SealPayload", "duration", time.Since(start), "payload", payloadInfo.ID)
 	if err != nil {
 		e.Error("Failed to seal payload", "payload_id", payloadInfo.ID, "err", err)
 		switch result.ErrStage {
@@ -210,7 +208,7 @@ func (s *EngineAPIClient) SealPayload(ctx context.Context, payloadInfo eth.Paylo
 		case eth.NewPayloadStage:
 			e.Error("Seal payload execution failed", "err", err)
 			if strings.Contains(err.Error(), derive.ErrELSyncTriggerUnexpected.Error()) {
-				result.PayloadStatus.Status = eth.ExecutionSyncing // why?
+				result.PayloadStatus.Status = eth.ExecutionSyncing
 				return &result, result.ErrStage, err
 			}
 			return nil, result.ErrStage, fmt.Errorf("seal payload failed to execute payload: %w", err)

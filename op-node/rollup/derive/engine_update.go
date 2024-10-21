@@ -227,7 +227,7 @@ func confirmPayloadCombined(
 		errStage string
 		err      error
 	}
-	sealPayloadRetCh := make(chan SealPayloadRet)
+	sealPayloadRetCh := make(chan SealPayloadRet, 1)
 	go func() {
 		res, errStage, err := eng.SealPayload(ctx, payloadInfo, &fc, false)
 		sealPayloadRetCh <- SealPayloadRet{res, errStage, err}
@@ -237,7 +237,7 @@ func confirmPayloadCombined(
 		res *eth.ExecutionPayloadEnvelope
 		err error
 	}
-	getPayloadRetCh := make(chan GetPayloadRet)
+	getPayloadRetCh := make(chan GetPayloadRet, 1)
 	go func() {
 		res, err := eng.GetPayload(ctx, payloadInfo)
 		getPayloadRetCh <- GetPayloadRet{res, err}
@@ -301,12 +301,8 @@ func confirmPayloadCombined(
 			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to forkchoice update, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
 		}
 	default:
-		if sealPayloadErr != nil {
-			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload: %w", sealPayloadErr))
-		}
-		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
-			agossip.Clear()
-			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to seal payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+		if sealPayloadErr != nil || sealRes.PayloadStatus.Status != eth.ExecutionValid {
+			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload, status: %s, err: %w", sealRes.PayloadStatus.Status, sealPayloadErr))
 		}
 	}
 
@@ -320,7 +316,7 @@ func confirmPayloadCombined(
 	agossip.Clear()
 	payload := envelope.ExecutionPayload
 	metrics.RecordSequencerStepTime("sealPayload", time.Since(start))
-	log.Info("perf-trace sealed block", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber), "duration", time.Since(start),
+	log.Info("Sealed block succeed", "hash", payload.BlockHash, "number", uint64(payload.BlockNumber),
 		"state_root", payload.StateRoot, "timestamp", uint64(payload.Timestamp), "parent", payload.ParentHash,
 		"prev_randao", payload.PrevRandao, "fee_recipient", payload.FeeRecipient,
 		"txs", len(payload.Transactions), "update_safe", updateSafe)
