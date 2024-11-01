@@ -1,0 +1,95 @@
+[
+  {
+    "L1CrossDomainMessengerInfo": "",
+    "Name": "L1CrossDomainMessenger",
+    "Address": "0xD506952e78eeCd5d4424B1990a0c99B1568E7c2C",
+    "Version": "2.4.0",
+    "OtherMessenger": "0x4200000000000000000000000000000000000007",
+    "Portal": "0x4386C8ABf2009aC0c263462Da568DD9d46e52a31",
+    "SuperChainConfig": "0xb19bFAC32Aa9aADEc286E2c918FF949bc0e59218",
+    "SystemConfig": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B"
+  },
+  {
+    "L1ERC721BridgeInfo": "",
+    "Name": "L1ERC721Bridge",
+    "Address": "0x17e1454015bFb3377c75bE7b6d47B236fd2ddbE7",
+    "Version": "2.1.0",
+    "OtherMessenger": "0xD506952e78eeCd5d4424B1990a0c99B1568E7c2C",
+    "OtherBridge": "0x4200000000000000000000000000000000000014",
+    "SuperChainConfig": "0xb19bFAC32Aa9aADEc286E2c918FF949bc0e59218"
+  },
+  {
+    "L1StandardBridgeInfo": "",
+    "Name": "L1StandardBridge",
+    "Address": "0x677311Fd2cCc511Bbc0f581E8d9a07B033D5E840",
+    "Version": "2.2.0",
+    "OtherMessenger": "0xD506952e78eeCd5d4424B1990a0c99B1568E7c2C",
+    "OtherBridge": "0x4200000000000000000000000000000000000010",
+    "SuperChainConfig": "0xb19bFAC32Aa9aADEc286E2c918FF949bc0e59218",
+    "SystemConfig": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B"
+  },
+  {
+    "L2OutputOracleInfo": "",
+    "Name": "L2OutputOracle",
+    "Address": "0xFf2394Bb843012562f4349C6632a0EcB92fC8810",
+    "Version": "1.8.0",
+    "SubmissionInterval": "240",
+    "L2BlockTime": "1",
+    "Challenger": "0x9e1A970683f6Cf53a4e3F13faCFaDC1c7E37D9bc",
+    "Proposer": "0x4aE49f1f57358c13A5732cb12e656Cf8C8D986DF",
+    "FinalizationPeriodSeconds": "3",
+    "StartingBlockNumber": "0",
+    "StartingTimestamp": "1686878506"
+  },
+  {
+    "OptimismMintableERC20FactoryInfo": "",
+    "Name": "OptimismMintableERC20Factory",
+    "Address": "",
+    "Version": "1.9.0",
+    "Bridge": "0x677311Fd2cCc511Bbc0f581E8d9a07B033D5E840"
+  },
+  {
+    "OptimismPortalInfo": "",
+    "Name": "OptimismPortal",
+    "Address": "0x4386C8ABf2009aC0c263462Da568DD9d46e52a31",
+    "Version": "2.8.1-beta.1",
+    "L2Oracle": "0xFf2394Bb843012562f4349C6632a0EcB92fC8810",
+    "L2Sender": "0x000000000000000000000000000000000000dEaD",
+    "SystemConfig": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B",
+    "Guardian": "0x9e1A970683f6Cf53a4e3F13faCFaDC1c7E37D9bc",
+    "SuperChainConfig": "0xb19bFAC32Aa9aADEc286E2c918FF949bc0e59218",
+    "Balance": "282922683113123490106393"
+  },
+  {
+    "SystemConfigInfo": "",
+    "Name": "SystemConfig",
+    "Address": "0x406aC857817708eAf4ca3A82317eF4ae3D1EA23B",
+    "Version": "2.3.0-beta.2",
+    "Owner": "0x9e1A970683f6Cf53a4e3F13faCFaDC1c7E37D9bc",
+    "UnsafeBlockSigner": "0x23264E1F3C04efBe84108E666a187D240DDAfcED",
+    "Overhead": "0",
+    "Scalar": "452312848583266388373324160190187140051835877600158453279134000734489610656",
+    "BatcherHash": "0000000000000000000000001fd6a75cc72f39147756a663f3ef1fc95ef89495",
+    "GasLimit": "100000000",
+    "ResourceConfig": {
+      "MaxResourceLimit": 80000000,
+      "ElasticityMultiplier": 2,
+      "BaseFeeMaxChangeDenominator": 8,
+      "MinimumBaseFee": 1000000000,
+      "SystemTxMaxGas": 1000000,
+      "MaximumBaseFee": "340282366920938463463374607431768211455"
+    },
+    "StartBlock": "30727847",
+    "BaseFeeScalar": "68000",
+    "BlobBaseFeeScalar": "655000",
+    "BatcherInbox": "0xfF00000000000000000000000000000000005611",
+    "L1CrossDomainMessengerAddress": "0xD506952e78eeCd5d4424B1990a0c99B1568E7c2C",
+    "L1ERC721BridgeAddress": "0x17e1454015bFb3377c75bE7b6d47B236fd2ddbE7",
+    "L1StandardBridgeAddress": "0x677311Fd2cCc511Bbc0f581E8d9a07B033D5E840",
+    "DisputeGameFactoryAddress": "0x0000000000000000000000000000000000000000",
+    "OptimismPortalAddress": "0x4386C8ABf2009aC0c263462Da568DD9d46e52a31",
+    "OptimismMintableERC20FactoryAddress": "0x182cE4305791744202BB4F802C155B94cb66163B",
+    "GasPayingTokenAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  }
+]
+
