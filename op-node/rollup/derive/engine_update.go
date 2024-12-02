@@ -166,7 +166,7 @@ func confirmPayload(
 	if err != nil {
 		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to insert execution payload: %w", err)
 	}
-	if status.Status == eth.ExecutionInvalid || status.Status == eth.ExecutionInvalidBlockHash {
+	if status.Status == eth.ExecutionInvalid || status.Status == eth.ExecutionInvalidBlockHash || status.Status == eth.ExecutionInconsistent {
 		agossip.Clear()
 		return nil, BlockInsertPayloadErr, eth.NewPayloadErr(payload, status)
 	}

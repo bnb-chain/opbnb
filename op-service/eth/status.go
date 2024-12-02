@@ -34,6 +34,8 @@ func NewPayloadErr(payload *ExecutionPayload, payloadStatus *PayloadStatusV1) er
 		return fmt.Errorf("engine is misconfigured. Received invalid-terminal-block error while engine API should be active at genesis. err: %v", payloadStatus.ValidationError)
 	case ExecutionAccepted:
 		return fmt.Errorf("execution payload cannot be validated yet, latest valid hash is %s", payloadStatus.LatestValidHash)
+	case ExecutionInconsistent:
+		return fmt.Errorf("execution payload meets an INCONSISTENT status, latest valid hash is %s", payloadStatus.LatestValidHash)
 	default:
 		return fmt.Errorf("unknown execution status on %s: %q, ", payload.ID(), string(payloadStatus.Status))
 	}
