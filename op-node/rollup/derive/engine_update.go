@@ -270,13 +270,17 @@ func confirmPayloadCombined(
 		if sealPayloadErr != nil {
 			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to insert execution payload: %w", sealPayloadErr)
 		}
+		validationError := "validation error is nil"
+		if sealRes.PayloadStatus.ValidationError != nil {
+			validationError = *sealRes.PayloadStatus.ValidationError
+		}
 		if sealRes.PayloadStatus.Status == eth.ExecutionInvalid || sealRes.PayloadStatus.Status == eth.ExecutionInvalidBlockHash {
 			agossip.Clear()
 			log.Error("Seal payload failed to new payload", "payloadID", payloadInfo.ID, "status", sealRes.PayloadStatus)
-			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, validationError)
 		}
 		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
-			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+			return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to new payload, status: %s, validationError: %v", sealRes.PayloadStatus.Status, validationError)
 		}
 	case eth.ForkchoiceUpdatedStage:
 		if sealPayloadErr != nil {
@@ -296,13 +300,23 @@ func confirmPayloadCombined(
 				return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to make the new L2 block canonical via forkchoice: %w", sealPayloadErr))
 			}
 		}
+		validationError := "validation error is nil"
+		if sealRes.PayloadStatus.ValidationError != nil {
+			validationError = *sealRes.PayloadStatus.ValidationError
+		}
 		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
 			agossip.Clear()
-			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to forkchoice update, status: %s, validationError: %v", sealRes.PayloadStatus.Status, sealRes.PayloadStatus.ValidationError)
+			return nil, BlockInsertPayloadErr, fmt.Errorf("failed to forkchoice update, status: %s, validationError: %v", sealRes.PayloadStatus.Status, validationError)
 		}
 	default:
-		if sealPayloadErr != nil || sealRes.PayloadStatus.Status != eth.ExecutionValid {
-			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload, status: %s, err: %w", sealRes.PayloadStatus.Status, sealPayloadErr))
+		if sealPayloadErr != nil {
+			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload, err: %w", sealPayloadErr))
+		}
+		if sealRes == nil {
+			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload, got empty response"))
+		}
+		if sealRes.PayloadStatus.Status != eth.ExecutionValid {
+			return nil, BlockInsertTemporaryErr, NewTemporaryError(fmt.Errorf("failed to seal payload, status: %s", sealRes.PayloadStatus.Status))
 		}
 	}
 
