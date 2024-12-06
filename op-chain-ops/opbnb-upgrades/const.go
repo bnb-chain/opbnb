@@ -55,7 +55,7 @@ var BscTestnetImplContracts = map[string]common.Address{
 }
 
 var BscMainnetProxyContracts = map[string]common.Address{
-	"SuperChainConfigProxy":             common.HexToAddress("0x0000000000000000000000000000000000000000"),
+	"SuperChainConfigProxy":             common.HexToAddress("0x30B6B00029343a71aC9d0F7924fd09c6325Beca4"),
 	"L1CrossDomainMessengerProxy":       common.HexToAddress("0xd95D508f13f7029CCF0fb61984d5dfD11b879c4f"),
 	"L1ERC721BridgeProxy":               common.HexToAddress("0xC7c796D3B712ad223Bc29Bf85E6cdD3045D998C4"),
 	"L1StandardBridgeProxy":             common.HexToAddress("0xF05F0e4362859c3331Cb9395CBC201E3Fa6757Ea"),
@@ -66,16 +66,16 @@ var BscMainnetProxyContracts = map[string]common.Address{
 }
 
 var BscMainnetImplContracts = map[string]common.Address{
-	"SuperChainConfig":             common.HexToAddress(""),
-	"L1CrossDomainMessenger":       common.HexToAddress(""),
-	"L1ERC721Bridge":               common.HexToAddress(""),
-	"L1StandardBridge":             common.HexToAddress(""),
-	"L2OutputOracle":               common.HexToAddress(""),
-	"OptimismMintableERC20Factory": common.HexToAddress(""),
-	"OptimismPortal":               common.HexToAddress(""),
-	"SystemConfig":                 common.HexToAddress(""),
-	"ProxyAdmin":                   common.HexToAddress(""),
-	"StorageSetter":                common.HexToAddress(""),
+	"SuperChainConfig":             common.HexToAddress("0x0aE2a6214c81c2772A15dDA4DE4eACa5cD118F8E"),
+	"L1CrossDomainMessenger":       common.HexToAddress("0x8e535aC96EADd9a582dC080eCc084C0FCfeFF4d8"),
+	"L1ERC721Bridge":               common.HexToAddress("0x82d80f79667DC09B6d6E636a5fecc7CE4c9dc2E9"),
+	"L1StandardBridge":             common.HexToAddress("0xfa6A7f5Ab577d9B2b4EBb1a48A86311d7d4F5D3f"),
+	"L2OutputOracle":               common.HexToAddress("0x40D65472D53634079A251b496204F0036Dc00800"),
+	"OptimismMintableERC20Factory": common.HexToAddress("0xBB0fa18143400886879e23c942c06D6f0ECb1229"),
+	"OptimismPortal":               common.HexToAddress("0xf3D26F45D375E5eBBBd2B5Ca7dC2638916c37726"),
+	"SystemConfig":                 common.HexToAddress("0x3f1cD0209E1673838AC187D118551E192047aa8F"),
+	"ProxyAdmin":                   common.HexToAddress("0x27a591Ec09AAfEEb39d7533AEf7C64E0305D1576"),
+	"StorageSetter":                common.HexToAddress("0x8bF708F44a3e0e1e766B010c71DCF297215a8aeB"),
 }
 
 var BscQAnetProxyContracts = map[string]common.Address{
