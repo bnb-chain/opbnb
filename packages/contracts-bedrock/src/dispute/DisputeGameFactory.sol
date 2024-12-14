@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
+import { console2 as console } from "forge-std/console2.sol";
 
 import { LibClone } from "@solady/utils/LibClone.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -131,11 +132,109 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         emit DisputeGameCreated(address(proxy_), _gameType, _rootClaim);
     }
 
+    function _prepareExtraData(
+        Claim[] memory claims,
+        address parentProxy,
+        uint64 l2BlockNumber,
+        bytes memory extraData
+    ) private pure returns (bytes memory) {
+        // calculate the hash of all _claims
+        bytes32 claimsHash = keccak256(abi.encodePacked(claims));
+        return abi.encodePacked(
+            claimsHash,
+            uint32(claims.length),
+            parentProxy,
+            l2BlockNumber,
+            extraData
+        );
+    }
+
+    function _validateGameCreation(
+        GameType _gameType,
+        Claim[] calldata _claims,
+        uint64 _parentGameIndex,
+        IDisputeGame impl
+    ) private view returns (IDisputeGame parentProxy) {
+        // If there is no implementation to clone for the given `GameType`, revert.
+        if (address(impl) == address(0)) revert NoImplementation(_gameType);
+        // If the required initialization bond is not met, revert.
+        if (msg.value != initBonds[_gameType]) revert IncorrectBondAmount();
+        if (_claims.length == 0) revert NoClaims();
+        // When the parent game index is the maximum value of a uint64, it means that there is no parent game.
+        // And use the state from anchor state registry.
+        if (_parentGameIndex != type(uint64).max && _parentGameIndex >= _disputeGameList.length) {
+            revert InvalidParentGameIndex();
+        }
+        if (_parentGameIndex != type(uint64).max) {
+            (GameType parentGameType, , address proxy) = _disputeGameList[_parentGameIndex].unpack();
+            parentProxy = IDisputeGame(proxy);
+            // The parent game must be of the same type as the child game.
+            if (parentGameType.raw() != _gameType.raw()) revert InvalidParentGameType();
+            if (parentProxy.status() == GameStatus.CHALLENGER_WINS) {
+                revert InvalidParentGameStatus();
+            }
+        } else {
+            parentProxy = IDisputeGame(address(0));
+        }
+    }
+
+    function createZkFaultDisputeGame(
+        GameType _gameType,
+        Claim[] calldata _claims,
+        uint64 _parentGameIndex,
+        uint64 _l2BlockNumber,
+        bytes calldata _extraData
+    ) external
+        payable
+        returns (IDisputeGame proxy_)
+    {
+        // Grab the implementation contract for the given `GameType`.
+        IDisputeGame impl = gameImpls[_gameType];
+        IDisputeGame parentProxy = _validateGameCreation(_gameType, _claims, _parentGameIndex, impl);
+        // Clone the implementation contract and initialize it with the given parameters.
+        //
+        // CWIA Calldata Layout:
+        // ┌───────────────────────────┬────────────────────────────────────┐
+        // │    Bytes                  │            Description             │
+        // ├───────────────────────────┼────────────────────────────────────┤
+        // │ [0, 20)                   │ Game creator address               │
+        // | [20, 52)                  | Root claim                         |
+        // │ [52, 84)                  │ Parent block hash at creation time │
+        // │ [84, 84+n)                │ Extra data                         │
+        // |    [84, 116)              | Hash of all claims                 |
+        // |    [116, 120)             | The length of claims               |
+        // |    [120, 140)             | Parent game address                |
+        // |    [140, 148)             | L2 block number                    |
+        // └───────────────────────────┴────────────────────────────────────┘
+        Claim rootClaim = _claims[_claims.length-1];
+        bytes memory extraData = _prepareExtraData(
+            _claims,
+            address(parentProxy),
+            _l2BlockNumber,
+            _extraData
+        );
+        proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(msg.sender, rootClaim, blockhash(block.number - 1), extraData)));
+        proxy_.initialize{ value: msg.value }();
+
+        // Compute the unique identifier for the dispute game.
+        Hash uuid = getGameUUID(_gameType, rootClaim, extraData);
+        // If a dispute game with the same UUID already exists, revert.
+        if (GameId.unwrap(_disputeGames[uuid]) != bytes32(0)) revert GameAlreadyExists(uuid);
+
+        // Pack the game ID.
+        GameId id = LibGameId.pack(_gameType, Timestamp.wrap(uint64(block.timestamp)), address(proxy_));
+
+        // Store the dispute game id in the mapping & emit the `DisputeGameCreated` event.
+        _disputeGames[uuid] = id;
+        _disputeGameList.push(id);
+        emit DisputeGameCreated(address(proxy_), _gameType, rootClaim);
+
+    }
     /// @inheritdoc IDisputeGameFactory
     function getGameUUID(
         GameType _gameType,
         Claim _rootClaim,
-        bytes calldata _extraData
+        bytes memory _extraData
     )
         public
         pure

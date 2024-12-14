@@ -75,6 +75,11 @@ contract DeployConfig is Script {
     uint256 public daResolveWindow;
     uint256 public daBondSize;
     uint256 public daResolverRefundPercentage;
+    uint256 public blockInterval;
+    bytes32 public aggregationVkey;
+    bytes32 public rangeVkeyCommitment;
+    address public sp1VerifierGateway;
+    bytes32 public rollupConfigHash;
 
     bool public useCustomGasToken;
     address public customGasTokenAddress;
@@ -154,6 +159,12 @@ contract DeployConfig is Script {
         daResolveWindow = _readOr(_json, "$.daResolveWindow", 1000);
         daBondSize = _readOr(_json, "$.daBondSize", 1000000000);
         daResolverRefundPercentage = _readOr(_json, "$.daResolverRefundPercentage", 0);
+
+        blockInterval = stdJson.readUint(_json, "$.blockInterval");
+        aggregationVkey = stdJson.readBytes32(_json, "$.aggregationVkey");
+        rangeVkeyCommitment = stdJson.readBytes32(_json, "$.rangeVkeyCommitment");
+        sp1VerifierGateway = stdJson.readAddress(_json, "$.sp1VerifierGateway");
+        rollupConfigHash = stdJson.readBytes32(_json, "$.rollupConfigHash");
 
         useCustomGasToken = _readOr(_json, "$.useCustomGasToken", false);
         customGasTokenAddress = _readOr(_json, "$.customGasTokenAddress", address(0));

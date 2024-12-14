@@ -93,6 +93,16 @@ interface IDisputeGameFactory {
         payable
         returns (IDisputeGame proxy_);
 
+    function createZkFaultDisputeGame(
+        GameType _gameType,
+        Claim[] calldata _claims,
+        uint64 _parentGameIndex,
+        uint64 _l2BlockNumber,
+        bytes calldata _extraData
+    ) external
+        payable
+        returns (IDisputeGame proxy_);
+
     /// @notice Sets the implementation contract for a specific `GameType`.
     /// @dev May only be called by the `owner`.
     /// @param _gameType The type of the DisputeGame.
