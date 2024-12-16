@@ -508,6 +508,16 @@ func (c *Config) GetPayloadVersion(timestamp uint64) eth.EngineAPIMethod {
 	}
 }
 
+// SealPayloadVersion returns the EngineAPIMethod suitable for the chain hard fork version.
+func (c *Config) SealPayloadVersion(timestamp uint64) eth.EngineAPIMethod {
+	if c.IsEcotone(timestamp) {
+		// Cancun
+		return eth.SealPayloadV3
+	} else {
+		return eth.SealPayloadV2
+	}
+}
+
 // GetOPPlasmaConfig validates and returns the plasma config from the rollup config.
 func (c *Config) GetOPPlasmaConfig() (plasma.Config, error) {
 	if c.PlasmaConfig == nil {

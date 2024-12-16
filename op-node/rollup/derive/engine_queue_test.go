@@ -291,7 +291,7 @@ func TestEngineQueue_ResetWhenUnsafeOriginNotCanonical(t *testing.T) {
 		SyncMode:           sync.CLSync,
 		SkipSyncStartCheck: false,
 		ELTriggerGap:       0,
-	})
+	}, false)
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -634,7 +634,7 @@ func TestVerifyNewL1Origin(t *testing.T) {
 				SyncMode:           sync.CLSync,
 				SkipSyncStartCheck: false,
 				ELTriggerGap:       0,
-			})
+			}, false)
 			eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 			require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
 
@@ -738,7 +738,7 @@ func TestBlockBuildingRace(t *testing.T) {
 		SyncMode:           sync.CLSync,
 		SkipSyncStartCheck: false,
 		ELTriggerGap:       0,
-	})
+	}, false)
 	attribHandler := &fakeAttributesHandler{}
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, attribHandler)
 	require.ErrorIs(t, eq.Reset(context.Background(), eth.L1BlockRef{}, eth.SystemConfig{}), io.EOF)
@@ -858,7 +858,7 @@ func TestResetLoop(t *testing.T) {
 		SyncMode:           sync.CLSync,
 		SkipSyncStartCheck: false,
 		ELTriggerGap:       0,
-	})
+	}, false)
 	eq := NewEngineQueue(logger, cfg, eng, ec, metrics.NoopMetrics, prev, l1F, &sync.Config{}, safedb.Disabled, noopFinality{}, &fakeAttributesHandler{})
 	eq.ec.SetUnsafeHead(refA2)
 	eq.ec.SetSafeHead(refA1)
