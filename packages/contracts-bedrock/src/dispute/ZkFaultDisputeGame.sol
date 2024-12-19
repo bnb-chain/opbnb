@@ -146,6 +146,9 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         if (address(parentGameContract) != address(0)) {
             root = Hash.wrap(parentGameContract.rootClaim().raw());
             rootBlockNumber = parentGameContract.l2BlockNumber();
+            if (parentGameStatus() == GameStatus.CHALLENGER_WINS) {
+                revert ParentGameIsInvalid();
+            }
         }
 
         // Should only happen if this is a new game type that hasn't been set up yet.
@@ -211,6 +214,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     function challengeByProof(uint256 _disputeClaimIndex, Claim _expectedClaim, Claim[] calldata _originalClaims, bytes calldata _proof) external override {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
+        if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         requireNotExpired(MAX_CLOCK_DURATION, createdAt);
         if (isChallengeSuccess) revert GameAlreadyChallenged();
 
@@ -219,7 +223,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         if (_originalClaims.length != claimsLength()) {
             revert InvalidClaimsLength();
         }
-        if (keccak256(abi.encode(_originalClaims)) != claimsHash().raw()) {
+        if (keccak256(abi.encodePacked(_originalClaims)) != claimsHash().raw()) {
             revert InvalidOriginClaims();
         }
 
@@ -261,6 +265,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     function challengeBySignal(uint256 _disputeClaimIndex) payable external override {
         if (msg.value != CHALLENGER_BOND) revert IncorrectBondAmount();
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
+        if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         requireNotExpired(MAX_DETECT_FAULT_DURATION, createdAt);
         if (isChallengeSuccess) revert GameAlreadyChallenged();
         if (challengedClaims[_disputeClaimIndex]) revert ClaimAlreadyChallenged();
@@ -275,6 +280,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     function submitProofForSignal(uint256 _disputeClaimIndex, Claim[] calldata _originalClaims, bytes calldata _proof) external override {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
+        if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         // if the dispute claim index is already proven to be valid, revert
         if (isChallengeSuccess) revert GameAlreadyChallenged();
         // if there is no signal challenge, revert
@@ -315,7 +321,6 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         });
 
         SP1VerifierGateway verifierGateway = SP1VerifierGateway(CONFIG.verifierGateway());
-        console.logBytes(abi.encode(publicValues));
         verifierGateway.verifyProof(CONFIG.aggregationVkey(), abi.encode(publicValues), _proof);
 
         validityProofProvers[_disputeClaimIndex] = payable(msg.sender);
@@ -325,6 +330,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     function resolveClaim() external override {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
+        if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         if (isChallengeSuccess) revert GameAlreadyChallenged();
 
         for (uint256 i = 0; i < challengedClaimIndexes.length; i++) {
@@ -359,8 +365,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     function resolve() external returns (GameStatus status_) {
         // INVARIANT: Resolution cannot occur unless the game is currently in progress.
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
-
-        GameStatus parentStatus = parentGameProxy().status();
+        GameStatus parentStatus = parentGameStatus();
         // parent game must be resolved
         if (parentStatus == GameStatus.IN_PROGRESS) {
             revert ParentGameNotResolved();
@@ -532,6 +537,17 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             gameWinner_ = address(0);
         } else {
             gameWinner_ = faultProofProver;
+        }
+    }
+
+    /// @notice Returns the parent game status
+    /// if the parent game is 0x00...00, then the parent game is from anchor state registry
+    /// and its status is always DEFENDER_WINS
+    function parentGameStatus() internal view returns (GameStatus parentGameStatus_) {
+        if (address(parentGameProxy()) == address(0)) {
+            parentGameStatus_ = GameStatus.DEFENDER_WINS;
+        } else {
+            parentGameStatus_ = parentGameProxy().status();
         }
     }
 

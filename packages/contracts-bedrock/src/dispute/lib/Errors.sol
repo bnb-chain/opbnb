@@ -26,6 +26,7 @@ error GameAlreadyChallenged();
 error ChallengeAlreadyInvalid();
 error UnresolvedChallenges();
 error ParentGameNotResolved();
+error ParentGameIsInvalid();
 error InvalidGameStatus();
 
 /// @notice Thrown when a dispute game that already exists is attempted to be created.
