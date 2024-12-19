@@ -63,7 +63,7 @@
   "daResolveWindow": 100,
   "daBondSize": 1000,
   "daResolverRefundPercentage": 50,
-  "blockInterval": 3,
+  "blockDistance": 3,
   "aggregationVkey": "0x0006a81df67f2d5e48048edd5c051a5be0ef9720a2ce130f12f7021256160e73",
   "rangeVkeyCommitment": "0x5030974a2d74c494158e4af45836d72e2e0acae55f0f22d73c22bde90c1d6d98",
   "sp1VerifierGateway": "0x51d3960c929B27Db3f041eA3c3aD4fF3c2A121C7",

@@ -121,8 +121,10 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         assertEq(parentGameProxy.invalidChallengeClaims(disputeClaimIndex), true);
         assertEq(parentGameProxy.invalidChallengeClaimIndexes(0), disputeClaimIndex);
 
+    }
 
-
+    function testChallengeBySignalWithChild() public {
+        
     }
 
     // function testFailChallengeBySignal() public {}

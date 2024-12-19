@@ -12,7 +12,7 @@ contract ZkFaultProofConfig is Initializable, ISemver {
     string public constant version = "1.0.0";
 
     /// @notice the block interval of claims proposed by proposers
-    uint256 public blockInterval;
+    uint256 public blockDistance;
 
     /// @notice the hash of the rollup configuration
     bytes32 public rollupConfigHash;
@@ -66,14 +66,14 @@ contract ZkFaultProofConfig is Initializable, ISemver {
     constructor() {}
 
     function initialize (
-        uint256 _blockInterval,
+        uint256 _blockDistance,
         uint256 _chainId,
         bytes32 _aggregationVkey,
         bytes32 _rangeVkeyCommitment,
         address _verifierGateway,
         bytes32 _rollupConfigHash
     ) public initializer {
-        blockInterval = _blockInterval;
+        blockDistance = _blockDistance;
         chainId = _chainId;
         aggregationVkey = _aggregationVkey;
         rangeVkeyCommitment = _rangeVkeyCommitment;

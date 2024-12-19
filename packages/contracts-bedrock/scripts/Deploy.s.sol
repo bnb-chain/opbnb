@@ -1054,7 +1054,7 @@ contract Deploy is Deployer {
             _proxy: payable(zkFaultProofConfigProxy),
             _implementation: zkFaultProofConfig,
             _innerCallData: abi.encodeCall(ZkFaultProofConfig.initialize, (
-                cfg.blockInterval(),
+                cfg.blockDistance(),
                 cfg.l2ChainID(),
                 cfg.aggregationVkey(),
                 cfg.rangeVkeyCommitment(),

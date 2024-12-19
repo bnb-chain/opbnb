@@ -75,7 +75,7 @@ contract DeployConfig is Script {
     uint256 public daResolveWindow;
     uint256 public daBondSize;
     uint256 public daResolverRefundPercentage;
-    uint256 public blockInterval;
+    uint256 public blockDistance;
     bytes32 public aggregationVkey;
     bytes32 public rangeVkeyCommitment;
     address public sp1VerifierGateway;
@@ -160,7 +160,7 @@ contract DeployConfig is Script {
         daBondSize = _readOr(_json, "$.daBondSize", 1000000000);
         daResolverRefundPercentage = _readOr(_json, "$.daResolverRefundPercentage", 0);
 
-        blockInterval = stdJson.readUint(_json, "$.blockInterval");
+        blockDistance = stdJson.readUint(_json, "$.blockDistance");
         aggregationVkey = stdJson.readBytes32(_json, "$.aggregationVkey");
         rangeVkeyCommitment = stdJson.readBytes32(_json, "$.rangeVkeyCommitment");
         sp1VerifierGateway = stdJson.readAddress(_json, "$.sp1VerifierGateway");

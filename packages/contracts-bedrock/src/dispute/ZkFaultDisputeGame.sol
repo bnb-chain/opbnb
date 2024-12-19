@@ -191,7 +191,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         // If the currentL2BlockNumber is wrong, then the proposer must provide a wrong list of claims.
         // The challenger can detect the mismatch between the l2 block number and claims.
         // This mismatch can be proved in the zk proof.
-        if (CONFIG.blockInterval() * claimsLength() != currentL2BlockNumber - rootBlockNumber) {
+        if (CONFIG.blockDistance() * claimsLength() != currentL2BlockNumber - rootBlockNumber) {
             revert InvalidClaimsLength();
         }
 
@@ -242,7 +242,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             agreedClaim = _originalClaims[_disputeClaimIndex - 1];
         }
 
-        uint256 claimBlockNumber = startingOutputRoot.l2BlockNumber + (_disputeClaimIndex+1) * CONFIG.blockInterval();
+        uint256 claimBlockNumber = startingOutputRoot.l2BlockNumber + (_disputeClaimIndex+1) * CONFIG.blockDistance();
         AggregationOutputs memory publicValues = AggregationOutputs({
             l1Head: l1Head().raw(),
             l2PreRoot: agreedClaim.raw(),
@@ -309,7 +309,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         } else {
             agreedClaim = _originalClaims[_disputeClaimIndex - 1];
         }
-        uint256 claimBlockNumber = startingOutputRoot.l2BlockNumber + (_disputeClaimIndex+1) * CONFIG.blockInterval();
+        uint256 claimBlockNumber = startingOutputRoot.l2BlockNumber + (_disputeClaimIndex+1) * CONFIG.blockDistance();
         AggregationOutputs memory publicValues = AggregationOutputs({
             l1Head: l1Head().raw(),
             l2PreRoot: agreedClaim.raw(),
