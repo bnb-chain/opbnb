@@ -228,13 +228,13 @@ func entrypoint(ctx *cli.Context) error {
 
 	versions, err = opbnb_upgrades.GetImplContractVersions(ctx.Context, implAddresses, client)
 	log.Info("Upgrading to the following versions")
-	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", proxyAddresses["L1CrossDomainMessengerProxy"])
-	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", proxyAddresses["L1ERC721BridgeProxy"])
-	log.Info("L1StandardBridge", "version", versions.L1StandardBridge, "address", proxyAddresses["L1StandardBridgeProxy"])
-	log.Info("L2OutputOracle", "version", versions.L2OutputOracle, "address", proxyAddresses["L2OutputOracleProxy"])
-	log.Info("OptimismMintableERC20Factory", "version", versions.OptimismMintableERC20Factory, "address", proxyAddresses["OptimismMintableERC20FactoryProxy"])
-	log.Info("OptimismPortal", "version", versions.OptimismPortal, "address", proxyAddresses["OptimismPortalProxy"])
-	log.Info("SystemConfig", "version", versions.SystemConfig, "address", proxyAddresses["SystemConfigProxy"])
+	log.Info("L1CrossDomainMessenger", "version", versions.L1CrossDomainMessenger, "address", implAddresses["L1CrossDomainMessenger"])
+	log.Info("L1ERC721Bridge", "version", versions.L1ERC721Bridge, "address", implAddresses["L1ERC721Bridge"])
+	log.Info("L1StandardBridge", "version", versions.L1StandardBridge, "address", implAddresses["L1StandardBridge"])
+	log.Info("L2OutputOracle", "version", versions.L2OutputOracle, "address", implAddresses["L2OutputOracle"])
+	log.Info("OptimismMintableERC20Factory", "version", versions.OptimismMintableERC20Factory, "address", implAddresses["OptimismMintableERC20Factory"])
+	log.Info("OptimismPortal", "version", versions.OptimismPortal, "address", implAddresses["OptimismPortal"])
+	log.Info("SystemConfig", "version", versions.SystemConfig, "address", implAddresses["SystemConfig"])
 
 	// Create a batch of transactions
 	batch := safe.Batch{}
