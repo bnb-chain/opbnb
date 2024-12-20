@@ -93,8 +93,8 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     uint256 public constant CHALLENGER_BOND = 1 ether;
     address payable public constant BURN_ADDRESS = payable(address(0));
     uint256 public constant PERCENTAGE_DIVISOR = 10000;
-    uint256 public CHALLENGER_REWARD_PERCENTAGE = 1000;
-    uint256 public PROVER_REWARD_PERCENTAGE = 5000;
+    uint256 public immutable CHALLENGER_REWARD_PERCENTAGE;
+    uint256 public immutable PROVER_REWARD_PERCENTAGE;
 
     /// @param _gameType The type ID of the game.
     /// @param _maxGenerateProofDuration The maximum amount of time that a validity prover has to generate a proof.
@@ -107,6 +107,8 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         GameType _gameType,
         Duration _maxGenerateProofDuration,
         Duration _maxDetectFaultDuration,
+        uint256 _CHALLENGER_REWARD_PERCENTAGE,
+        uint256 _PROVER_REWARD_PERCENTAGE,
         IDelayedWETH _weth,
         IAnchorStateRegistry _anchorStateRegistry,
         ZkFaultProofConfig _config,
@@ -116,6 +118,11 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         GAME_TYPE = _gameType;
         MAX_GENERATE_PROOF_DURATION = _maxGenerateProofDuration;
         MAX_DETECT_FAULT_DURATION = _maxDetectFaultDuration;
+        CHALLENGER_REWARD_PERCENTAGE = _CHALLENGER_REWARD_PERCENTAGE;
+        PROVER_REWARD_PERCENTAGE = _PROVER_REWARD_PERCENTAGE;
+        if (CHALLENGER_REWARD_PERCENTAGE + PROVER_REWARD_PERCENTAGE > PERCENTAGE_DIVISOR) {
+            revert InvalidRewardPercentage();
+        }
         MAX_CLOCK_DURATION = Duration.wrap(MAX_GENERATE_PROOF_DURATION.raw() + MAX_DETECT_FAULT_DURATION.raw());
         WETH = _weth;
         ANCHOR_STATE_REGISTRY = _anchorStateRegistry;
@@ -216,7 +223,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
         if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         requireNotExpired(MAX_CLOCK_DURATION, createdAt);
-        if (isChallengeSuccess) revert GameAlreadyChallenged();
+        if (isChallengeSuccess) revert GameChallengeSucceeded();
 
         // allow direct challenge even there is a signal challenge
         // check the validity of origin claims
@@ -267,7 +274,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
         if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         requireNotExpired(MAX_DETECT_FAULT_DURATION, createdAt);
-        if (isChallengeSuccess) revert GameAlreadyChallenged();
+        if (isChallengeSuccess) revert GameChallengeSucceeded();
         if (challengedClaims[_disputeClaimIndex]) revert ClaimAlreadyChallenged();
         if (_disputeClaimIndex >= claimsLength()) {
             revert InvalidDisputeClaimIndex();
@@ -282,7 +289,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
         if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         // if the dispute claim index is already proven to be valid, revert
-        if (isChallengeSuccess) revert GameAlreadyChallenged();
+        if (isChallengeSuccess) revert GameChallengeSucceeded();
         // if there is no signal challenge, revert
         if (!challengedClaims[_disputeClaimIndex]) revert ClaimNotChallenged();
         // if the dispute claim index is already proven to be invalid, revert
@@ -331,8 +338,9 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     function resolveClaim() external override {
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
         if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
-        if (isChallengeSuccess) revert GameAlreadyChallenged();
+        if (isChallengeSuccess) revert GameChallengeSucceeded();
 
+        bool findValidChallenge = false;
         for (uint256 i = 0; i < challengedClaimIndexes.length; i++) {
             if (invalidChallengeClaims[challengedClaimIndexes[i]]) {
                 continue;
@@ -341,8 +349,12 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
                 isChallengeSuccess = true;
                 successfulChallengeIndex = challengedClaimIndexes[i];
                 faultProofProver = challengers[successfulChallengeIndex];
+                findValidChallenge = true;
                 break;
             }
+        }
+        if (!findValidChallenge) {
+            revert NoExpiredChallenges();
         }
         return;
     }
@@ -410,17 +422,23 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             // If isChallengeSuccess is false, then it indicates that the parent game is CHALLENGER_WINS and
             // there is no successful challenge in the current game.
             if (isChallengeSuccess) {
-                challengers[successfulChallengeIndex].transfer(currentContractBalance * CHALLENGER_REWARD_PERCENTAGE / PERCENTAGE_DIVISOR);
+                // there is a challenger who submmitted the dispute claim index by `challengeBySignal`
+                if (challengedClaims[successfulChallengeIndex]) {
+                    challengers[successfulChallengeIndex].transfer((currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
+                } else {
+                    // if there is no challenger, then the challenger is the fault proof prover self
+                    faultProofProver.transfer((currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
+                }
             }
             // reward the fault proof prover
-            faultProofProver.transfer(currentContractBalance * PROVER_REWARD_PERCENTAGE / PERCENTAGE_DIVISOR);
+            faultProofProver.transfer((currentContractBalance * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
             // burn the rest
             currentContractBalance = address(this).balance;
             BURN_ADDRESS.transfer(currentContractBalance);
         } else if (status_ == GameStatus.DEFENDER_WINS) {
             // reward part of challengers bond to valdity provers
             for (uint256 i = 0; i < invalidChallengeClaimIndexes.length; i++) {
-                validityProofProvers[invalidChallengeClaimIndexes[i]].transfer(CHALLENGER_BOND * PROVER_REWARD_PERCENTAGE / PERCENTAGE_DIVISOR);
+                validityProofProvers[invalidChallengeClaimIndexes[i]].transfer((CHALLENGER_BOND * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
             }
             // refund the bond to proposer
             payable(gameCreator()).transfer(PROPOSER_BOND);
