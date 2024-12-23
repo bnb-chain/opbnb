@@ -421,7 +421,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             // If isChallengeSuccess is true, then the challenger exists;
             // If isChallengeSuccess is false, then it indicates that the parent game is CHALLENGER_WINS and
             // there is no successful challenge in the current game.
-            if (isChallengeSuccess) {
+            if (isChallengeSuccess && parentStatus != GameStatus.CHALLENGER_WINS) {
                 // there is a challenger who submmitted the dispute claim index by `challengeBySignal`
                 if (challengedClaims[successfulChallengeIndex]) {
                     challengers[successfulChallengeIndex].transfer((currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
@@ -551,7 +551,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     /// @notice Returns the fault prover for the game
     function gameWinner() external view returns (address gameWinner_) {
-        if (status != GameStatus.DEFENDER_WINS) {
+        if (status != GameStatus.CHALLENGER_WINS) {
             gameWinner_ = address(0);
         } else {
             gameWinner_ = faultProofProver;
