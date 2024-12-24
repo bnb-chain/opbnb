@@ -196,6 +196,34 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         parentGameProxy.challengeBySignal{ value: challengerBond }(disputeClaimIndex);
         vm.expectRevert(abi.encodeWithSelector(ClaimAlreadyChallenged.selector));
         parentGameProxy.challengeBySignal{ value: challengerBond}(disputeClaimIndex);
+
+        // Challenge the game with invalid claim index
+        vm.expectRevert(abi.encodeWithSelector(InvalidDisputeClaimIndex.selector));
+        parentGameProxy.challengeBySignal{ value: challengerBond }(parentClaims.length);
+
+        // construct invalid parent game
+        Claim expectedClaim = parentClaims[disputeClaimIndex];
+        bytes memory extraData;
+        parentClaims[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000003));
+        ZkFaultDisputeGame invalidParentGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, parentClaims, type(uint64).max, parentClaimBlockNumber, extraData)));
+
+        ZkFaultDisputeGame invalidChildGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, childClaims, uint64(disputeGameFactory.gameCount()-1), childClaimBlockNumber, extraData)));
+        // parent game is resolved to CHALLENGER_WINS
+        vm.startPrank(parentFaultProver);
+        invalidParentGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, parentProofs[disputeClaimIndex]);
+        invalidParentGameProxy.resolve();
+        vm.stopPrank();
+
+        // Challenge the game which is already resolved
+        vm.expectRevert(abi.encodeWithSelector(GameNotInProgress.selector));
+        invalidParentGameProxy.challengeBySignal{ value: challengerBond }(disputeClaimIndex);
+
+        // Challenge the game with invalid parent game
+        vm.expectRevert(abi.encodeWithSelector(ParentGameIsInvalid.selector));
+        invalidChildGameProxy.challengeBySignal{ value: challengerBond }(disputeClaimIndex);
+
     }
 
     function testChallengeByProof() public {
@@ -237,11 +265,73 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
             GAME_TYPE, childClaims, parentGameIndex, childClaimBlockNumber, new bytes(0))));
         // block (47528974, 47528977] proof
         bytes memory proof = childProofs[disputeClaimIndex];
-        vm.prank(msg.sender);
+        vm.startPrank(childFaultProver);
         invalidChildProxy.challengeByProof(disputeClaimIndex, expectedClaim, childClaims, proof);
         assertEq(invalidChildProxy.isChallengeSuccess(), true);
         assertEq(invalidChildProxy.successfulChallengeIndex(), disputeClaimIndex);
-        assertEq(invalidChildProxy.faultProofProver(), msg.sender);
+        assertEq(invalidChildProxy.faultProofProver(), childFaultProver);
+
+        // another dispute claim index: first challenge by signal, then challenge by proof
+        uint256 secondDisputeClaimIndex = 2;
+        Claim secondExpectedClaim = childClaims[secondDisputeClaimIndex];
+        childClaims[secondDisputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000001));
+        ZkFaultDisputeGame secondInvalidChildProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, childClaims, parentGameIndex, childClaimBlockNumber, extraData)));
+        secondInvalidChildProxy.challengeBySignal{ value: challengerBond }(secondDisputeClaimIndex);
+        secondInvalidChildProxy.challengeByProof(secondDisputeClaimIndex, secondExpectedClaim, childClaims, childProofs[secondDisputeClaimIndex]);
+        assertEq(secondInvalidChildProxy.isChallengeSuccess(), true);
+        assertEq(secondInvalidChildProxy.successfulChallengeIndex(), secondDisputeClaimIndex);
+        assertEq(secondInvalidChildProxy.faultProofProver(), childFaultProver);
+        vm.stopPrank();
+    }
+
+    function testChallengeByProof_FailCases() public {
+        uint256 disputeClaimIndex = 1;
+        Claim expectedClaim = parentClaims[disputeClaimIndex];
+        Claim[] memory invalidClaims = new Claim[](parentClaims.length + 1);
+        for (uint256 i = 0; i < parentClaims.length; i++) {
+            invalidClaims[i] = parentClaims[i];
+        }
+        bytes memory extraData;
+        vm.warp(parentCreateTimestamp + 1);
+        vm.expectRevert(abi.encodeWithSelector(InvalidClaimsLength.selector));
+        parentGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, invalidClaims, parentProofs[disputeClaimIndex]);
+
+        Claim[] memory invalidClaims2 = parentClaims;
+        invalidClaims2[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000005));
+        vm.expectRevert(abi.encodeWithSelector(InvalidOriginClaims.selector));
+        parentGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, invalidClaims2, parentProofs[disputeClaimIndex]);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidDisputeClaimIndex.selector));
+        parentGameProxy.challengeByProof(parentClaims.length, expectedClaim, parentClaims, parentProofs[disputeClaimIndex]);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidExpectedClaim.selector));
+        parentGameProxy.challengeByProof(disputeClaimIndex, parentClaims[disputeClaimIndex], parentClaims, parentProofs[disputeClaimIndex]);
+
+        vm.warp(parentCreateTimestamp + parentGameProxy.maxClockDuration().raw() + 1);
+        vm.expectRevert(abi.encodeWithSelector(ClockTimeExceeded.selector));
+        parentGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, parentProofs[disputeClaimIndex]);
+
+        vm.warp(parentCreateTimestamp + 1);
+        // 0x09bde339 is sig of InvalidProof()
+        vm.expectRevert(abi.encodeWithSelector(0x09bde339));
+        parentGameProxy.challengeByProof(disputeClaimIndex, invalidClaims2[disputeClaimIndex], parentClaims, parentProofs[disputeClaimIndex]);
+
+        // construct invalid parent game
+        parentClaims[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000005));
+        ZkFaultDisputeGame invalidGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, parentClaims, type(uint64).max, parentClaimBlockNumber, extraData)));
+
+        ZkFaultDisputeGame invalidChildGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, childClaims, uint64(disputeGameFactory.gameCount()-1), childClaimBlockNumber, extraData)));
+
+        vm.startPrank(parentFaultProver);
+        invalidGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, parentProofs[disputeClaimIndex]);
+        invalidGameProxy.resolve();
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(ParentGameIsInvalid.selector));
+        invalidChildGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, childClaims, childProofs[disputeClaimIndex]);
     }
 
     function testResolveClaim() public {
@@ -266,6 +356,35 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         assertEq(parentGameProxy.isChallengeSuccess(), true);
         assertEq(parentGameProxy.successfulChallengeIndex(), disputeClaimIndex);
         assertEq(parentGameProxy.faultProofProver(), msg.sender);
+    }
+
+    function testResolveClaim_FailCases() public {
+        uint256 disputeClaimIndex = 1;
+        Claim expectedClaim = parentClaims[disputeClaimIndex];
+        parentClaims[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000005));
+        vm.warp(parentCreateTimestamp);
+        ZkFaultDisputeGame invalidGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame { value: proposerBond } (
+            GAME_TYPE, parentClaims, type(uint64).max, parentClaimBlockNumber, extraData)));
+
+        uint256 disputeTimestamp = parentCreateTimestamp + 10;
+        vm.warp(disputeTimestamp);
+        vm.prank(msg.sender);
+        parentGameProxy.challengeBySignal{ value: challengerBond }(disputeClaimIndex);
+
+        Duration maxGenerateProofDuration = parentGameProxy.maxGenerateProofDuration();
+        vm.warp(disputeTimestamp + maxGenerateProofDuration.raw());
+        vm.expectRevert(abi.encodeWithSelector(NoExpiredChallenges.selector));
+        parentGameProxy.resolveClaim();
+
+        vm.startPrank(parentFaultProver);
+        invalidGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, parentProofs[disputeClaimIndex]);
+        vm.expectRevert(abi.encodeWithSelector(GameChallengeSucceeded.selector));
+        invalidGameProxy.resolveClaim();
+        vm.stopPrank();
+
+        invalidGameProxy.resolve();
+        vm.expectRevert(abi.encodeWithSelector(GameNotInProgress.selector));
+        invalidGameProxy.resolveClaim();
     }
 
     function testResolve_CHALLENGER_WINS_ByProof() public {
