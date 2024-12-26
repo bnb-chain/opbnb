@@ -184,8 +184,6 @@ github.com/bnb-chain/fastssz v0.1.2 h1:vTcXw5SwCtRYnl/BEclujiml7GXiVOZ74tub4GHpv
 github.com/bnb-chain/fastssz v0.1.2/go.mod h1:KcabV+OEw2QwgyY8Fc88ZG79CKYkFdu0kKWyfA3dI6o=
 github.com/bnb-chain/greenfield-cometbft v1.0.0 h1:0r6hOJWD/+es0gxP/exKuN/krgXAr3LCn5/XlcgDWr8=
 github.com/bnb-chain/greenfield-cometbft v1.0.0/go.mod h1:f35mk/r5ab6yvzlqEWZt68LfUje68sYgMpVlt2CUYMk=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20240823030609-c0f12a4e1b05 h1:Tyov2UCjIxxHt6ZX46T09CiKpKDY72AtjHzUQFK3SBA=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20240823030609-c0f12a4e1b05/go.mod h1:hyHrrcHkUe3lRwfJs+JGrbOHp+pRdheRk+ren4TPhF8=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
@@ -933,6 +931,8 @@ github.com/kr/pty v1.1.8/go.mod h1:O1sed60cT9XZ5uDucP5qwvh+TE3NnUj51EiZO/lmSfw=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/krish-nr/op-geth v0.2.2-rc.1.0.20241226015808-4d92fe224340 h1:ez7r25x9QqapSj3ohHDdm7EqjqJINMR2//tUSZMeP3g=
+github.com/krish-nr/op-geth v0.2.2-rc.1.0.20241226015808-4d92fe224340/go.mod h1:hyHrrcHkUe3lRwfJs+JGrbOHp+pRdheRk+ren4TPhF8=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/labstack/echo/v4 v4.2.1/go.mod h1:AA49e0DZ8kk5jTOOCKNuPR6oTnBS0dYiM4FW1e6jwpg=
