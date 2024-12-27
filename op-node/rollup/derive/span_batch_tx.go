@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 type spanBatchTxData interface {
@@ -45,6 +46,17 @@ type spanBatchDynamicFeeTxData struct {
 
 func (txData *spanBatchDynamicFeeTxData) txType() byte { return types.DynamicFeeTxType }
 
+type spanBatchSetCodeTxData struct {
+	Value      *big.Int              // wei amount
+	GasTipCap  *big.Int              // maxPriorityFeePerGas (EIP-1559)
+	GasFeeCap  *big.Int              // maxFeePerGas (EIP-1559)
+	Data       []byte                // contract invocation input data
+	AccessList types.AccessList      // EIP-2930 access list
+	AuthList   []types.Authorization // EIP-7702 authorization list
+}
+
+func (txData *spanBatchSetCodeTxData) txType() byte { return types.SetCodeTxType }
+
 // Type returns the transaction type.
 func (tx *spanBatchTx) Type() uint8 {
 	return tx.inner.txType()
@@ -79,7 +91,7 @@ func (tx *spanBatchTx) decodeTyped(b []byte) (spanBatchTxData, error) {
 		return nil, fmt.Errorf("failed to decode span batch: %w", ErrTypedTxTooShort)
 	}
 	switch b[0] {
-	case types.AccessListTxType:
+	case types.AccessListTxType: //有了
 		var inner spanBatchAccessListTxData
 		err := rlp.DecodeBytes(b[1:], &inner)
 		if err != nil {
@@ -91,6 +103,13 @@ func (tx *spanBatchTx) decodeTyped(b []byte) (spanBatchTxData, error) {
 		err := rlp.DecodeBytes(b[1:], &inner)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode spanBatchDynamicFeeTxData: %w", err)
+		}
+		return &inner, nil
+	case types.SetCodeTxType:
+		var inner spanBatchSetCodeTxData
+		err := rlp.DecodeBytes(b[1:], &inner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode spanBatchSetCodeTxData: %w", err)
 		}
 		return &inner, nil
 	default:
@@ -137,7 +156,7 @@ func (tx *spanBatchTx) convertToFullTx(nonce, gas uint64, to *common.Address, ch
 			R:        R,
 			S:        S,
 		}
-	case types.AccessListTxType:
+	case types.AccessListTxType: //有了
 		batchTxInner := tx.inner.(*spanBatchAccessListTxData)
 		inner = &types.AccessListTx{
 			ChainID:    chainID,
@@ -168,6 +187,23 @@ func (tx *spanBatchTx) convertToFullTx(nonce, gas uint64, to *common.Address, ch
 			R:          R,
 			S:          S,
 		}
+	case types.SetCodeTxType:
+		batchTxInner := tx.inner.(*spanBatchSetCodeTxData)
+		inner = &types.SetCodeTx{
+			ChainID:    chainID.Uint64(),
+			Nonce:      nonce,
+			GasTipCap:  uint256.MustFromBig(batchTxInner.GasTipCap),
+			GasFeeCap:  uint256.MustFromBig(batchTxInner.GasFeeCap),
+			Gas:        gas,
+			To:         *to,
+			Value:      uint256.MustFromBig(batchTxInner.Value),
+			Data:       batchTxInner.Data,
+			AccessList: batchTxInner.AccessList,
+			AuthList:   batchTxInner.AuthList,
+			V:          uint256.MustFromBig(V),
+			R:          uint256.MustFromBig(R),
+			S:          uint256.MustFromBig(S),
+		}
 	default:
 		return nil, fmt.Errorf("invalid tx type: %d", tx.Type())
 	}
@@ -184,7 +220,7 @@ func newSpanBatchTx(tx types.Transaction) (*spanBatchTx, error) {
 			Value:    tx.Value(),
 			Data:     tx.Data(),
 		}
-	case types.AccessListTxType:
+	case types.AccessListTxType: //有了
 		inner = &spanBatchAccessListTxData{
 			GasPrice:   tx.GasPrice(),
 			Value:      tx.Value(),
@@ -199,6 +235,16 @@ func newSpanBatchTx(tx types.Transaction) (*spanBatchTx, error) {
 			Data:       tx.Data(),
 			AccessList: tx.AccessList(),
 		}
+	case types.SetCodeTxType:
+		inner = &spanBatchSetCodeTxData{
+			GasTipCap:  tx.GasTipCap(),
+			GasFeeCap:  tx.GasFeeCap(),
+			Value:      tx.Value(),
+			Data:       tx.Data(),
+			AccessList: tx.AccessList(),
+			AuthList:   tx.AuthList(),
+		}
+
 	default:
 		return nil, fmt.Errorf("invalid tx type: %d", tx.Type())
 	}

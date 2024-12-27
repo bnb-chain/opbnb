@@ -267,9 +267,11 @@ func (btx *spanBatchTxs) recoverV(chainID *big.Int) error {
 				// EIP-155
 				v = chainID.Uint64()*2 + 35 + bit
 			}
-		case types.AccessListTxType:
+		case types.AccessListTxType: //有了
 			v = bit
 		case types.DynamicFeeTxType:
+			v = bit
+		case types.SetCodeTxType:
 			v = bit
 		default:
 			return fmt.Errorf("invalid tx type: %d", txType)
@@ -382,9 +384,11 @@ func convertVToYParity(v uint64, txType int) (uint, error) {
 			// unprotected legacy txs must have v = 27 or 28
 			yParityBit = uint(v - 27)
 		}
-	case types.AccessListTxType:
+	case types.AccessListTxType: //有了
 		yParityBit = uint(v)
 	case types.DynamicFeeTxType:
+		yParityBit = uint(v)
+	case types.SetCodeTxType:
 		yParityBit = uint(v)
 	default:
 		return 0, fmt.Errorf("invalid tx type: %d", txType)
