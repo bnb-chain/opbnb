@@ -29,6 +29,12 @@ var (
 	ErrProposerNotRunning    = errors.New("proposer is not running")
 )
 
+const (
+	inProgress     = 0
+	challengerWins = 1
+	defenderWins   = 2
+)
+
 type L1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	// CodeAt returns the code of the given account. This is needed to differentiate
@@ -53,8 +59,7 @@ type DriverSetup struct {
 	L1Client L1Client
 
 	// RollupProvider's RollupClient() is used to retrieve output roots from
-	RollupProvider  dial.RollupProvider
-	IsZKDisputeGame bool
+	RollupProvider dial.RollupProvider
 }
 
 // L2OutputSubmitter is responsible for proposing outputs
@@ -73,8 +78,10 @@ type L2OutputSubmitter struct {
 	l2ooContract *bindings.L2OutputOracleCaller
 	l2ooABI      *abi.ABI
 
-	dgfContract *bindings.DisputeGameFactoryCaller
-	dgfABI      *abi.ABI
+	dgfContract                 *bindings.DisputeGameFactoryCaller
+	dgfABI                      *abi.ABI
+	anchorStateRegistryContract *bindings.AnchorStateRegistryCaller
+	outputRootCacheHandler      *OutputRootCacheHandler
 }
 
 // NewL2OutputSubmitter creates a new L2 Output Submitter
@@ -147,21 +154,33 @@ func newDGFSubmitter(ctx context.Context, cancel context.CancelFunc, setup Drive
 	}
 	log.Info("Connected to DisputeGameFactory", "address", setup.Cfg.DisputeGameFactoryAddr, "version", version)
 
+	var anchorStateRegistryContract *bindings.AnchorStateRegistryCaller
+	if setup.Cfg.IsZKDisputeGame {
+		anchorStateRegistryCaller, err := bindings.NewAnchorStateRegistryCaller(*setup.Cfg.AnchorStateRegistryAddr, setup.L1Client)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to create AnchorStateRegistry at address %s: %w", setup.Cfg.AnchorStateRegistryAddr, err)
+		}
+		anchorStateRegistryContract = anchorStateRegistryCaller
+	}
 	parsed, err := bindings.DisputeGameFactoryMetaData.GetAbi()
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	return &L2OutputSubmitter{
+	l := &L2OutputSubmitter{
 		DriverSetup: setup,
 		done:        make(chan struct{}),
 		ctx:         ctx,
 		cancel:      cancel,
 
-		dgfContract: dgfCaller,
-		dgfABI:      parsed,
-	}, nil
+		dgfContract:                 dgfCaller,
+		dgfABI:                      parsed,
+		anchorStateRegistryContract: anchorStateRegistryContract,
+	}
+	l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput)
+	return l, nil
 }
 
 func (l *L2OutputSubmitter) StartL2OutputSubmitting() error {
@@ -478,7 +497,7 @@ func (l *L2OutputSubmitter) loopL2OO(ctx context.Context) {
 }
 
 func (l *L2OutputSubmitter) loopDGF(ctx context.Context) {
-	if l.IsZKDisputeGame {
+	if l.Cfg.IsZKDisputeGame {
 		l.loopZKDGF(ctx)
 	} else {
 		ticker := time.NewTicker(l.Cfg.ProposalInterval)
@@ -505,7 +524,19 @@ func (l *L2OutputSubmitter) loopDGF(ctx context.Context) {
 }
 
 func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
-
+	for {
+		select {
+		case readyData := <-l.outputRootCacheHandler.readyChan:
+			l.submitZKDGFOutputData(readyData)
+		case <-l.done:
+			return
+		default:
+			if !l.outputRootCacheHandler.isStart.Load() {
+				parentGame := l.findValidParentGame(ctx)
+				l.outputRootCacheHandler.startFrom(parentGame)
+			}
+		}
+	}
 }
 
 func (l *L2OutputSubmitter) proposeOutput(ctx context.Context, output *eth.OutputResponse) {
@@ -521,4 +552,145 @@ func (l *L2OutputSubmitter) proposeOutput(ctx context.Context, output *eth.Outpu
 		return
 	}
 	l.Metr.RecordL2BlocksProposed(output.BlockRef)
+}
+
+type ZkDisputeGameExtraData struct {
+	allClaimsHash     common.Hash
+	lengthClaims      *big.Int
+	parentGameAddress common.Address
+	endL2BlockNumber  *big.Int
+}
+
+type GameInformation struct {
+	game      *bindings.IDisputeGameFactoryGameSearchResult
+	extraData *ZkDisputeGameExtraData
+}
+
+func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInformation {
+	anchors, err := l.anchorStateRegistryContract.Anchors(&bind.CallOpts{}, zkDisputeGameType)
+	if err != nil {
+		l.Log.Error("failed to get anchor state", "err", err)
+		return nil
+	}
+	latestValidBlockNumber := anchors.L2BlockNumber
+
+	gameCount, err := l.dgfContract.GameCount(&bind.CallOpts{})
+	if err != nil {
+		l.Log.Error("failed to get game count", "err", err)
+		return nil
+	}
+	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, gameCount, big.NewInt(100))
+	if err != nil {
+		l.Log.Error("failed to find latest games", "err", err)
+		return nil
+	}
+	for _, game := range games {
+		gameExtraData, err := parseExtraData(game.ExtraData)
+		if err != nil {
+			l.Log.Error("failed to parse extra data", "err", err)
+			continue
+		}
+		if gameExtraData.endL2BlockNumber.Cmp(latestValidBlockNumber) < 0 {
+			l.Log.Debug("game endL2BlockNumber<latestValidBlockNumber,ignore", "idx", game.Index, "endL2BlockNumber",
+				gameExtraData.endL2BlockNumber, "latestValidBlockNumber", latestValidBlockNumber)
+			continue
+		}
+		output, shouldPropose, err := l.FetchOutput(ctx, gameExtraData.endL2BlockNumber)
+		if err != nil {
+			l.Log.Warn("failed to fetch output", "err", err, "blockNumber", gameExtraData.endL2BlockNumber)
+			continue
+		}
+		if !shouldPropose {
+			l.Log.Warn("the endL2BlockNumber corresponding to game is higher than safe or finalize.ignore", "err", err, "idx", game.Index)
+			continue
+		}
+		if output.OutputRoot != game.RootClaim {
+			l.Log.Debug("invalid parent game,ignore it", "idx", game.Index, "correct outputRoot", output.OutputRoot, "game's outputRoot", game.RootClaim)
+			continue
+		}
+		if checkErr := l.checkGame(ctx, game); checkErr != nil {
+			l.Log.Debug("parent game invalid,ignore it", "err", checkErr, "idx", game.Index)
+			continue
+		}
+		return &GameInformation{
+			game:      &game,
+			extraData: gameExtraData,
+		}
+	}
+	return nil
+}
+
+func (l *L2OutputSubmitter) checkGame(ctx context.Context, game bindings.IDisputeGameFactoryGameSearchResult) error {
+	gameAddress := common.BytesToAddress(game.Metadata[12:])
+	gameCaller, err := bindings.NewZKFaultDisputeGameCaller(gameAddress, l.L1Client)
+	if err != nil {
+		return fmt.Errorf("failed to create dispute game(%s) caller: %w", gameAddress, err)
+	}
+	status, err := gameCaller.Status(&bind.CallOpts{})
+	if err != nil {
+		return fmt.Errorf("failed to get dispute game(%s) status: %w", gameAddress, err)
+	}
+	if status == challengerWins {
+		return errors.New("game status is challenger win")
+	} else if status == defenderWins {
+		return nil
+	}
+	for {
+		parentGameProxy, err := gameCaller.ParentGameProxy(&bind.CallOpts{})
+		if err != nil {
+			return fmt.Errorf("failed to get parent game proxy: %w,the game addr:%s", err, gameAddress)
+		}
+		parentCaller, err := bindings.NewZKFaultDisputeGameCaller(parentGameProxy, l.L1Client)
+		if err != nil {
+			return fmt.Errorf("failed to get parent game(%s) proxy: %w", parentGameProxy, err)
+		}
+		parentStatus, err := parentCaller.Status(&bind.CallOpts{})
+		if err != nil {
+			return fmt.Errorf("failed to get parent game(%s) status: %w", parentGameProxy, err)
+		}
+		if parentStatus == challengerWins {
+			return errors.New("parent game status is challenger win")
+		} else if parentStatus == inProgress {
+			rootClaim, err := parentCaller.RootClaim(&bind.CallOpts{})
+			if err != nil {
+				return fmt.Errorf("parent game(%s) failed to get root claim: %w", parentGameProxy, err)
+			}
+			l2BlockNumber, err := parentCaller.L2BlockNumber(&bind.CallOpts{})
+			if err != nil {
+				return fmt.Errorf("parent game(%s) failed to get l2 block number: %w", parentGameProxy, err)
+			}
+			output, shouldPropose, err := l.FetchOutput(ctx, l2BlockNumber)
+			if err != nil {
+				return fmt.Errorf("fetch output fail: %w,l2BlockNumber:%d", err, l2BlockNumber)
+			}
+			if !shouldPropose {
+				return fmt.Errorf("parent game's l2BlockNumber is invalid,address:%s", parentGameProxy)
+			}
+			if output.OutputRoot != rootClaim {
+				return fmt.Errorf("parent game's rootClaim is invalid,address:%s", parentGameProxy)
+			}
+			gameCaller = parentCaller
+		} else {
+			return nil
+		}
+	}
+}
+
+func (l *L2OutputSubmitter) submitZKDGFOutputData(data []eth.Bytes32) {
+
+}
+
+func parseExtraData(data []byte) (*ZkDisputeGameExtraData, error) {
+	//todo_welkin Check if the usage of new(big.Int).SetBytes is correct.
+	if len(data) < 64 {
+		return nil, errors.New("extra data len<64")
+	}
+	allClaimsHash := common.BytesToHash(data[:common.HashLength])
+	parentGameAddress := common.BytesToAddress(data[36 : 36+common.AddressLength])
+	return &ZkDisputeGameExtraData{
+		allClaimsHash:     allClaimsHash,
+		lengthClaims:      new(big.Int).SetBytes(data[32:36]),
+		parentGameAddress: parentGameAddress,
+		endL2BlockNumber:  new(big.Int).SetBytes(data[56:64]),
+	}, nil
 }

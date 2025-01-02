@@ -48,7 +48,8 @@ type ProposerConfig struct {
 	// This option is not necessary when higher proposal latency is acceptable and L1 is healthy.
 	AllowNonFinalized bool
 
-	WaitNodeSync bool
+	WaitNodeSync            bool
+	AnchorStateRegistryAddr *common.Address
 }
 
 type ProposerService struct {
@@ -226,18 +227,22 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 	ps.DisputeGameType = cfg.DisputeGameType
 	if cfg.DisputeGameType == zkDisputeGameType {
 		ps.IsZKDisputeGame = true
+		address, err := opservice.ParseAddress(cfg.AnchorStateRegistryAddr)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse anchor state registry address: %w", err))
+		}
+		ps.AnchorStateRegistryAddr = &address
 	}
 }
 
 func (ps *ProposerService) initDriver() error {
 	driver, err := NewL2OutputSubmitter(DriverSetup{
-		Log:             ps.Log,
-		Metr:            ps.Metrics,
-		Cfg:             ps.ProposerConfig,
-		Txmgr:           ps.TxManager,
-		L1Client:        ps.L1Client,
-		RollupProvider:  ps.RollupProvider,
-		IsZKDisputeGame: ps.IsZKDisputeGame,
+		Log:            ps.Log,
+		Metr:           ps.Metrics,
+		Cfg:            ps.ProposerConfig,
+		Txmgr:          ps.TxManager,
+		L1Client:       ps.L1Client,
+		RollupProvider: ps.RollupProvider,
 	})
 	if err != nil {
 		return err

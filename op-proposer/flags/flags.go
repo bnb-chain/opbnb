@@ -55,6 +55,11 @@ var (
 		Usage:   "Address of the DisputeGameFactory contract",
 		EnvVars: prefixEnvVars("GAME_FACTORY_ADDRESS"),
 	}
+	AnchorStateRegistryAddressFlag = &cli.StringFlag{
+		Name:    "anchor-state-registry-address",
+		Usage:   "Address of the AnchorStateRegistry contract",
+		EnvVars: prefixEnvVars("ANCHOR_STATE_REGISTRY_ADDRESS"),
+	}
 	ProposalIntervalFlag = &cli.DurationFlag{
 		Name:    "proposal-interval",
 		Usage:   "Interval between submitting L2 output proposals when the dispute game factory address is set",
@@ -94,6 +99,7 @@ var optionalFlags = []cli.Flag{
 	AllowNonFinalizedFlag,
 	L2OutputHDPathFlag,
 	DisputeGameFactoryAddressFlag,
+	AnchorStateRegistryAddressFlag,
 	ProposalIntervalFlag,
 	DisputeGameTypeFlag,
 	ActiveSequencerCheckDurationFlag,

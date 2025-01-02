@@ -50,6 +50,9 @@ type CLIConfig struct {
 	// DGFAddress is the DisputeGameFactory contract address.
 	DGFAddress string
 
+	// AnchorStateRegistryAddr is the AnchorStateRegistry contract address.
+	AnchorStateRegistryAddr string
+
 	// ProposalInterval is the delay between submitting L2 output proposals when the DGFAddress is set.
 	ProposalInterval time.Duration
 
@@ -86,6 +89,9 @@ func (c *CLIConfig) Check() error {
 	if c.DGFAddress != "" && c.ProposalInterval == 0 {
 		return errors.New("the `DisputeGameFactory` address was provided but the `ProposalInterval` was not set")
 	}
+	if c.DGFAddress != "" && c.DisputeGameType == zkDisputeGameType && c.AnchorStateRegistryAddr == "" {
+		return errors.New("when setting `DisputeGameFactory` and the game type == 3, the `AnchorStateRegistry` address must be set")
+	}
 	if c.ProposalInterval != 0 && c.DGFAddress == "" {
 		return errors.New("the `ProposalInterval` was provided but the `DisputeGameFactory` address was not set")
 	}
@@ -109,6 +115,7 @@ func NewConfig(ctx *cli.Context) *CLIConfig {
 		MetricsConfig:                opmetrics.ReadCLIConfig(ctx),
 		PprofConfig:                  oppprof.ReadCLIConfig(ctx),
 		DGFAddress:                   ctx.String(flags.DisputeGameFactoryAddressFlag.Name),
+		AnchorStateRegistryAddr:      ctx.String(flags.AnchorStateRegistryAddressFlag.Name),
 		ProposalInterval:             ctx.Duration(flags.ProposalIntervalFlag.Name),
 		DisputeGameType:              uint32(ctx.Uint(flags.DisputeGameTypeFlag.Name)),
 		ActiveSequencerCheckDuration: ctx.Duration(flags.ActiveSequencerCheckDurationFlag.Name),
