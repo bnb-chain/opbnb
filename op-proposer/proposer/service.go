@@ -27,6 +27,8 @@ import (
 
 var ErrAlreadyStopped = errors.New("already stopped")
 
+const zkDisputeGameType = 3
+
 type ProposerConfig struct {
 	// How frequently to poll L2 for new finalized outputs
 	PollInterval   time.Duration
@@ -38,6 +40,7 @@ type ProposerConfig struct {
 	L2OutputOracleAddr     *common.Address
 	DisputeGameFactoryAddr *common.Address
 	DisputeGameType        uint32
+	IsZKDisputeGame        bool
 
 	// AllowNonFinalized enables the proposal of safe, but non-finalized L2 blocks.
 	// The L1 block-hash embedded in the proposal TX is checked and should ensure the proposal
@@ -221,16 +224,20 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 	ps.DisputeGameFactoryAddr = &dgfAddress
 	ps.ProposalInterval = cfg.ProposalInterval
 	ps.DisputeGameType = cfg.DisputeGameType
+	if cfg.DisputeGameType == zkDisputeGameType {
+		ps.IsZKDisputeGame = true
+	}
 }
 
 func (ps *ProposerService) initDriver() error {
 	driver, err := NewL2OutputSubmitter(DriverSetup{
-		Log:            ps.Log,
-		Metr:           ps.Metrics,
-		Cfg:            ps.ProposerConfig,
-		Txmgr:          ps.TxManager,
-		L1Client:       ps.L1Client,
-		RollupProvider: ps.RollupProvider,
+		Log:             ps.Log,
+		Metr:            ps.Metrics,
+		Cfg:             ps.ProposerConfig,
+		Txmgr:           ps.TxManager,
+		L1Client:        ps.L1Client,
+		RollupProvider:  ps.RollupProvider,
+		IsZKDisputeGame: ps.IsZKDisputeGame,
 	})
 	if err != nil {
 		return err

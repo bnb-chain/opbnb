@@ -53,7 +53,8 @@ type DriverSetup struct {
 	L1Client L1Client
 
 	// RollupProvider's RollupClient() is used to retrieve output roots from
-	RollupProvider dial.RollupProvider
+	RollupProvider  dial.RollupProvider
+	IsZKDisputeGame bool
 }
 
 // L2OutputSubmitter is responsible for proposing outputs
@@ -477,26 +478,34 @@ func (l *L2OutputSubmitter) loopL2OO(ctx context.Context) {
 }
 
 func (l *L2OutputSubmitter) loopDGF(ctx context.Context) {
-	ticker := time.NewTicker(l.Cfg.ProposalInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			blockNumber, err := l.FetchCurrentBlockNumber(ctx)
-			if err != nil {
-				break
-			}
+	if l.IsZKDisputeGame {
+		l.loopZKDGF(ctx)
+	} else {
+		ticker := time.NewTicker(l.Cfg.ProposalInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				blockNumber, err := l.FetchCurrentBlockNumber(ctx)
+				if err != nil {
+					break
+				}
 
-			output, shouldPropose, err := l.FetchOutput(ctx, blockNumber)
-			if err != nil || !shouldPropose {
-				break
-			}
+				output, shouldPropose, err := l.FetchOutput(ctx, blockNumber)
+				if err != nil || !shouldPropose {
+					break
+				}
 
-			l.proposeOutput(ctx, output)
-		case <-l.done:
-			return
+				l.proposeOutput(ctx, output)
+			case <-l.done:
+				return
+			}
 		}
 	}
+}
+
+func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
+
 }
 
 func (l *L2OutputSubmitter) proposeOutput(ctx context.Context, output *eth.OutputResponse) {
