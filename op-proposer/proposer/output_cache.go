@@ -83,4 +83,5 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 		parentGameIndex: parentGame.game.Index,
 		l2BlockNumber:   endBlockNumber,
 	}
+	h.isStart.CompareAndSwap(true, false)
 }

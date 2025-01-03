@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-proposer/bindings"
@@ -25,8 +26,10 @@ import (
 )
 
 var (
-	supportedL2OutputVersion = eth.Bytes32{}
-	ErrProposerNotRunning    = errors.New("proposer is not running")
+	supportedL2OutputVersion  = eth.Bytes32{}
+	ErrProposerNotRunning     = errors.New("proposer is not running")
+	DisputeGameCreatedABI     = "DisputeGameCreated(address,uint32,bytes32)"
+	DisputeGameCreatedABIHash = crypto.Keccak256Hash([]byte(DisputeGameCreatedABI))
 )
 
 const (
@@ -82,6 +85,7 @@ type L2OutputSubmitter struct {
 	dgfABI                      *abi.ABI
 	anchorStateRegistryContract *bindings.AnchorStateRegistryCaller
 	outputRootCacheHandler      *OutputRootCacheHandler
+	lastSubmittedGame           *common.Address
 }
 
 // NewL2OutputSubmitter creates a new L2 Output Submitter
@@ -533,7 +537,12 @@ func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
 		default:
 			if !l.outputRootCacheHandler.isStart.Load() {
 				parentGame := l.findValidParentGame(ctx)
-				l.outputRootCacheHandler.startFrom(parentGame)
+				if parentGame != nil {
+					l.outputRootCacheHandler.startFrom(parentGame)
+				} else {
+					l.Log.Warn("fail find valid parent game data,will retry later")
+					time.Sleep(500 * time.Millisecond)
+				}
 			}
 		}
 	}
@@ -567,6 +576,14 @@ type GameInformation struct {
 }
 
 func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInformation {
+	if l.lastSubmittedGame != nil {
+		information, err := l.getGameInformationByAddr(l.lastSubmittedGame)
+		if err != nil {
+			l.Log.Error("Failed to get game information", "err", err, "addr", l.lastSubmittedGame)
+			return nil
+		}
+		return information
+	}
 	anchors, err := l.anchorStateRegistryContract.Anchors(&bind.CallOpts{}, zkDisputeGameType)
 	if err != nil {
 		l.Log.Error("failed to get anchor state", "err", err)
@@ -719,9 +736,26 @@ func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData 
 			"tx_hash", receipt.TxHash,
 			"l1blocknum", batchData.lastSyncStatus.CurrentL1.Number,
 			"l1blockhash", batchData.lastSyncStatus.CurrentL1.Hash)
+		submittedGameAddr, err := l.getSubmittedGameAddr(receipt)
+		if err != nil {
+			l.Log.Error("get submitted game fail", "tx_hash", receipt.TxHash, "err", err)
+			return nil
+		}
+		l.lastSubmittedGame = &submittedGameAddr
 	}
 	return nil
 
+}
+
+func (l *L2OutputSubmitter) getSubmittedGameAddr(receipt *types.Receipt) (common.Address, error) {
+	for _, oneLog := range receipt.Logs {
+		if oneLog.Address == *l.Cfg.DisputeGameFactoryAddr {
+			if oneLog.Topics[0] == DisputeGameCreatedABIHash {
+				return common.BytesToAddress(oneLog.Topics[1][12:]), nil
+			}
+		}
+	}
+	return common.Address{}, errors.New("failed to get submitted game address")
 }
 
 func (l *L2OutputSubmitter) ProposeL2OutputZKDGFTxData(batchData *outputRootBatchData) ([]byte, *big.Int, error) {
@@ -734,6 +768,31 @@ func (l *L2OutputSubmitter) ProposeL2OutputZKDGFTxData(batchData *outputRootBatc
 		return nil, nil, err
 	}
 	return data, bond, err
+}
+
+func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (*GameInformation, error) {
+	count, err := l.dgfContract.GameCount(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
+	}
+	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, count, big.NewInt(50))
+	if err != nil {
+		return nil, err
+	}
+	for _, game := range games {
+		gameAddress := common.BytesToAddress(game.Metadata[12:])
+		if gameAddress == *gameAddr {
+			extraData, err := parseExtraData(game.ExtraData)
+			if err != nil {
+				return nil, err
+			}
+			return &GameInformation{
+				game:      &game,
+				extraData: extraData,
+			}, nil
+		}
+	}
+	return nil, errors.New("failed to get game information")
 }
 
 func proposeL2OutputZKDGFTxData(dgfABI *abi.ABI, gameType uint32, data *outputRootBatchData) ([]byte, error) {
