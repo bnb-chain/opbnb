@@ -526,8 +526,8 @@ func (l *L2OutputSubmitter) loopDGF(ctx context.Context) {
 func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
 	for {
 		select {
-		case readyData := <-l.outputRootCacheHandler.readyChan:
-			l.submitZKDGFOutputData(readyData)
+		case readyBatchData := <-l.outputRootCacheHandler.readyChan:
+			l.submitZKDGFOutputData(ctx, readyBatchData)
 		case <-l.done:
 			return
 		default:
@@ -676,8 +676,68 @@ func (l *L2OutputSubmitter) checkGame(ctx context.Context, game bindings.IDisput
 	}
 }
 
-func (l *L2OutputSubmitter) submitZKDGFOutputData(data []eth.Bytes32) {
+func (l *L2OutputSubmitter) submitZKDGFOutputData(ctx context.Context, data *outputRootBatchData) {
+	cCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 
+	if err := l.sendZKDGFTransaction(cCtx, data); err != nil {
+		l.Log.Error("Failed to send proposal transaction",
+			"err", err,
+			"l1blocknum", data.lastSyncStatus.CurrentL1.Number,
+			"l1blockhash", data.lastSyncStatus.CurrentL1.Hash,
+			"l1head", data.lastSyncStatus.HeadL1.Number)
+		return
+	}
+	l.Metr.RecordL2BlocksProposed(*data.lastL2BlockRef)
+}
+
+func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData *outputRootBatchData) error {
+	err := l.waitForL1Head(ctx, batchData.lastSyncStatus.HeadL1.Number+1)
+	if err != nil {
+		return err
+	}
+
+	var receipt *types.Receipt
+	data, bond, err := l.ProposeL2OutputZKDGFTxData(batchData)
+	if err != nil {
+		return err
+	}
+	receipt, err = l.Txmgr.Send(ctx, txmgr.TxCandidate{
+		TxData:   data,
+		To:       l.Cfg.DisputeGameFactoryAddr,
+		GasLimit: 0,
+		Value:    bond,
+	})
+	if err != nil {
+		return err
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		l.Log.Error("proposer tx successfully published but reverted", "tx_hash", receipt.TxHash)
+	} else {
+		l.Log.Info("proposer tx successfully published",
+			"tx_hash", receipt.TxHash,
+			"l1blocknum", batchData.lastSyncStatus.CurrentL1.Number,
+			"l1blockhash", batchData.lastSyncStatus.CurrentL1.Hash)
+	}
+	return nil
+
+}
+
+func (l *L2OutputSubmitter) ProposeL2OutputZKDGFTxData(batchData *outputRootBatchData) ([]byte, *big.Int, error) {
+	bond, err := l.dgfContract.InitBonds(&bind.CallOpts{}, l.Cfg.DisputeGameType)
+	if err != nil {
+		return nil, nil, err
+	}
+	data, err := proposeL2OutputZKDGFTxData(l.dgfABI, l.Cfg.DisputeGameType, batchData)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, bond, err
+}
+
+func proposeL2OutputZKDGFTxData(dgfABI *abi.ABI, gameType uint32, data *outputRootBatchData) ([]byte, error) {
+	return dgfABI.Pack("createZkFaultDisputeGame", gameType, data.outputRootList, data.parentGameIndex, data.l2BlockNumber, math.U256Bytes(new(big.Int).SetUint64(data.lastL2BlockRef.Number)))
 }
 
 func parseExtraData(data []byte) (*ZkDisputeGameExtraData, error) {

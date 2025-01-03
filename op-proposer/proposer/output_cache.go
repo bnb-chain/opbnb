@@ -14,8 +14,16 @@ type OutputRootCacheHandler struct {
 	ctx                 context.Context
 	log                 log.Logger
 	isStart             *atomic.Bool
-	readyChan           chan []eth.Bytes32
+	readyChan           chan *outputRootBatchData
 	outputRootFetchFunc func(ctx context.Context, block *big.Int) (*eth.OutputResponse, bool, error)
+}
+
+type outputRootBatchData struct {
+	outputRootList  []eth.Bytes32
+	lastSyncStatus  *eth.SyncStatus
+	lastL2BlockRef  *eth.L2BlockRef
+	parentGameIndex *big.Int
+	l2BlockNumber   *big.Int
 }
 
 func newOutputRootCacheHandler(ctx context.Context, log log.Logger, outputRootFetchFunc func(ctx context.Context, block *big.Int) (*eth.OutputResponse, bool, error)) *OutputRootCacheHandler {
@@ -23,7 +31,7 @@ func newOutputRootCacheHandler(ctx context.Context, log log.Logger, outputRootFe
 		ctx:                 ctx,
 		log:                 log,
 		isStart:             &atomic.Bool{},
-		readyChan:           make(chan []eth.Bytes32, 1),
+		readyChan:           make(chan *outputRootBatchData, 1),
 		outputRootFetchFunc: outputRootFetchFunc,
 	}
 }
@@ -38,7 +46,9 @@ func (h *OutputRootCacheHandler) startFrom(parentGame *GameInformation) {
 func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 	currentBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, big.NewInt(1))
 	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, big.NewInt(3600))
-	outputRootResult := make([]eth.Bytes32, 0, 1200)
+	outputRootList := make([]eth.Bytes32, 0, 1200)
+	var lastSyncStatus *eth.SyncStatus
+	var lastBlockRef *eth.L2BlockRef
 	for {
 		outputRootResponse, shouldPropose, err := h.outputRootFetchFunc(h.ctx, currentBlockNumber)
 		if err != nil {
@@ -51,11 +61,19 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		outputRootResult = append(outputRootResult, outputRootResponse.OutputRoot)
+		outputRootList = append(outputRootList, outputRootResponse.OutputRoot)
+		lastSyncStatus = outputRootResponse.Status
+		lastBlockRef = &outputRootResponse.BlockRef
 		currentBlockNumber.Add(currentBlockNumber, big.NewInt(1))
 		if currentBlockNumber.Cmp(endBlockNumber) > 0 {
 			break
 		}
 	}
-	h.readyChan <- outputRootResult
+	h.readyChan <- &outputRootBatchData{
+		outputRootList:  outputRootList,
+		lastSyncStatus:  lastSyncStatus,
+		lastL2BlockRef:  lastBlockRef,
+		parentGameIndex: parentGame.game.Index,
+		l2BlockNumber:   endBlockNumber,
+	}
 }
