@@ -50,6 +50,8 @@ type ProposerConfig struct {
 
 	WaitNodeSync            bool
 	AnchorStateRegistryAddr *common.Address
+	ZKProposalBatchSize     uint64
+	ZKProposalStepSize      uint64
 }
 
 type ProposerService struct {
@@ -232,6 +234,8 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 			panic(fmt.Errorf("failed to parse anchor state registry address: %w", err))
 		}
 		ps.AnchorStateRegistryAddr = &address
+		ps.ZKProposalBatchSize = cfg.ZKProposalBatchSize
+		ps.ZKProposalStepSize = cfg.ZKProposalStepSize
 	}
 }
 

@@ -179,7 +179,7 @@ func newDGFSubmitter(ctx context.Context, cancel context.CancelFunc, setup Drive
 		dgfABI:                      parsed,
 		anchorStateRegistryContract: anchorStateRegistryContract,
 	}
-	l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput)
+	l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput, setup.Cfg.ZKProposalBatchSize, setup.Cfg.ZKProposalStepSize)
 	return l, nil
 }
 

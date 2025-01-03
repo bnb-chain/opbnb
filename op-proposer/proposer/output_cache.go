@@ -16,6 +16,8 @@ type OutputRootCacheHandler struct {
 	isStart             *atomic.Bool
 	readyChan           chan *outputRootBatchData
 	outputRootFetchFunc func(ctx context.Context, block *big.Int) (*eth.OutputResponse, bool, error)
+	batchSize           uint64
+	stepSize            uint64
 }
 
 type outputRootBatchData struct {
@@ -26,13 +28,17 @@ type outputRootBatchData struct {
 	l2BlockNumber   *big.Int
 }
 
-func newOutputRootCacheHandler(ctx context.Context, log log.Logger, outputRootFetchFunc func(ctx context.Context, block *big.Int) (*eth.OutputResponse, bool, error)) *OutputRootCacheHandler {
+func newOutputRootCacheHandler(ctx context.Context, log log.Logger,
+	outputRootFetchFunc func(ctx context.Context, block *big.Int) (*eth.OutputResponse, bool, error),
+	batchSize uint64, stepSize uint64) *OutputRootCacheHandler {
 	return &OutputRootCacheHandler{
 		ctx:                 ctx,
 		log:                 log,
 		isStart:             &atomic.Bool{},
 		readyChan:           make(chan *outputRootBatchData, 1),
 		outputRootFetchFunc: outputRootFetchFunc,
+		batchSize:           batchSize,
+		stepSize:            stepSize,
 	}
 }
 
@@ -45,8 +51,9 @@ func (h *OutputRootCacheHandler) startFrom(parentGame *GameInformation) {
 
 func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 	currentBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, big.NewInt(1))
-	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, big.NewInt(3600))
-	outputRootList := make([]eth.Bytes32, 0, 1200)
+	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, new(big.Int).SetUint64(h.batchSize))
+	stepBigInt := new(big.Int).SetUint64(h.stepSize)
+	outputRootList := make([]eth.Bytes32, 0, h.batchSize/h.stepSize)
 	var lastSyncStatus *eth.SyncStatus
 	var lastBlockRef *eth.L2BlockRef
 	for {
@@ -64,7 +71,7 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 		outputRootList = append(outputRootList, outputRootResponse.OutputRoot)
 		lastSyncStatus = outputRootResponse.Status
 		lastBlockRef = &outputRootResponse.BlockRef
-		currentBlockNumber.Add(currentBlockNumber, big.NewInt(1))
+		currentBlockNumber.Add(currentBlockNumber, stepBigInt)
 		if currentBlockNumber.Cmp(endBlockNumber) > 0 {
 			break
 		}
