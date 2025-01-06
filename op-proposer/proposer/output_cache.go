@@ -54,6 +54,8 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, new(big.Int).SetUint64(h.batchSize))
 	stepBigInt := new(big.Int).SetUint64(h.stepSize)
 	outputRootList := make([]eth.Bytes32, 0, h.batchSize/h.stepSize)
+	h.log.Debug("outputRoot loop", "parentGame index", parentGame.game.Index,
+		"currentBlockNumber", currentBlockNumber, "endBlockNumber", endBlockNumber, "stepBigInt", stepBigInt)
 	var lastSyncStatus *eth.SyncStatus
 	var lastBlockRef *eth.L2BlockRef
 	for {
@@ -84,4 +86,5 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
 		l2BlockNumber:   endBlockNumber,
 	}
 	h.isStart.CompareAndSwap(true, false)
+	h.log.Debug("outputRoot loop end", "currentBlockNumber", currentBlockNumber, "outputRootListSize", len(outputRootList))
 }

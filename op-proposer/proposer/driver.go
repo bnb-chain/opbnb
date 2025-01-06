@@ -538,6 +538,7 @@ func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
 			if !l.outputRootCacheHandler.isStart.Load() {
 				parentGame := l.findValidParentGame(ctx)
 				if parentGame != nil {
+					l.Log.Debug("found parent game,will start getting outputRoot from it", "idx", parentGame.game.Index)
 					l.outputRootCacheHandler.startFrom(parentGame)
 				} else {
 					l.Log.Warn("fail find valid parent game data,will retry later")
@@ -700,6 +701,8 @@ func (l *L2OutputSubmitter) submitZKDGFOutputData(ctx context.Context, data *out
 	if err := l.sendZKDGFTransaction(cCtx, data); err != nil {
 		l.Log.Error("Failed to send proposal transaction",
 			"err", err,
+			"parentGameIdx", data.parentGameIndex,
+			"l2BlockNumber", data.l2BlockNumber,
 			"l1blocknum", data.lastSyncStatus.CurrentL1.Number,
 			"l1blockhash", data.lastSyncStatus.CurrentL1.Hash,
 			"l1head", data.lastSyncStatus.HeadL1.Number)
@@ -709,6 +712,8 @@ func (l *L2OutputSubmitter) submitZKDGFOutputData(ctx context.Context, data *out
 }
 
 func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData *outputRootBatchData) error {
+	l.Log.Debug("will sendZKDGFTransaction", "parentGameIdx", batchData.parentGameIndex,
+		"l2BlockNumber", batchData.l2BlockNumber, "outputRootListSize", len(batchData.outputRootList))
 	err := l.waitForL1Head(ctx, batchData.lastSyncStatus.HeadL1.Number+1)
 	if err != nil {
 		return err
@@ -733,6 +738,8 @@ func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData 
 		l.Log.Error("proposer tx successfully published but reverted", "tx_hash", receipt.TxHash)
 	} else {
 		l.Log.Info("proposer tx successfully published",
+			"parentGameIdx", batchData.parentGameIndex,
+			"l2BlockNumber", batchData.l2BlockNumber,
 			"tx_hash", receipt.TxHash,
 			"l1blocknum", batchData.lastSyncStatus.CurrentL1.Number,
 			"l1blockhash", batchData.lastSyncStatus.CurrentL1.Hash)
@@ -741,6 +748,7 @@ func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData 
 			l.Log.Error("get submitted game fail", "tx_hash", receipt.TxHash, "err", err)
 			return nil
 		}
+		l.Log.Debug("the game submitted addr get done", "addr", submittedGameAddr)
 		l.lastSubmittedGame = &submittedGameAddr
 	}
 	return nil
