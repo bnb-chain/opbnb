@@ -285,7 +285,9 @@ func (s *EthClient) InfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.
 func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.BlockInfo, error) {
 	// can't hit the cache when querying the head due to reorgs / changes.
 	if label == eth.Finalized {
-		return s.bscFinalizedHeader(ctx, 21)
+		// FIXME set verifiedValidatorNum to -3 before release, set it to 8 temporarily for hotfix
+		// refs: https://github.com/bnb-chain/bsc/pull/2844
+		return s.bscFinalizedHeader(ctx, 8)
 	}
 	return s.headerCall(ctx, "eth_getBlockByNumber", label)
 }
