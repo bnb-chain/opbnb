@@ -50,15 +50,16 @@ func (h *OutputRootCacheHandler) startFrom(parentGame *GameInformation) {
 }
 
 func (h *OutputRootCacheHandler) loop(parentGame *GameInformation) {
-	currentBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, big.NewInt(1))
-	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, new(big.Int).SetUint64(h.batchSize))
 	stepBigInt := new(big.Int).SetUint64(h.stepSize)
+	currentBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, stepBigInt)
+	endBlockNumber := new(big.Int).Add(parentGame.extraData.endL2BlockNumber, new(big.Int).SetUint64(h.batchSize))
 	outputRootList := make([]eth.Bytes32, 0, h.batchSize/h.stepSize)
-	h.log.Debug("outputRoot loop", "parentGame index", parentGame.game.Index,
+	h.log.Debug("outputRoot loop", "parentGame index", parentGame.game.Index.Uint64(),
 		"currentBlockNumber", currentBlockNumber, "endBlockNumber", endBlockNumber, "stepBigInt", stepBigInt)
 	var lastSyncStatus *eth.SyncStatus
 	var lastBlockRef *eth.L2BlockRef
 	for {
+		h.log.Debug("fetch outputRoot", "currentBlockNumber", currentBlockNumber)
 		outputRootResponse, shouldPropose, err := h.outputRootFetchFunc(h.ctx, currentBlockNumber)
 		if err != nil {
 			h.log.Error("failed to fetch outputRoot", "err", err, "currentBlockNumber", currentBlockNumber)

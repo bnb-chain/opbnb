@@ -538,7 +538,7 @@ func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
 			if !l.outputRootCacheHandler.isStart.Load() {
 				parentGame := l.findValidParentGame(ctx)
 				if parentGame != nil {
-					l.Log.Debug("found parent game,will start getting outputRoot from it", "idx", parentGame.game.Index)
+					l.Log.Debug("found parent game,will start getting outputRoot from it", "idx", parentGame.game.Index.Uint64())
 					l.outputRootCacheHandler.startFrom(parentGame)
 				} else {
 					l.Log.Warn("fail find valid parent game data,will retry later")
@@ -574,6 +574,7 @@ type ZkDisputeGameExtraData struct {
 type GameInformation struct {
 	game      *bindings.IDisputeGameFactoryGameSearchResult
 	extraData *ZkDisputeGameExtraData
+	isDummy   bool
 }
 
 func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInformation {
@@ -597,7 +598,11 @@ func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInform
 		l.Log.Error("failed to get game count", "err", err)
 		return nil
 	}
-	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, gameCount, big.NewInt(100))
+	if gameCount.Cmp(big.NewInt(0)) <= 0 {
+		l.Log.Warn("game count <= 0, will use dummy game")
+		return makeDummyParentGame(latestValidBlockNumber)
+	}
+	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, gameCount.Sub(gameCount, big.NewInt(1)), big.NewInt(100))
 	if err != nil {
 		l.Log.Error("failed to find latest games", "err", err)
 		return nil
@@ -638,6 +643,25 @@ func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInform
 	return nil
 }
 
+func makeDummyParentGame(blockNumber *big.Int) *GameInformation {
+	return &GameInformation{
+		game: &bindings.IDisputeGameFactoryGameSearchResult{
+			Index:     math.MaxBig256,
+			Metadata:  [32]byte{},
+			Timestamp: 0,
+			RootClaim: [32]byte{},
+			ExtraData: nil,
+		},
+		extraData: &ZkDisputeGameExtraData{
+			allClaimsHash:     common.Hash{},
+			lengthClaims:      nil,
+			parentGameAddress: common.Address{},
+			endL2BlockNumber:  blockNumber,
+		},
+		isDummy: true,
+	}
+}
+
 func (l *L2OutputSubmitter) checkGame(ctx context.Context, game bindings.IDisputeGameFactoryGameSearchResult) error {
 	gameAddress := common.BytesToAddress(game.Metadata[12:])
 	gameCaller, err := bindings.NewZKFaultDisputeGameCaller(gameAddress, l.L1Client)
@@ -657,6 +681,9 @@ func (l *L2OutputSubmitter) checkGame(ctx context.Context, game bindings.IDisput
 		parentGameProxy, err := gameCaller.ParentGameProxy(&bind.CallOpts{})
 		if err != nil {
 			return fmt.Errorf("failed to get parent game proxy: %w,the game addr:%s", err, gameAddress)
+		}
+		if parentGameProxy == (common.Address{}) {
+			return nil
 		}
 		parentCaller, err := bindings.NewZKFaultDisputeGameCaller(parentGameProxy, l.L1Client)
 		if err != nil {
@@ -783,7 +810,10 @@ func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (
 	if err != nil {
 		return nil, err
 	}
-	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, count, big.NewInt(50))
+	if count.Cmp(big.NewInt(0)) <= 0 {
+		return nil, errors.New("failed to get game information,game count <= 0")
+	}
+	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, count.Sub(count, big.NewInt(1)), big.NewInt(50))
 	if err != nil {
 		return nil, err
 	}
@@ -804,7 +834,7 @@ func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (
 }
 
 func proposeL2OutputZKDGFTxData(dgfABI *abi.ABI, gameType uint32, data *outputRootBatchData) ([]byte, error) {
-	return dgfABI.Pack("createZkFaultDisputeGame", gameType, data.outputRootList, data.parentGameIndex, data.l2BlockNumber, math.U256Bytes(new(big.Int).SetUint64(data.lastL2BlockRef.Number)))
+	return dgfABI.Pack("createZkFaultDisputeGame", gameType, data.outputRootList, data.parentGameIndex.Uint64(), data.l2BlockNumber.Uint64(), []byte{})
 }
 
 func parseExtraData(data []byte) (*ZkDisputeGameExtraData, error) {
