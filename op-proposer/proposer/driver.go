@@ -602,42 +602,50 @@ func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInform
 		l.Log.Warn("game count <= 0, will use dummy game")
 		return makeDummyParentGame(latestValidBlockNumber)
 	}
-	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, gameCount.Sub(gameCount, big.NewInt(1)), big.NewInt(100))
-	if err != nil {
-		l.Log.Error("failed to find latest games", "err", err)
-		return nil
-	}
-	for _, game := range games {
-		gameExtraData, err := parseExtraData(game.ExtraData)
+	currentIdx := gameCount.Sub(gameCount, big.NewInt(1))
+	for {
+		l.Log.Debug("findValidParentGame", "gameType", l.Cfg.DisputeGameType, "currentIdx", currentIdx)
+		games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, currentIdx, big.NewInt(100))
 		if err != nil {
-			l.Log.Error("failed to parse extra data", "err", err)
-			continue
+			l.Log.Error("failed to find latest games", "err", err)
+			return nil
 		}
-		if gameExtraData.endL2BlockNumber.Cmp(latestValidBlockNumber) < 0 {
-			l.Log.Debug("game endL2BlockNumber<latestValidBlockNumber,ignore", "idx", game.Index, "endL2BlockNumber",
-				gameExtraData.endL2BlockNumber, "latestValidBlockNumber", latestValidBlockNumber)
-			continue
+		if len(games) == 0 {
+			break
 		}
-		output, shouldPropose, err := l.FetchOutput(ctx, gameExtraData.endL2BlockNumber)
-		if err != nil {
-			l.Log.Warn("failed to fetch output", "err", err, "blockNumber", gameExtraData.endL2BlockNumber)
-			continue
-		}
-		if !shouldPropose {
-			l.Log.Warn("the endL2BlockNumber corresponding to game is higher than safe or finalize.ignore", "err", err, "idx", game.Index)
-			continue
-		}
-		if output.OutputRoot != game.RootClaim {
-			l.Log.Debug("invalid parent game,ignore it", "idx", game.Index, "correct outputRoot", output.OutputRoot, "game's outputRoot", game.RootClaim)
-			continue
-		}
-		if checkErr := l.checkGame(ctx, game); checkErr != nil {
-			l.Log.Debug("parent game invalid,ignore it", "err", checkErr, "idx", game.Index)
-			continue
-		}
-		return &GameInformation{
-			game:      &game,
-			extraData: gameExtraData,
+		for _, game := range games {
+			currentIdx = game.Index
+			gameExtraData, err := parseExtraData(game.ExtraData)
+			if err != nil {
+				l.Log.Error("failed to parse extra data", "err", err)
+				continue
+			}
+			if gameExtraData.endL2BlockNumber.Cmp(latestValidBlockNumber) < 0 {
+				l.Log.Debug("game endL2BlockNumber<latestValidBlockNumber,ignore", "idx", game.Index, "endL2BlockNumber",
+					gameExtraData.endL2BlockNumber, "latestValidBlockNumber", latestValidBlockNumber)
+				continue
+			}
+			output, shouldPropose, err := l.FetchOutput(ctx, gameExtraData.endL2BlockNumber)
+			if err != nil {
+				l.Log.Warn("failed to fetch output", "err", err, "blockNumber", gameExtraData.endL2BlockNumber)
+				continue
+			}
+			if !shouldPropose {
+				l.Log.Warn("the endL2BlockNumber corresponding to game is higher than safe or finalize.ignore", "err", err, "idx", game.Index)
+				continue
+			}
+			if output.OutputRoot != game.RootClaim {
+				l.Log.Debug("invalid parent game,ignore it", "idx", game.Index, "correct outputRoot", output.OutputRoot, "game's outputRoot", game.RootClaim)
+				continue
+			}
+			if checkErr := l.checkGame(ctx, game); checkErr != nil {
+				l.Log.Debug("parent game invalid,ignore it", "err", checkErr, "idx", game.Index)
+				continue
+			}
+			return &GameInformation{
+				game:      &game,
+				extraData: gameExtraData,
+			}
 		}
 	}
 	return nil
@@ -813,21 +821,29 @@ func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (
 	if count.Cmp(big.NewInt(0)) <= 0 {
 		return nil, errors.New("failed to get game information,game count <= 0")
 	}
-	games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, count.Sub(count, big.NewInt(1)), big.NewInt(50))
-	if err != nil {
-		return nil, err
-	}
-	for _, game := range games {
-		gameAddress := common.BytesToAddress(game.Metadata[12:])
-		if gameAddress == *gameAddr {
-			extraData, err := parseExtraData(game.ExtraData)
-			if err != nil {
-				return nil, err
+	currentIdx := count.Sub(count, big.NewInt(1))
+	for {
+		l.Log.Debug("getGameInformationByAddr", "gameType", l.Cfg.DisputeGameType, "currentIdx", currentIdx)
+		games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, currentIdx, big.NewInt(50))
+		if err != nil {
+			return nil, err
+		}
+		if len(games) == 0 {
+			break
+		}
+		for _, game := range games {
+			gameAddress := common.BytesToAddress(game.Metadata[12:])
+			if gameAddress == *gameAddr {
+				extraData, err := parseExtraData(game.ExtraData)
+				if err != nil {
+					return nil, err
+				}
+				return &GameInformation{
+					game:      &game,
+					extraData: extraData,
+				}, nil
 			}
-			return &GameInformation{
-				game:      &game,
-				extraData: extraData,
-			}, nil
+			currentIdx = game.Index
 		}
 	}
 	return nil, errors.New("failed to get game information")
