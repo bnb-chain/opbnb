@@ -48,11 +48,12 @@ type ProposerConfig struct {
 	// This option is not necessary when higher proposal latency is acceptable and L1 is healthy.
 	AllowNonFinalized bool
 
-	WaitNodeSync            bool
-	AnchorStateRegistryAddr *common.Address
-	ZKProposalBatchSize     uint64
-	ZKProposalStepSize      uint64
-	ZKParentGameAddress     string
+	WaitNodeSync                    bool
+	AnchorStateRegistryAddr         *common.Address
+	ZKProposalBatchSize             uint64
+	ZKProposalStepSize              uint64
+	ZKParentGameAddress             string
+	ZKProposalLastGameCachePathFlag string
 }
 
 type ProposerService struct {
@@ -238,6 +239,7 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 		ps.ZKProposalBatchSize = cfg.ZKProposalBatchSize
 		ps.ZKProposalStepSize = cfg.ZKProposalStepSize
 		ps.ZKParentGameAddress = cfg.ZKParentGameAddress
+		ps.ZKProposalLastGameCachePathFlag = cfg.ZKProposalLastGameCachePathFlag
 	}
 }
 

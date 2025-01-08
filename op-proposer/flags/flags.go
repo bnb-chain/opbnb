@@ -88,6 +88,11 @@ var (
 		Usage:   "When the game type is zk dispute game, you can specify the address of the parent game to use at startup",
 		EnvVars: prefixEnvVars("ZK_PROPOSAL_PARENT_GAME_ADDRESS"),
 	}
+	ZKProposalLastGameCachePathFlag = &cli.StringFlag{
+		Name:    "zk-proposal-last-game-cache-path",
+		Usage:   "When the game type is zk dispute game, you can specify a path to cache the game information from the last submission, so that you can quickly resume from where you left off after restarting",
+		EnvVars: prefixEnvVars("ZK_PROPOSAL_PARENT_GAME_ADDRESS"),
+	}
 	ActiveSequencerCheckDurationFlag = &cli.DurationFlag{
 		Name:    "active-sequencer-check-duration",
 		Usage:   "The duration between checks to determine the active sequencer endpoint.",
@@ -124,6 +129,7 @@ var optionalFlags = []cli.Flag{
 	ZKProposalBatchSizeFlag,
 	ZKProposalStepSizeFlag,
 	ZKProposalParentGameAddressFlag,
+	ZKProposalLastGameCachePathFlag,
 }
 
 func init() {

@@ -86,6 +86,7 @@ type L2OutputSubmitter struct {
 	anchorStateRegistryContract *bindings.AnchorStateRegistryCaller
 	outputRootCacheHandler      *OutputRootCacheHandler
 	lastSubmittedGame           *common.Address
+	zkLastGamePersistenceCache  *LastGamePersistenceCache
 }
 
 // NewL2OutputSubmitter creates a new L2 Output Submitter
@@ -183,7 +184,19 @@ func newDGFSubmitter(ctx context.Context, cancel context.CancelFunc, setup Drive
 		dgfABI:                      parsed,
 		anchorStateRegistryContract: anchorStateRegistryContract,
 	}
-	l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput, setup.Cfg.ZKProposalBatchSize, setup.Cfg.ZKProposalStepSize)
+	if setup.Cfg.IsZKDisputeGame {
+		l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput, setup.Cfg.ZKProposalBatchSize, setup.Cfg.ZKProposalStepSize)
+		if setup.Cfg.ZKProposalLastGameCachePathFlag != "" {
+			l.zkLastGamePersistenceCache = NewLastGamePersistenceCache(setup.Cfg.ZKProposalLastGameCachePathFlag)
+			lastGameInfo, err := l.zkLastGamePersistenceCache.loadFile()
+			if err != nil {
+				log.Warn("read zk last game cache file fail", "err", err, "path", setup.Cfg.ZKProposalLastGameCachePathFlag)
+			} else {
+				l.lastSubmittedGame = lastGameInfo.Address
+				log.Info("read zk last game cache file", "path", setup.Cfg.ZKProposalLastGameCachePathFlag, "address", lastGameInfo.Address)
+			}
+		}
+	}
 	return l, nil
 }
 
@@ -227,6 +240,14 @@ func (l *L2OutputSubmitter) StopL2OutputSubmitting() error {
 	l.cancel()
 	close(l.done)
 	l.wg.Wait()
+	if l.zkLastGamePersistenceCache != nil && l.lastSubmittedGame != nil {
+		err := l.zkLastGamePersistenceCache.cacheFile(l.lastSubmittedGame)
+		if err != nil {
+			l.Log.Warn("zk last game cache file fail", "err", err, "lastSubmittedGame", l.lastSubmittedGame)
+		} else {
+			l.Log.Info("cache zk last game file", "lastSubmittedGame", l.lastSubmittedGame)
+		}
+	}
 
 	l.Log.Info("Proposer stopped")
 	return nil
@@ -868,7 +889,6 @@ func proposeL2OutputZKDGFTxData(dgfABI *abi.ABI, gameType uint32, data *outputRo
 }
 
 func parseExtraData(data []byte) (*ZkDisputeGameExtraData, error) {
-	//todo_welkin Check if the usage of new(big.Int).SetBytes is correct.
 	if len(data) < 64 {
 		return nil, errors.New("extra data len<64")
 	}
