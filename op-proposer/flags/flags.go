@@ -71,17 +71,22 @@ var (
 		Value:   0,
 		EnvVars: prefixEnvVars("GAME_TYPE"),
 	}
-	ZKProposalBatchSize = &cli.UintFlag{
+	ZKProposalBatchSizeFlag = &cli.UintFlag{
 		Name:    "zk-proposal-batch-size",
 		Usage:   "When the game type is zk dispute game, you can specify how many block outputRoots are submitted per batch",
 		Value:   3600,
 		EnvVars: prefixEnvVars("ZK_PROPOSAL_BATCH_SIZE"),
 	}
-	ZKProposalStepSize = &cli.UintFlag{
+	ZKProposalStepSizeFlag = &cli.UintFlag{
 		Name:    "zk-proposal-step-size",
 		Usage:   "When the game type is zk dispute game, you can specify the step size for obtaining the outputRoot",
 		Value:   3,
 		EnvVars: prefixEnvVars("ZK_PROPOSAL_STEP_SIZE"),
+	}
+	ZKProposalParentGameAddressFlag = &cli.StringFlag{
+		Name:    "zk-proposal-parent-game-address",
+		Usage:   "When the game type is zk dispute game, you can specify the address of the parent game to use at startup",
+		EnvVars: prefixEnvVars("ZK_PROPOSAL_PARENT_GAME_ADDRESS"),
 	}
 	ActiveSequencerCheckDurationFlag = &cli.DurationFlag{
 		Name:    "active-sequencer-check-duration",
@@ -116,8 +121,9 @@ var optionalFlags = []cli.Flag{
 	DisputeGameTypeFlag,
 	ActiveSequencerCheckDurationFlag,
 	WaitNodeSyncFlag,
-	ZKProposalBatchSize,
-	ZKProposalStepSize,
+	ZKProposalBatchSizeFlag,
+	ZKProposalStepSizeFlag,
+	ZKProposalParentGameAddressFlag,
 }
 
 func init() {

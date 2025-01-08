@@ -68,6 +68,8 @@ type CLIConfig struct {
 	ZKProposalBatchSize uint64
 	// ZKProposalStepSize is the step size for obtaining the outputRoot when the game type is a zk dispute game.
 	ZKProposalStepSize uint64
+	// ZKParentGameAddress specifies the address of the parent game to be used at startup when the game type is a zk dispute game.
+	ZKParentGameAddress string
 }
 
 func (c *CLIConfig) Check() error {
@@ -122,8 +124,9 @@ func NewConfig(ctx *cli.Context) *CLIConfig {
 		AnchorStateRegistryAddr:      ctx.String(flags.AnchorStateRegistryAddressFlag.Name),
 		ProposalInterval:             ctx.Duration(flags.ProposalIntervalFlag.Name),
 		DisputeGameType:              uint32(ctx.Uint(flags.DisputeGameTypeFlag.Name)),
-		ZKProposalBatchSize:          uint64(ctx.Uint(flags.ZKProposalBatchSize.Name)),
-		ZKProposalStepSize:           uint64(ctx.Uint(flags.ZKProposalStepSize.Name)),
+		ZKProposalBatchSize:          uint64(ctx.Uint(flags.ZKProposalBatchSizeFlag.Name)),
+		ZKProposalStepSize:           uint64(ctx.Uint(flags.ZKProposalStepSizeFlag.Name)),
+		ZKParentGameAddress:          ctx.String(flags.ZKProposalParentGameAddressFlag.Name),
 		ActiveSequencerCheckDuration: ctx.Duration(flags.ActiveSequencerCheckDurationFlag.Name),
 		WaitNodeSync:                 ctx.Bool(flags.WaitNodeSyncFlag.Name),
 	}

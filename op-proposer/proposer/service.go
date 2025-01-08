@@ -52,6 +52,7 @@ type ProposerConfig struct {
 	AnchorStateRegistryAddr *common.Address
 	ZKProposalBatchSize     uint64
 	ZKProposalStepSize      uint64
+	ZKParentGameAddress     string
 }
 
 type ProposerService struct {
@@ -236,6 +237,7 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 		ps.AnchorStateRegistryAddr = &address
 		ps.ZKProposalBatchSize = cfg.ZKProposalBatchSize
 		ps.ZKProposalStepSize = cfg.ZKProposalStepSize
+		ps.ZKParentGameAddress = cfg.ZKParentGameAddress
 	}
 }
 

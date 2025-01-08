@@ -581,17 +581,31 @@ func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInform
 	if l.lastSubmittedGame != nil {
 		information, err := l.getGameInformationByAddr(l.lastSubmittedGame)
 		if err != nil {
-			l.Log.Error("Failed to get game information", "err", err, "addr", l.lastSubmittedGame)
+			l.Log.Error("Failed to get parent game information", "err", err, "addr", l.lastSubmittedGame)
 			return nil
 		}
 		return information
 	}
+
 	anchors, err := l.anchorStateRegistryContract.Anchors(&bind.CallOpts{}, zkDisputeGameType)
 	if err != nil {
 		l.Log.Error("failed to get anchor state", "err", err)
 		return nil
 	}
 	latestValidBlockNumber := anchors.L2BlockNumber
+
+	if l.Cfg.ZKParentGameAddress != "" {
+		if l.Cfg.ZKParentGameAddress == "dummy" {
+			return makeDummyParentGame(latestValidBlockNumber)
+		}
+		address := common.HexToAddress(l.Cfg.ZKParentGameAddress)
+		information, err := l.getGameInformationByAddr(&address)
+		if err != nil {
+			l.Log.Error("Failed to get parent game information by config", "err", err, "addr", l.Cfg.ZKParentGameAddress)
+			return nil
+		}
+		return information
+	}
 
 	gameCount, err := l.dgfContract.GameCount(&bind.CallOpts{})
 	if err != nil {
@@ -747,7 +761,7 @@ func (l *L2OutputSubmitter) submitZKDGFOutputData(ctx context.Context, data *out
 }
 
 func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData *outputRootBatchData) error {
-	l.Log.Debug("will sendZKDGFTransaction", "parentGameIdx", batchData.parentGameIndex,
+	l.Log.Debug("will sendZKDGFTransaction", "parentGameIdx", batchData.parentGameIndex.Uint64(),
 		"l2BlockNumber", batchData.l2BlockNumber, "outputRootListSize", len(batchData.outputRootList))
 	err := l.waitForL1Head(ctx, batchData.lastSyncStatus.HeadL1.Number+1)
 	if err != nil {
