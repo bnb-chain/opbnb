@@ -262,7 +262,7 @@ https://github.com/bnb-chain/opbnb/compare/v0.3.0...v0.3.1
 
 ## v0.3.0
 
-This is a recommended release for op-node. This release brings in upstream updates, see https://github.com/bnb-chain/opbnb/pull/121 for the contents. This is also a ready release for the next planed fork, which will bring in canyon fork from upstream as well.
+This is a recommended release for op-node. This release brings in upstream updates, see https://github.com/bnb-chain/opbnb/pull/121 for the contents. This is also a ready release for the next planned fork, which will bring in canyon fork from upstream as well.
 
 ### User Facing Changes
 
