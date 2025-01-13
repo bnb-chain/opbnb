@@ -85,9 +85,4 @@ contract AnchorStateRegistry is Initializable, IAnchorStateRegistry, ISemver {
         // Actually update the anchor state.
         anchors[gameType] = OutputRoot({ l2BlockNumber: game.l2BlockNumber(), root: Hash.wrap(game.rootClaim().raw()) });
     }
-
-    // TODO remove this
-    function setAnchorState(GameType _gameType, OutputRoot memory _outputRoot) external {
-        anchors[_gameType] = _outputRoot;
-    }
 }

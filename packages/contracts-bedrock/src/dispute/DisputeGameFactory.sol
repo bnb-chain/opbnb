@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
-import { console2 as console } from "forge-std/console2.sol";
 
 import { LibClone } from "@solady/utils/LibClone.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -133,18 +132,18 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
     }
 
     function _prepareExtraData(
+        uint256 l2BlockNumber,
         Claim[] memory claims,
         address parentProxy,
-        uint64 l2BlockNumber,
         bytes memory extraData
     ) private pure returns (bytes memory) {
         // calculate the hash of all _claims
         bytes32 claimsHash = keccak256(abi.encodePacked(claims));
         return abi.encodePacked(
+            l2BlockNumber,
             claimsHash,
             uint32(claims.length),
             parentProxy,
-            l2BlockNumber,
             extraData
         );
     }
@@ -201,16 +200,16 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         // | [20, 52)                  | Root claim                         |
         // │ [52, 84)                  │ Parent block hash at creation time │
         // │ [84, 84+n)                │ Extra data                         │
-        // |    [84, 116)              | Hash of all claims                 |
-        // |    [116, 120)             | The length of claims               |
-        // |    [120, 140)             | Parent game address                |
-        // |    [140, 148)             | L2 block number                    |
+        // |    [84, 116)              | L2 block number                    |
+        // |    [116, 148)             | Hash of all claims                 |
+        // |    [148, 152)             | The length of claims               |
+        // |    [152, 172)             | Parent game address                |
         // └───────────────────────────┴────────────────────────────────────┘
         Claim rootClaim = _claims[_claims.length-1];
         bytes memory extraData = _prepareExtraData(
+            _l2BlockNumber,
             _claims,
             address(parentProxy),
-            _l2BlockNumber,
             _extraData
         );
         proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(msg.sender, rootClaim, blockhash(block.number - 1), extraData)));
@@ -228,6 +227,7 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         _disputeGames[uuid] = id;
         _disputeGameList.push(id);
         emit DisputeGameCreated(address(proxy_), _gameType, rootClaim);
+        emit ZkDisputeGameIndexUpdated(_disputeGameList.length - 1);
 
     }
     /// @inheritdoc IDisputeGameFactory

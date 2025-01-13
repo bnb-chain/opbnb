@@ -16,9 +16,6 @@ import { ISemver } from "src/universal/ISemver.sol";
 import "src/dispute/lib/Types.sol";
 import "src/dispute/lib/Errors.sol";
 
-// TODO remove
-import { console2 as console } from "forge-std/console2.sol";
-
 /// @title FaultDisputeGame
 /// @notice An implementation of the `IFaultDisputeGame` interface.
 contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
@@ -48,8 +45,8 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     uint256 internal immutable L2_CHAIN_ID;
 
     /// @notice Semantic version.
-    /// @custom:semver 1.2.0
-    string public constant version = "1.2.0";
+    /// @custom:semver 1.0.0
+    string public constant version = "1.0.0";
 
     /// @notice The starting timestamp of the game
     Timestamp public createdAt;
@@ -62,6 +59,9 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     /// @notice Flag for the `initialize` function to prevent re-initialization.
     bool internal initialized;
+
+    /// @notice Credited balances for winning participants.
+    mapping(address => uint256) public credit;
 
     /// @notice The mapping of claims which have been challenged by signal.
     mapping(uint256 => bool) public challengedClaims;
@@ -89,10 +89,10 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     /// @notice The latest finalized output root, serving as the anchor for output bisection.
     OutputRoot public startingOutputRoot;
 
-    uint256 public constant PROPOSER_BOND = 1 ether;
-    uint256 public constant CHALLENGER_BOND = 1 ether;
-    address payable public constant BURN_ADDRESS = payable(address(0));
-    uint256 public constant PERCENTAGE_DIVISOR = 10000;
+    uint256 public constant PERCENTAGE_DIVISOR = 1000;
+    uint256 public immutable PROPOSER_BOND;
+    uint256 public immutable CHALLENGER_BOND;
+    address payable public immutable FEE_VAULT_ADDRESS;
     uint256 public immutable CHALLENGER_REWARD_PERCENTAGE;
     uint256 public immutable PROVER_REWARD_PERCENTAGE;
 
@@ -107,6 +107,9 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         GameType _gameType,
         Duration _maxGenerateProofDuration,
         Duration _maxDetectFaultDuration,
+        uint256 _PROPOSER_BOND,
+        uint256 _CHALLENGER_BOND,
+        address _FEE_VAULT_ADDRESS,
         uint256 _CHALLENGER_REWARD_PERCENTAGE,
         uint256 _PROVER_REWARD_PERCENTAGE,
         IDelayedWETH _weth,
@@ -118,6 +121,9 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         GAME_TYPE = _gameType;
         MAX_GENERATE_PROOF_DURATION = _maxGenerateProofDuration;
         MAX_DETECT_FAULT_DURATION = _maxDetectFaultDuration;
+        PROPOSER_BOND = _PROPOSER_BOND;
+        CHALLENGER_BOND = _CHALLENGER_BOND;
+        _FEE_VAULT_ADDRESS = FEE_VAULT_ADDRESS;
         CHALLENGER_REWARD_PERCENTAGE = _CHALLENGER_REWARD_PERCENTAGE;
         PROVER_REWARD_PERCENTAGE = _PROVER_REWARD_PERCENTAGE;
         if (CHALLENGER_REWARD_PERCENTAGE + PROVER_REWARD_PERCENTAGE > PERCENTAGE_DIVISOR) {
@@ -170,19 +176,19 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         // in the factory, but are not used by the game, which would allow for multiple dispute games for the same
         // output proposal to be created.
         //
-        // Expected length: 0x96
+        // Expected length: 0xb2
         // - 0x04 selector
         // - 0x14 creator address
         // - 0x20 root claim
         // - 0x20 l1 head
-        // - 0x40 extraData
+        // - 0x58 extraData
+            // - 0x20 l2 block number
             // - 0x20 claims hash
             // - 0x04 claims length
             // - 0x14 parent game contract address
-            // - 0x08 l2 block number
         // - 0x02 CWIA bytes
         assembly {
-            if iszero(eq(calldatasize(), 0x9a)) {
+            if iszero(eq(calldatasize(), 0xb2)) {
                 // Store the selector for `BadExtraData()` & revert
                 mstore(0x00, 0x9824bdab)
                 revert(0x1C, 0x04)
@@ -206,8 +212,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         initialized = true;
 
         // Deposit the bond.
-        // TODO: Uncomment this line when the WETH contract is ready.
-        // WETH.deposit{ value: msg.value }();
+        WETH.deposit{ value: msg.value }();
 
         // Set the game's starting timestamp
         createdAt = Timestamp.wrap(uint64(block.timestamp));
@@ -405,6 +410,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             status_ = GameStatus.DEFENDER_WINS;
         }
 
+        uint256 currentContractBalance = WETH.balanceOf(address(this));
         if (status_ == GameStatus.CHALLENGER_WINS) {
             // refund valid challengers if there is any
             for (uint256 i = 0; i < challengedClaimIndexes.length; i++) {
@@ -413,8 +419,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
                     challengers[challengedClaimIndexes[i]].transfer(CHALLENGER_BOND);
                 }
             }
-            // TODO reward part of challengers bond to valdity provers, current reward is zero
-            uint256 currentContractBalance = address(this).balance;
+            // TODO reward part of challengers bond to validity provers, current reward is zero
             // reward the special challenger who submitted the signal which is proven to be valid
             // 1. someone submitted a valid fault proof corresponding to the challenge index; or
             // 2. the generate proof window is expired and no one submitted a validity proof
@@ -423,32 +428,35 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             // there is no successful challenge in the current game.
             if (isChallengeSuccess) {
                 // there is a challenger who submmitted the dispute claim index by `challengeBySignal`
+                uint256 challengerBond = (currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR;
                 if (challengedClaims[successfulChallengeIndex]) {
-                    challengers[successfulChallengeIndex].transfer((currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
+                    _distributeBond(challengers[successfulChallengeIndex], challengerBond);
                 } else {
                     // if there is no challenger, then the challenger is the fault proof prover self
-                    faultProofProver.transfer((currentContractBalance * CHALLENGER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
+                    _distributeBond(faultProofProver, challengerBond);
                 }
+                currentContractBalance = currentContractBalance - challengerBond;
             }
             // reward the fault proof prover
-            faultProofProver.transfer((currentContractBalance * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
-            // burn the rest
-            currentContractBalance = address(this).balance;
-            BURN_ADDRESS.transfer(currentContractBalance);
+            uint256 proverBond = (currentContractBalance * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR;
+            _distributeBond(faultProofProver, proverBond);
+            currentContractBalance = currentContractBalance - proverBond;
         } else if (status_ == GameStatus.DEFENDER_WINS) {
-            // reward part of challengers bond to valdity provers
+            // reward part of challengers bond to validity provers
             for (uint256 i = 0; i < invalidChallengeClaimIndexes.length; i++) {
-                validityProofProvers[invalidChallengeClaimIndexes[i]].transfer((CHALLENGER_BOND * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR);
+                uint256 proverBond = (CHALLENGER_BOND * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR;
+                _distributeBond(validityProofProvers[invalidChallengeClaimIndexes[i]], proverBond);
+                currentContractBalance = currentContractBalance - proverBond;
             }
             // refund the bond to proposer
-            payable(gameCreator()).transfer(PROPOSER_BOND);
-            // burn the rest
-            uint256 currentContractBalance = address(this).balance;
-            BURN_ADDRESS.transfer(currentContractBalance);
+            distributeBond(gameCreator(), PROPOSER_BOND);
+            currentContractBalance = currentContractBalance - PROPOSER_BOND;
         } else {
             // sanity check
             revert InvalidGameStatus();
         }
+        // transfer the rest
+        _distributeBond(FEE_VAULT_ADDRESS, currentContractBalance);
 
         resolvedAt = Timestamp.wrap(uint64(block.timestamp));
 
@@ -480,27 +488,27 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     }
 
     function claimsHash() public pure returns (Hash claimsHash_) {
-        claimsHash_ = Hash.wrap(_getArgBytes32(0x54));
+        claimsHash_ = Hash.wrap(_getArgBytes32(0x74));
     }
 
     function claimsLength() public pure returns (uint256 claimsLength_) {
-        claimsLength_ = uint256(_getArgUint32(0x74));
+        claimsLength_ = uint256(_getArgUint32(0x94));
     }
 
     function parentGameProxy() public pure returns (IZkFaultDisputeGame parentGameProxy_) {
-        parentGameProxy_ = IZkFaultDisputeGame(_getArgAddress(0x78));
+        parentGameProxy_ = IZkFaultDisputeGame(_getArgAddress(0x98));
     }
 
     /// @inheritdoc IDisputeGame
     function l2BlockNumber() public pure returns (uint256 l2BlockNumber_) {
-        l2BlockNumber_ = uint256(_getArgUint64(0x8c));
+        l2BlockNumber_ = uint256(_getArgUint256(0x54));
     }
 
     /// @inheritdoc IDisputeGame
     function extraData() public pure returns (bytes memory extraData_) {
         // The extra data starts at the second word within the cwia calldata and
         // is 60 bytes long.
-        extraData_ = _getArgBytes(0x54, 0x40);
+        extraData_ = _getArgBytes(0x54, 0x58);
     }
 
     /// @inheritdoc IDisputeGame
@@ -511,8 +519,41 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     }
 
     ////////////////////////////////////////////////////////////////
+    //                          HELPERS                           //
+    ////////////////////////////////////////////////////////////////
+
+    /// @notice Pays out the bond of a claim to a given recipient.
+    /// @param _recipient The recipient of the bond.
+    /// @param _bond The bond to pay out.
+    function _distributeBond(address _recipient, uint256 _bond) internal {
+        // Increase the recipient's credit.
+        credit[_recipient] += bond;
+
+        // Unlock the bond.
+        WETH.unlock(_recipient, bond);
+    }
+
+    ////////////////////////////////////////////////////////////////
     //                       MISC EXTERNAL                        //
     ////////////////////////////////////////////////////////////////
+
+    /// @notice Claim the credit belonging to the recipient address.
+    /// @param _recipient The owner and recipient of the credit.
+    function claimCredit(address _recipient) external {
+        // Remove the credit from the recipient prior to performing the external call.
+        uint256 recipientCredit = credit[_recipient];
+        credit[_recipient] = 0;
+
+        // Revert if the recipient has no credit to claim.
+        if (recipientCredit == 0) revert NoCreditToClaim();
+
+        // Try to withdraw the WETH amount so it can be used here.
+        WETH.withdraw(_recipient, recipientCredit);
+
+        // Transfer the credit to the recipient.
+        (bool success,) = _recipient.call{ value: recipientCredit }(hex"");
+        if (!success) revert BondTransferFailed();
+    }
 
     /// @notice Returns the max clock duration.
     function maxClockDuration() external view returns (Duration maxClockDuration_) {

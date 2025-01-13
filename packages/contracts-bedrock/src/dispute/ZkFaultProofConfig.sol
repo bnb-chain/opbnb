@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { SP1VerifierGateway } from "@sp1-contracts/src/SP1VerifierGateway.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { ISemver } from "src/universal/ISemver.sol";
 
-contract ZkFaultProofConfig is Initializable, ISemver {
+contract ZkFaultProofConfig is OwnableUpgradeable, Initializable, ISemver {
 
     /// @notice Semantic version.
     /// @custom:semver 1.0.0
@@ -53,19 +54,10 @@ contract ZkFaultProofConfig is Initializable, ISemver {
     /// @param newRollupConfigHash The new rollup config hash.
     event UpdatedRollupConfigHash(bytes32 indexed oldRollupConfigHash, bytes32 indexed newRollupConfigHash);
 
-    /// @notice Checkpoints a block hash at a given block number.
-    /// @param _blockNumber Block number to checkpoint the hash at.
-    /// @param _blockHash   Hash of the block at the given block number.
-    /// @dev Block number must be in the past 256 blocks or this will revert.
-    /// @dev Passing both inputs as zero will automatically checkpoint the most recent blockhash.
-    function checkpointBlockHash(uint256 _blockNumber, bytes32 _blockHash) external {
-        require(blockhash(_blockNumber) == _blockHash, "ZkFaultProofConfig: block hash and number cannot be checkpointed");
-        historicBlockHashes[_blockNumber] = _blockHash;
-    }
-
     constructor() {}
 
     function initialize (
+        address _owner,
         uint256 _blockDistance,
         uint256 _chainId,
         bytes32 _aggregationVkey,
@@ -73,6 +65,9 @@ contract ZkFaultProofConfig is Initializable, ISemver {
         address _verifierGateway,
         bytes32 _rollupConfigHash
     ) public initializer {
+        __Ownable_init();
+        transferOwnership(_owner);
+
         blockDistance = _blockDistance;
         chainId = _chainId;
         aggregationVkey = _aggregationVkey;
@@ -81,30 +76,24 @@ contract ZkFaultProofConfig is Initializable, ISemver {
         rollupConfigHash = _rollupConfigHash;
     }
 
-    function verifyZkFaultProof() external {}
-
-    /// TODO: add permission
-    function updateAggregationVKey(bytes32 _aggregationVKey) external {
-        emit UpdatedAggregationVKey(aggregationVkey, _aggregationVKey);
+    function updateAggregationVKey(bytes32 _aggregationVKey) external onlyOwner {
         aggregationVkey = _aggregationVKey;
+        emit UpdatedAggregationVKey(aggregationVkey, _aggregationVKey);
     }
 
-    /// TODO: add permission
-    function updateRangeVkeyCommitment(bytes32 _rangeVkeyCommitment) external {
-        emit UpdatedRangeVkeyCommitment(rangeVkeyCommitment, _rangeVkeyCommitment);
+    function updateRangeVkeyCommitment(bytes32 _rangeVkeyCommitment) external onlyOwner {
         rangeVkeyCommitment = _rangeVkeyCommitment;
+        emit UpdatedRangeVkeyCommitment(rangeVkeyCommitment, _rangeVkeyCommitment);
     }
 
-    /// TODO: add permission
-    function updateVerifierGateway(address _verifierGateway) external {
-        emit UpdatedVerifierGateway(address(verifierGateway), _verifierGateway);
+    function updateVerifierGateway(address _verifierGateway) external onlyOwner {
         verifierGateway = SP1VerifierGateway(_verifierGateway);
+        emit UpdatedVerifierGateway(address(verifierGateway), _verifierGateway);
     }
 
-    /// TODO: add permission
-    function updateRollupConfigHash(bytes32 _rollupConfigHash) external {
-        emit UpdatedRollupConfigHash(rollupConfigHash, _rollupConfigHash);
+    function updateRollupConfigHash(bytes32 _rollupConfigHash) external onlyOwner {
         rollupConfigHash = _rollupConfigHash;
+        emit UpdatedRollupConfigHash(rollupConfigHash, _rollupConfigHash);
     }
 
 }
