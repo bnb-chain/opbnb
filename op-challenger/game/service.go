@@ -251,7 +251,9 @@ func (s *Service) initLargePreimages() error {
 }
 
 func (s *Service) initMonitor(cfg *config.Config) {
-	s.monitor = newGameMonitor(s.logger, s.l1Clock, s.factoryContract, s.sched, s.preimages, cfg.GameWindow, s.claimer, s.l1Client.BlockNumber, cfg.GameAllowlist, s.pollClient)
+	s.monitor = newGameMonitor(s.logger, s.l1Clock, s.factoryContract,
+		s.sched, s.preimages, cfg.GameWindow, s.claimer, s.l1Client.BlockNumber,
+		cfg.GameAllowlist, s.pollClient, cfg.ZKDisputeGame)
 }
 
 func (s *Service) Start(ctx context.Context) error {

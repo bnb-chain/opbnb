@@ -164,18 +164,7 @@ func setupMonitorTest(
 	preimages := &stubPreimageScheduler{}
 	mockHeadSource := &mockNewHeadSource{}
 	stubClaimer := &mockScheduler{}
-	monitor := newGameMonitor(
-		logger,
-		clock.NewSimpleClock(),
-		source,
-		sched,
-		preimages,
-		time.Duration(0),
-		stubClaimer,
-		fetchBlockNum,
-		allowedGames,
-		mockHeadSource,
-	)
+	monitor := newGameMonitor(logger, clock.NewSimpleClock(), source, sched, preimages, time.Duration(0), stubClaimer, fetchBlockNum, allowedGames, mockHeadSource, false)
 	return monitor, source, sched, mockHeadSource, preimages, stubClaimer
 }
 

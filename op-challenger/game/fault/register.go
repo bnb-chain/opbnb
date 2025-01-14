@@ -98,7 +98,90 @@ func RegisterGameTypes(
 			return nil, fmt.Errorf("failed to register alphabet game type: %w", err)
 		}
 	}
+	if cfg.TraceTypeEnabled(config.TraceTypeZK) {
+		if err := registerZK(faultTypes.ZKGameType, registry, ctx, systemClock, l1Clock, logger, m, cfg, syncValidator, rollupClient, l2Client, txSender, gameFactory, caller, l1HeaderSource, selective, claimants); err != nil {
+			return nil, fmt.Errorf("failed to register zk game type: %w", err)
+		}
+	}
 	return l2Client.Close, nil
+}
+
+func registerZK(
+	gameType uint32,
+	registry Registry,
+	ctx context.Context,
+	systemClock clock.Clock,
+	l1Clock faultTypes.ClockReader,
+	logger log.Logger,
+	m metrics.Metricer,
+	cfg *config.Config,
+	validator SyncValidator,
+	rollupClient RollupClient,
+	l2Client utils.L2HeaderSource,
+	sender TxSender,
+	factory *contracts.DisputeGameFactoryContract,
+	caller *batching.MultiCaller,
+	source L1HeaderSource,
+	selective bool,
+	claimants []common.Address,
+) error {
+	playerCreator := func(game types.GameMetadata, dir string) (scheduler.GamePlayer, error) {
+		contract, err := contracts.NewZKFaultDisputeGameContract(ctx, m, game.Proxy, caller)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create fault dispute game contracts: %w", err)
+		}
+		//requiredPrestatehash, err := contract.GetAbsolutePrestateHash(ctx)
+		//if err != nil {
+		//	return nil, fmt.Errorf("failed to load prestate hash for game %v: %w", game.Proxy, err)
+		//}
+		//
+		//cannonPrestateProvider, err := prestateProviderCache.GetOrCreate(requiredPrestatehash)
+		//
+		//if err != nil {
+		//	return nil, fmt.Errorf("required prestate %v not available for game %v: %w", requiredPrestatehash, game.Proxy, err)
+		//}
+		//
+		//oracle, err := contract.GetOracle(ctx)
+		//if err != nil {
+		//	return nil, fmt.Errorf("failed to load oracle for game %v: %w", game.Proxy, err)
+		//}
+		//oracles.RegisterOracle(oracle)
+		//prestateBlock, poststateBlock, err := contract.GetBlockRange(ctx)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//splitDepth, err := contract.GetSplitDepth(ctx)
+		//if err != nil {
+		//	return nil, fmt.Errorf("failed to load split depth: %w", err)
+		//}
+		//l1HeadID, err := loadL1Head(contract, ctx, l1HeaderSource)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//prestateProvider := outputs.NewPrestateProvider(rollupClient, prestateBlock)
+		//creator := func(ctx context.Context, logger log.Logger, gameDepth faultTypes.Depth, dir string) (faultTypes.TraceAccessor, error) {
+		//	cannonPrestate, err := prestateSource.PrestatePath(requiredPrestatehash)
+		//	if err != nil {
+		//		return nil, fmt.Errorf("failed to get cannon prestate: %w", err)
+		//	}
+		//	accessor, err := outputs.NewOutputCannonTraceAccessor(logger, m, cfg, l2Client, prestateProvider, cannonPrestate, rollupClient, dir, l1HeadID, splitDepth, prestateBlock, poststateBlock)
+		//	if err != nil {
+		//		return nil, err
+		//	}
+		//	return accessor, nil
+		//}
+		//prestateValidator := NewPrestateValidator("cannon", contract.GetAbsolutePrestateHash, cannonPrestateProvider)
+		//startingValidator := NewPrestateValidator("output root", contract.GetStartingRootHash, prestateProvider)
+		//return NewGamePlayer(ctx, systemClock, l1Clock, logger, m, dir, game.Proxy, txSender, contract, syncValidator, []Validator{prestateValidator, startingValidator}, creator, l1HeaderSource, selective, claimants)
+		return NewZKGamePlayer(ctx, systemClock, l1Clock, logger, m, game.Proxy, contract, source, validator, rollupClient)
+	}
+	registry.RegisterGameType(gameType, playerCreator)
+
+	contractCreator := func(game types.GameMetadata) (claims.BondContract, error) {
+		return contracts.NewFaultDisputeGameContract(ctx, m, game.Proxy, caller)
+	}
+	registry.RegisterBondContract(gameType, contractCreator)
+	return nil
 }
 
 func registerAlphabet(
@@ -143,7 +226,12 @@ func registerAlphabet(
 			return nil, err
 		}
 		prestateProvider := outputs.NewPrestateProvider(rollupClient, prestateBlock)
-		creator := func(ctx context.Context, logger log.Logger, gameDepth faultTypes.Depth, dir string) (faultTypes.TraceAccessor, error) {
+		creator := func(
+			ctx context.Context,
+			logger log.Logger,
+			gameDepth faultTypes.Depth,
+			dir string,
+		) (faultTypes.TraceAccessor, error) {
 			accessor, err := outputs.NewOutputAlphabetTraceAccessor(logger, m, prestateProvider, rollupClient, l2Client, l1Head, splitDepth, prestateBlock, poststateBlock)
 			if err != nil {
 				return nil, err
@@ -167,7 +255,14 @@ func registerAlphabet(
 	return nil
 }
 
-func registerOracle(ctx context.Context, m metrics.Metricer, oracles OracleRegistry, gameFactory *contracts.DisputeGameFactoryContract, caller *batching.MultiCaller, gameType uint32) error {
+func registerOracle(
+	ctx context.Context,
+	m metrics.Metricer,
+	oracles OracleRegistry,
+	gameFactory *contracts.DisputeGameFactoryContract,
+	caller *batching.MultiCaller,
+	gameType uint32,
+) error {
 	implAddr, err := gameFactory.GetGameImpl(ctx, gameType)
 	if err != nil {
 		return fmt.Errorf("failed to load implementation for game type %v: %w", gameType, err)
@@ -249,7 +344,12 @@ func registerAsterisc(
 			return nil, err
 		}
 		prestateProvider := outputs.NewPrestateProvider(rollupClient, prestateBlock)
-		creator := func(ctx context.Context, logger log.Logger, gameDepth faultTypes.Depth, dir string) (faultTypes.TraceAccessor, error) {
+		creator := func(
+			ctx context.Context,
+			logger log.Logger,
+			gameDepth faultTypes.Depth,
+			dir string,
+		) (faultTypes.TraceAccessor, error) {
 			asteriscPrestate, err := prestateSource.PrestatePath(requiredPrestatehash)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get asterisc prestate: %w", err)
@@ -344,7 +444,12 @@ func registerCannon(
 			return nil, err
 		}
 		prestateProvider := outputs.NewPrestateProvider(rollupClient, prestateBlock)
-		creator := func(ctx context.Context, logger log.Logger, gameDepth faultTypes.Depth, dir string) (faultTypes.TraceAccessor, error) {
+		creator := func(
+			ctx context.Context,
+			logger log.Logger,
+			gameDepth faultTypes.Depth,
+			dir string,
+		) (faultTypes.TraceAccessor, error) {
 			cannonPrestate, err := prestateSource.PrestatePath(requiredPrestatehash)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get cannon prestate: %w", err)
@@ -372,7 +477,11 @@ func registerCannon(
 	return nil
 }
 
-func loadL1Head(contract contracts.FaultDisputeGameContract, ctx context.Context, l1HeaderSource L1HeaderSource) (eth.BlockID, error) {
+func loadL1Head(
+	contract contracts.FaultDisputeGameContract,
+	ctx context.Context,
+	l1HeaderSource L1HeaderSource,
+) (eth.BlockID, error) {
 	l1Head, err := contract.GetL1Head(ctx)
 	if err != nil {
 		return eth.BlockID{}, fmt.Errorf("failed to load L1 head: %w", err)

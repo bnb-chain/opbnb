@@ -58,9 +58,10 @@ const (
 	TraceTypeCannon       TraceType = "cannon"
 	TraceTypeAsterisc     TraceType = "asterisc"
 	TraceTypePermissioned TraceType = "permissioned"
+	TraceTypeZK           TraceType = "zk"
 )
 
-var TraceTypes = []TraceType{TraceTypeAlphabet, TraceTypeCannon, TraceTypePermissioned, TraceTypeAsterisc, TraceTypeFast}
+var TraceTypes = []TraceType{TraceTypeAlphabet, TraceTypeCannon, TraceTypePermissioned, TraceTypeAsterisc, TraceTypeFast, TraceTypeZK}
 
 func (t TraceType) String() string {
 	return string(t)
@@ -155,6 +156,7 @@ type Config struct {
 	TxMgrConfig   txmgr.CLIConfig
 	MetricsConfig opmetrics.CLIConfig
 	PprofConfig   oppprof.CLIConfig
+	ZKDisputeGame bool
 }
 
 func NewConfig(

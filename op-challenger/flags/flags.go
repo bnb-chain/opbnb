@@ -217,6 +217,11 @@ var (
 		EnvVars: prefixEnvVars("UNSAFE_ALLOW_INVALID_PRESTATE"),
 		Hidden:  true, // Hidden as this is an unsafe flag added only for testing purposes
 	}
+	ZKDisputeGameFlag = &cli.BoolFlag{
+		Name:    "zk-dispute-game",
+		Usage:   "Indicates that the current game type is zkDisputeGame",
+		EnvVars: prefixEnvVars("ZK_DISPUTE_GAME"),
+	}
 )
 
 // requiredFlags are checked by [CheckRequired]
@@ -260,6 +265,7 @@ var optionalFlags = []cli.Flag{
 	GameWindowFlag,
 	SelectiveClaimResolutionFlag,
 	UnsafeAllowInvalidPrestate,
+	ZKDisputeGameFlag,
 }
 
 func init() {
@@ -347,6 +353,13 @@ func CheckRequired(ctx *cli.Context, traceTypes []config.TraceType) error {
 	// CannonL2Flag is checked because it is an alias with L2EthRpcFlag
 	if !ctx.IsSet(CannonL2Flag.Name) && !ctx.IsSet(L2EthRpcFlag.Name) {
 		return fmt.Errorf("flag %s is required", L2EthRpcFlag.Name)
+	}
+	if ctx.IsSet(ZKDisputeGameFlag.Name) {
+		for _, traceType := range traceTypes {
+			if traceType != config.TraceTypeZK {
+				return fmt.Errorf("flag %v is not allowed when the game type is zkDisputeGame", traceType)
+			}
+		}
 	}
 	for _, traceType := range traceTypes {
 		switch traceType {
@@ -536,5 +549,6 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 		PprofConfig:                     pprofConfig,
 		SelectiveClaimResolution:        ctx.Bool(SelectiveClaimResolutionFlag.Name),
 		AllowInvalidPrestate:            ctx.Bool(UnsafeAllowInvalidPrestate.Name),
+		ZKDisputeGame:                   ctx.Bool(ZKDisputeGameFlag.Name),
 	}, nil
 }
