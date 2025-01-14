@@ -109,7 +109,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         Duration _maxDetectFaultDuration,
         uint256 _PROPOSER_BOND,
         uint256 _CHALLENGER_BOND,
-        address _FEE_VAULT_ADDRESS,
+        address payable _FEE_VAULT_ADDRESS,
         uint256 _CHALLENGER_REWARD_PERCENTAGE,
         uint256 _PROVER_REWARD_PERCENTAGE,
         IDelayedWETH _weth,
@@ -123,7 +123,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         MAX_DETECT_FAULT_DURATION = _maxDetectFaultDuration;
         PROPOSER_BOND = _PROPOSER_BOND;
         CHALLENGER_BOND = _CHALLENGER_BOND;
-        _FEE_VAULT_ADDRESS = FEE_VAULT_ADDRESS;
+        FEE_VAULT_ADDRESS = _FEE_VAULT_ADDRESS;
         CHALLENGER_REWARD_PERCENTAGE = _CHALLENGER_REWARD_PERCENTAGE;
         PROVER_REWARD_PERCENTAGE = _PROVER_REWARD_PERCENTAGE;
         if (CHALLENGER_REWARD_PERCENTAGE + PROVER_REWARD_PERCENTAGE > PERCENTAGE_DIVISOR) {
