@@ -449,7 +449,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
                 currentContractBalance = currentContractBalance - proverBond;
             }
             // refund the bond to proposer
-            distributeBond(gameCreator(), PROPOSER_BOND);
+            _distributeBond(gameCreator(), PROPOSER_BOND);
             currentContractBalance = currentContractBalance - PROPOSER_BOND;
         } else {
             // sanity check
@@ -527,10 +527,10 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     /// @param _bond The bond to pay out.
     function _distributeBond(address _recipient, uint256 _bond) internal {
         // Increase the recipient's credit.
-        credit[_recipient] += bond;
+        credit[_recipient] += _bond;
 
         // Unlock the bond.
-        WETH.unlock(_recipient, bond);
+        WETH.unlock(_recipient, _bond);
     }
 
     ////////////////////////////////////////////////////////////////

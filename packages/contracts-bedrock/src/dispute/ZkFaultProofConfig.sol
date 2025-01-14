@@ -3,10 +3,9 @@ pragma solidity 0.8.15;
 
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { SP1VerifierGateway } from "@sp1-contracts/src/SP1VerifierGateway.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { ISemver } from "src/universal/ISemver.sol";
 
-contract ZkFaultProofConfig is OwnableUpgradeable, Initializable, ISemver {
+contract ZkFaultProofConfig is OwnableUpgradeable, ISemver {
 
     /// @notice Semantic version.
     /// @custom:semver 1.0.0
