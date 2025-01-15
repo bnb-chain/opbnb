@@ -59,6 +59,11 @@ var (
 	methodMaxDetectFaultDuration  = "maxDetectFaultDuration"
 	methodCreateAt                = "createdAt"
 	methodChallengedClaims        = "challengedClaims"
+	methodParentGameProxy         = "parentGameProxy"
+	methodChallengeBySignal       = "challengeBySignal"
+	methodChallengerBond          = "CHALLENGER_BOND"
+	methodIsChallengeSuccess      = "isChallengeSuccess"
+	methodChallengedClaimIndexes  = "challengedClaimIndexes"
 )
 
 var (

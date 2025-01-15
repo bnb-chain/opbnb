@@ -52,7 +52,7 @@ type Service struct {
 	claimants []common.Address
 	claimer   *claims.BondClaimScheduler
 
-	factoryContract *contracts.DisputeGameFactoryContract
+	factoryContract contracts.DisputeGameFactory
 	registry        *registry.GameTypeRegistry
 	oracles         *registry.OracleRegistry
 	rollupClient    *sources.RollupClient
@@ -198,8 +198,14 @@ func (s *Service) initMetricsServer(cfg *opmetrics.CLIConfig) error {
 }
 
 func (s *Service) initFactoryContract(cfg *config.Config) error {
-	factoryContract := contracts.NewDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
-		batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	var factoryContract contracts.DisputeGameFactory
+	if cfg.ZKDisputeGame {
+		factoryContract = contracts.NewZkDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
+			batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	} else {
+		factoryContract = contracts.NewDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
+			batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	}
 	s.factoryContract = factoryContract
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching/rpcblock"
+	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -139,6 +141,106 @@ func (z *ZKFaultDisputeGameContract) GetChallengedClaims(ctx context.Context, ta
 	return result.GetBool(0), nil
 }
 
+func (z *ZKFaultDisputeGameContract) GetParentGame(ctx context.Context) (ZKFaultDisputeGame, error) {
+	defer z.metrics.StartContractRequest("GetParentGame")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodParentGameProxy))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch parent game proxy: %w", err)
+	}
+	address := result.GetAddress(0)
+	if address == (common.Address{}) {
+		return nil, nil
+	}
+	contract, err := NewZKFaultDisputeGameContract(ctx, z.metrics, address, z.multiCaller)
+	if err != nil {
+		return nil, fmt.Errorf("failed to new parent game contract(%s): %w", address, err)
+	}
+	return contract, nil
+}
+
+func (z *ZKFaultDisputeGameContract) GetAddr() common.Address {
+	return z.contract.Addr()
+}
+
+func (z *ZKFaultDisputeGameContract) ChallengeBySignalTx(
+	ctx context.Context,
+	challengeIdx int,
+) (txmgr.TxCandidate, error) {
+	call := z.contract.Call(methodChallengeBySignal, big.NewInt(int64(challengeIdx)))
+	return z.txWithBond(ctx, call)
+}
+
+func (z *ZKFaultDisputeGameContract) txWithBond(
+	ctx context.Context,
+	call *batching.ContractCall,
+) (txmgr.TxCandidate, error) {
+	tx, err := call.ToTxCandidate()
+	if err != nil {
+		return txmgr.TxCandidate{}, fmt.Errorf("failed to create transaction: %w", err)
+	}
+	tx.Value, err = z.GetChallengerBond(ctx)
+	if err != nil {
+		return txmgr.TxCandidate{}, fmt.Errorf("failed to fetch required bond: %w", err)
+	}
+	return tx, nil
+}
+
+func (z *ZKFaultDisputeGameContract) GetChallengerBond(ctx context.Context) (*big.Int, error) {
+	defer z.metrics.StartContractRequest("GetChallengerBond")()
+	bond, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodChallengerBond))
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve required challenger bond: %w", err)
+	}
+	return bond.GetBigInt(0), nil
+}
+
+func (z *ZKFaultDisputeGameContract) IsChallengeSuccess(ctx context.Context) (bool, error) {
+	defer z.metrics.StartContractRequest("IsChallengeSuccess")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodIsChallengeSuccess))
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve isChallengeSuccess: %w", err)
+	}
+	return result.GetBool(0), nil
+}
+
+func (z *ZKFaultDisputeGameContract) ResolveClaimTx() (txmgr.TxCandidate, error) {
+	call := z.resolveClaimCall()
+	return call.ToTxCandidate()
+}
+
+func (z *ZKFaultDisputeGameContract) CallResolveClaim(ctx context.Context) error {
+	defer z.metrics.StartContractRequest("CallResolveClaim")()
+	call := z.resolveClaimCall()
+	_, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, call)
+	if err != nil {
+		return fmt.Errorf("failed to call resolve claim: %w", err)
+	}
+	return nil
+}
+
+func (z *ZKFaultDisputeGameContract) resolveClaimCall() *batching.ContractCall {
+	return z.contract.Call(methodResolveClaim)
+}
+
+func (z *ZKFaultDisputeGameContract) CallResolve(ctx context.Context) (gameTypes.GameStatus, error) {
+	defer z.metrics.StartContractRequest("CallResolve")()
+	call := z.resolveCall()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, call)
+	if err != nil {
+		return gameTypes.GameStatusInProgress, fmt.Errorf("failed to call resolve claim: %w", err)
+	}
+	return gameTypes.GameStatusFromUint8(result.GetUint8(0))
+}
+
+func (z *ZKFaultDisputeGameContract) ResolveTx() (txmgr.TxCandidate, error) {
+	call := z.resolveCall()
+	return call.ToTxCandidate()
+}
+
+func (z *ZKFaultDisputeGameContract) resolveCall() *batching.ContractCall {
+	return z.contract.Call(methodResolve)
+}
+
 type ZKFaultDisputeGame interface {
 	GetStatus(ctx context.Context) (gameTypes.GameStatus, error)
 	GetClaimCount(context.Context) (uint64, error)
@@ -149,4 +251,12 @@ type ZKFaultDisputeGame interface {
 	GetClaimsHash(ctx context.Context) (common.Hash, error)
 	GetRootClaim(ctx context.Context) (common.Hash, error)
 	GetChallengedClaims(ctx context.Context, targetIdx int) (bool, error)
+	GetParentGame(ctx context.Context) (ZKFaultDisputeGame, error)
+	GetAddr() common.Address
+	ChallengeBySignalTx(ctx context.Context, challengeIdx int) (txmgr.TxCandidate, error)
+	IsChallengeSuccess(ctx context.Context) (bool, error)
+	CallResolveClaim(ctx context.Context) error
+	ResolveClaimTx() (txmgr.TxCandidate, error)
+	CallResolve(ctx context.Context) (gameTypes.GameStatus, error)
+	ResolveTx() (txmgr.TxCandidate, error)
 }

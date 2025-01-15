@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault"
-	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/contracts"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -13,15 +12,14 @@ import (
 )
 
 type OutputCacheLoader struct {
-	inner              *lru.Cache[uint64, *eth.OutputResponse]
-	rollupClient       fault.RollupClient
-	zkFaultDisputeGame contracts.ZKFaultDisputeGame
-	logger             log.Logger
-	ctx                context.Context
+	inner        *lru.Cache[uint64, *eth.OutputResponse]
+	rollupClient fault.RollupClient
+	logger       log.Logger
+	ctx          context.Context
 }
 
 func (l *OutputCacheLoader) Load(startBlock uint64, endBlock uint64) []*eth.OutputResponse {
-	currentBlock := startBlock
+	currentBlock := startBlock + 3
 	var needFetchBlock []uint64
 	var result []*eth.OutputResponse
 	for currentBlock <= endBlock {
@@ -74,14 +72,12 @@ func NewOutputCacheLoader(
 	ctx context.Context,
 	rollupClient fault.RollupClient,
 	logger log.Logger,
-	zkFaultDisputeGame contracts.ZKFaultDisputeGame,
 ) *OutputCacheLoader {
 	lruCache, _ := lru.New[uint64, *eth.OutputResponse](5000)
 	return &OutputCacheLoader{
-		ctx:                ctx,
-		rollupClient:       rollupClient,
-		logger:             logger,
-		zkFaultDisputeGame: zkFaultDisputeGame,
-		inner:              lruCache,
+		ctx:          ctx,
+		rollupClient: rollupClient,
+		logger:       logger,
+		inner:        lruCache,
 	}
 }

@@ -61,7 +61,7 @@ func RegisterGameTypes(
 	oracles OracleRegistry,
 	rollupClient RollupClient,
 	txSender TxSender,
-	gameFactory *contracts.DisputeGameFactoryContract,
+	gameFactory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	l1HeaderSource L1HeaderSource,
 	selective bool,
@@ -119,61 +119,20 @@ func registerZK(
 	rollupClient RollupClient,
 	l2Client utils.L2HeaderSource,
 	sender TxSender,
-	factory *contracts.DisputeGameFactoryContract,
+	factory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	source L1HeaderSource,
 	selective bool,
 	claimants []common.Address,
 ) error {
+	outputCacheLoader := outputs.NewOutputCacheLoader(ctx, rollupClient, logger)
 	playerCreator := func(game types.GameMetadata, dir string) (scheduler.GamePlayer, error) {
 		contract, err := contracts.NewZKFaultDisputeGameContract(ctx, m, game.Proxy, caller)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create fault dispute game contracts: %w", err)
 		}
-		//requiredPrestatehash, err := contract.GetAbsolutePrestateHash(ctx)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to load prestate hash for game %v: %w", game.Proxy, err)
-		//}
-		//
-		//cannonPrestateProvider, err := prestateProviderCache.GetOrCreate(requiredPrestatehash)
-		//
-		//if err != nil {
-		//	return nil, fmt.Errorf("required prestate %v not available for game %v: %w", requiredPrestatehash, game.Proxy, err)
-		//}
-		//
-		//oracle, err := contract.GetOracle(ctx)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to load oracle for game %v: %w", game.Proxy, err)
-		//}
-		//oracles.RegisterOracle(oracle)
-		//prestateBlock, poststateBlock, err := contract.GetBlockRange(ctx)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//splitDepth, err := contract.GetSplitDepth(ctx)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to load split depth: %w", err)
-		//}
-		//l1HeadID, err := loadL1Head(contract, ctx, l1HeaderSource)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//prestateProvider := outputs.NewPrestateProvider(rollupClient, prestateBlock)
-		//creator := func(ctx context.Context, logger log.Logger, gameDepth faultTypes.Depth, dir string) (faultTypes.TraceAccessor, error) {
-		//	cannonPrestate, err := prestateSource.PrestatePath(requiredPrestatehash)
-		//	if err != nil {
-		//		return nil, fmt.Errorf("failed to get cannon prestate: %w", err)
-		//	}
-		//	accessor, err := outputs.NewOutputCannonTraceAccessor(logger, m, cfg, l2Client, prestateProvider, cannonPrestate, rollupClient, dir, l1HeadID, splitDepth, prestateBlock, poststateBlock)
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//	return accessor, nil
-		//}
-		//prestateValidator := NewPrestateValidator("cannon", contract.GetAbsolutePrestateHash, cannonPrestateProvider)
-		//startingValidator := NewPrestateValidator("output root", contract.GetStartingRootHash, prestateProvider)
-		//return NewGamePlayer(ctx, systemClock, l1Clock, logger, m, dir, game.Proxy, txSender, contract, syncValidator, []Validator{prestateValidator, startingValidator}, creator, l1HeaderSource, selective, claimants)
-		return NewZKGamePlayer(ctx, systemClock, l1Clock, logger, m, game.Proxy, contract, source, validator, rollupClient)
+		return NewZKGamePlayer(ctx, systemClock, l1Clock, logger, m, game.Proxy, contract, source, validator,
+			outputCacheLoader, factory, sender)
 	}
 	registry.RegisterGameType(gameType, playerCreator)
 
@@ -197,7 +156,7 @@ func registerAlphabet(
 	rollupClient RollupClient,
 	l2Client utils.L2HeaderSource,
 	txSender TxSender,
-	gameFactory *contracts.DisputeGameFactoryContract,
+	gameFactory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	l1HeaderSource L1HeaderSource,
 	selective bool,
@@ -259,7 +218,7 @@ func registerOracle(
 	ctx context.Context,
 	m metrics.Metricer,
 	oracles OracleRegistry,
-	gameFactory *contracts.DisputeGameFactoryContract,
+	gameFactory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	gameType uint32,
 ) error {
@@ -292,7 +251,7 @@ func registerAsterisc(
 	syncValidator SyncValidator,
 	rollupClient outputs.OutputRollupClient,
 	txSender TxSender,
-	gameFactory *contracts.DisputeGameFactoryContract,
+	gameFactory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	l2Client utils.L2HeaderSource,
 	l1HeaderSource L1HeaderSource,
@@ -390,7 +349,7 @@ func registerCannon(
 	syncValidator SyncValidator,
 	rollupClient outputs.OutputRollupClient,
 	txSender TxSender,
-	gameFactory *contracts.DisputeGameFactoryContract,
+	gameFactory contracts.DisputeGameFactory,
 	caller *batching.MultiCaller,
 	l2Client utils.L2HeaderSource,
 	l1HeaderSource L1HeaderSource,

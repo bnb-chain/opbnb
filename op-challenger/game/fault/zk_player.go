@@ -36,7 +36,9 @@ func NewZKGamePlayer(
 	loader contracts.ZKFaultDisputeGame,
 	l1HeaderSource L1HeaderSource,
 	syncValidator SyncValidator,
-	rollupClient RollupClient,
+	outputCacheLoader *outputs.OutputCacheLoader,
+	factory contracts.DisputeGameFactory,
+	sender TxSender,
 ) (*ZKGamePlayer, error) {
 	logger = logger.New("zkgame", addr)
 
@@ -74,14 +76,18 @@ func NewZKGamePlayer(
 	if err != nil {
 		return nil, err
 	}
-	//agent := NewAgent(m, systemClock, l1Clock, loader, gameDepth, maxClockDuration, accessor, responder, logger, selective, claimants)
 
 	startBlock, endBlock, err := loader.GetBlockRange(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load game block range: %w", err)
 	}
-	outputCacheLoader := outputs.NewOutputCacheLoader(ctx, rollupClient, logger, loader)
-	agent := NewZkAgent(m, clock, l1Clock, loader, outputCacheLoader, startBlock, endBlock, detectFaultDuration, createAt, logger)
+
+	gameFactory, ok := factory.(*contracts.ZkGameFactory)
+	if !ok {
+		return nil, fmt.Errorf("factory should be zkGameFactory,gameAddr:%s", addr)
+	}
+	agent := NewZkAgent(m, clock, l1Clock, loader, outputCacheLoader, startBlock, endBlock, detectFaultDuration,
+		createAt, logger, l1Head, l1HeaderSource, addr, gameFactory, sender)
 
 	return &ZKGamePlayer{
 		logger:            logger,

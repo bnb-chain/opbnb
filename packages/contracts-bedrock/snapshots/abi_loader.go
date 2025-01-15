@@ -10,6 +10,9 @@ import (
 //go:embed abi/DisputeGameFactory.json
 var disputeGameFactory []byte
 
+//go:embed abi/ZkDisputeGameFactory.json
+var zkDisputeGameFactory []byte
+
 //go:embed abi/FaultDisputeGame.json
 var faultDisputeGame []byte
 
@@ -24,6 +27,10 @@ var delayedWETH []byte
 
 func LoadDisputeGameFactoryABI() *abi.ABI {
 	return loadABI(disputeGameFactory)
+}
+
+func LoadZkDisputeGameFactoryABI() *abi.ABI {
+	return loadABI(zkDisputeGameFactory)
 }
 func LoadFaultDisputeGameABI() *abi.ABI {
 	return loadABI(faultDisputeGame)
