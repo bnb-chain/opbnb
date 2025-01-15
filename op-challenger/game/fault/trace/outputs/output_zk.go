@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/op-challenger/game/fault"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -13,7 +12,7 @@ import (
 
 type OutputCacheLoader struct {
 	inner        *lru.Cache[uint64, *eth.OutputResponse]
-	rollupClient fault.RollupClient
+	rollupClient OutputRollupClient
 	logger       log.Logger
 	ctx          context.Context
 }
@@ -70,7 +69,7 @@ func (l *OutputCacheLoader) LoadOne(block uint64) (*eth.OutputResponse, error) {
 
 func NewOutputCacheLoader(
 	ctx context.Context,
-	rollupClient fault.RollupClient,
+	rollupClient OutputRollupClient,
 	logger log.Logger,
 ) *OutputCacheLoader {
 	lruCache, _ := lru.New[uint64, *eth.OutputResponse](5000)
