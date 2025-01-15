@@ -165,17 +165,17 @@ func (z *ZkAgent) tryResolve(ctx context.Context) bool {
 		err := z.zkFaultDisputeGame.CallResolveClaim(ctx)
 		if err != nil {
 			z.log.Debug("fail call resolveClaim when trying resolve", "err", err)
-			return false
-		}
-		candidate, err := z.zkFaultDisputeGame.ResolveClaimTx()
-		if err != nil {
-			z.log.Error("fail build resolveClaimTx when trying resolve", "err", err)
-			return false
-		}
-		err = z.txSender.SendAndWaitSimple("resolveClaim", candidate)
-		if err != nil {
-			z.log.Error("fail send resolveClaim when trying resolveClaim", "err", err)
-			return false
+		} else {
+			candidate, err := z.zkFaultDisputeGame.ResolveClaimTx()
+			if err != nil {
+				z.log.Error("fail build resolveClaimTx when trying resolve", "err", err)
+				return false
+			}
+			err = z.txSender.SendAndWaitSimple("resolveClaim", candidate)
+			if err != nil {
+				z.log.Error("fail send resolveClaim when trying resolveClaim", "err", err)
+				return false
+			}
 		}
 	}
 	gameStatus, err := z.zkFaultDisputeGame.CallResolve(ctx)
@@ -389,9 +389,9 @@ func (z *ZkAgent) isParentGamesValid(ctx context.Context) (bool, error) {
 }
 
 func calHash(cache []eth.Bytes32) common.Hash {
-	var encodeBytes [][]byte
+	var encodeBytes []byte
 	for _, one := range cache {
-		encodeBytes = append(encodeBytes, one[:])
+		encodeBytes = append(encodeBytes, one[:]...)
 	}
-	return crypto.Keccak256Hash(encodeBytes...)
+	return crypto.Keccak256Hash(encodeBytes)
 }

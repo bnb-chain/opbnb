@@ -39,8 +39,9 @@ func NewZKGamePlayer(
 	outputCacheLoader *outputs.OutputCacheLoader,
 	factory contracts.DisputeGameFactory,
 	sender TxSender,
+	index uint64,
 ) (*ZKGamePlayer, error) {
-	logger = logger.New("zkgame", addr)
+	logger = logger.New("zkgame", addr, "idx", index)
 
 	status, err := loader.GetStatus(ctx)
 	if err != nil {
@@ -59,6 +60,7 @@ func NewZKGamePlayer(
 			},
 		}, nil
 	}
+	logger.Debug("Game will play")
 	l1HeadHash, err := loader.GetL1Head(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load game L1 head: %w", err)
@@ -105,6 +107,7 @@ func (z *ZKGamePlayer) ValidatePrestate(ctx context.Context) error {
 }
 
 func (z *ZKGamePlayer) ProgressGame(ctx context.Context) gameTypes.GameStatus {
+	z.logger.Debug("progress game", "status", z.status)
 	if z.status != gameTypes.GameStatusInProgress {
 		// Game is already complete so don't try to perform further actions.
 		z.logger.Trace("Skipping completed game")
