@@ -101,7 +101,7 @@ func (z *ZKFaultDisputeGameContract) GetMaxDetectFaultDuration(ctx context.Conte
 	if err != nil {
 		return time.Duration(0), fmt.Errorf("failed to fetch maxDetectFaultDuration: %w", err)
 	}
-	return time.Duration(result.GetUint64(0)), nil
+	return time.Duration(result.GetUint64(0)) * time.Second, nil
 }
 
 func (z *ZKFaultDisputeGameContract) GetCreatedAt(ctx context.Context) (time.Time, error) {
@@ -134,7 +134,7 @@ func (z *ZKFaultDisputeGameContract) GetRootClaim(ctx context.Context) (common.H
 
 func (z *ZKFaultDisputeGameContract) GetChallengedClaims(ctx context.Context, targetIdx int) (bool, error) {
 	defer z.metrics.StartContractRequest("GetChallengedClaims")()
-	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodChallengedClaims))
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodChallengedClaims, big.NewInt(int64(targetIdx))))
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch challengedClaims: %w,targetIdx:%d", err, targetIdx)
 	}
@@ -241,6 +241,15 @@ func (z *ZKFaultDisputeGameContract) resolveCall() *batching.ContractCall {
 	return z.contract.Call(methodResolve)
 }
 
+func (z *ZKFaultDisputeGameContract) GetMaxClockDuration(ctx context.Context) (time.Duration, error) {
+	defer z.metrics.StartContractRequest("GetMaxClockDuration")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodMaxClockDuration))
+	if err != nil {
+		return time.Duration(0), fmt.Errorf("failed to fetch MaxClockDuration: %w", err)
+	}
+	return time.Duration(result.GetUint64(0)) * time.Second, nil
+}
+
 type ZKFaultDisputeGame interface {
 	GetStatus(ctx context.Context) (gameTypes.GameStatus, error)
 	GetClaimCount(context.Context) (uint64, error)
@@ -259,4 +268,5 @@ type ZKFaultDisputeGame interface {
 	ResolveClaimTx() (txmgr.TxCandidate, error)
 	CallResolve(ctx context.Context) (gameTypes.GameStatus, error)
 	ResolveTx() (txmgr.TxCandidate, error)
+	GetMaxClockDuration(ctx context.Context) (time.Duration, error)
 }

@@ -63,7 +63,6 @@ var (
 	methodChallengeBySignal       = "challengeBySignal"
 	methodChallengerBond          = "CHALLENGER_BOND"
 	methodIsChallengeSuccess      = "isChallengeSuccess"
-	methodChallengedClaimIndexes  = "challengedClaimIndexes"
 )
 
 var (

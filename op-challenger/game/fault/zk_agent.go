@@ -140,7 +140,7 @@ func (z *ZkAgent) Act(ctx context.Context) error {
 		z.log.Debug("challenge success")
 	} else {
 		z.lastState = SkipChallenge
-		z.log.Debug("game is ok, skip challenge")
+		z.log.Debug("game is ok or has already been challenged, skip challenge")
 	}
 
 	return nil
@@ -177,6 +177,16 @@ func (z *ZkAgent) tryResolve(ctx context.Context) bool {
 				return false
 			}
 		}
+	}
+	maxClockDuration, err := z.zkFaultDisputeGame.GetMaxClockDuration(ctx)
+	if err != nil {
+		z.log.Error("fail get max clock duration when trying resolve", "err", err)
+		return false
+	}
+	deadline := z.createAt.Add(maxClockDuration)
+	if time.Now().Before(deadline) {
+		z.log.Debug("not exceeding maxClockDuration, temporarily do not resolve", "deadline", deadline)
+		return false
 	}
 	gameStatus, err := z.zkFaultDisputeGame.CallResolve(ctx)
 	if err != nil {
