@@ -9,6 +9,14 @@ import "src/dispute/lib/Types.sol";
 /// @notice The interface for a zk fault proof backed dispute game.
 interface IZkFaultDisputeGame is IDisputeGame {
 
+    /// @notice Emitted when a new ChallengeBySignal is created
+    /// @param _disputeClaimIndex The index of the dispute claim
+    event ChallengeBySignalCreated(uint256 indexed _disputeClaimIndex);
+
+    // @notice Emitted when a new SubmitProofForSignal is created
+    /// @param _disputeClaimIndex The index of the dispute claim
+    event SubmitProofForSignalCreated(uint256 indexed _disputeClaimIndex);
+
     /// @notice Parameters to initialize the contract.
     struct InitParams {
         uint256 chainId;
