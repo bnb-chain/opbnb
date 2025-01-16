@@ -212,9 +212,6 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
             address(parentProxy),
             _extraData
         );
-        proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(msg.sender, rootClaim, blockhash(block.number - 1), extraData)));
-        proxy_.initialize{ value: msg.value }();
-
         // Compute the unique identifier for the dispute game.
         Hash uuid = getGameUUID(_gameType, rootClaim, extraData);
         // If a dispute game with the same UUID already exists, revert.
@@ -226,6 +223,10 @@ contract DisputeGameFactory is OwnableUpgradeable, IDisputeGameFactory, ISemver 
         // Store the dispute game id in the mapping & emit the `DisputeGameCreated` event.
         _disputeGames[uuid] = id;
         _disputeGameList.push(id);
+
+        proxy_ = IDisputeGame(address(impl).clone(abi.encodePacked(msg.sender, rootClaim, blockhash(block.number - 1), extraData)));
+        proxy_.initialize{ value: msg.value }();
+
         emit DisputeGameCreated(address(proxy_), _gameType, rootClaim);
         emit ZkDisputeGameIndexUpdated(_disputeGameList.length - 1);
 
