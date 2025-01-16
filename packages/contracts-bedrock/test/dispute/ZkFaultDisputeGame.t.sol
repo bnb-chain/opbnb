@@ -78,6 +78,7 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
     Claim[] internal parentClaims;
     uint64 parentClaimBlockNumber = 47528971;
     uint256 parentCreateTimestamp = 1734663238;
+    uint256 faultGameWithdrawalDelay = 604800;
     Claim[] internal childClaims;
     uint64 childClaimBlockNumber = 47528980;
     uint256 childCreateTimestamp = 1734666838;
@@ -427,7 +428,6 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         invalidGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, proof);
         invalidGameProxy.resolve();
         uint256 reward = contractBalance * (proverRewardPercentage + challengerRewardPercentage) / percentageDivisor;
-        uint256 faultGameWithdrawalDelay = 604800;
         vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
         invalidGameProxy.claimCredit(faultProver);
         uint256 proverAfterBalance = faultProver.balance;
@@ -473,7 +473,6 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         uint256 challenger2InitialBalance = challenger2.balance;
         uint256 proverInitialBalance = faultProver.balance;
         invalidGameProxy.resolve();
-        uint256 faultGameWithdrawalDelay = 604800;
         vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
         invalidGameProxy.claimCredit(faultProver);
         uint256 proverAfterBalance = faultProver.balance;
@@ -528,13 +527,23 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         vm.stopPrank();
 
         uint256 proverInitialBalance = parentFaultProver.balance;
+        vm.warp(parentCreateTimestamp);
         invalidGameProxy.resolve();
         assertEq(uint256(invalidGameProxy.status()), uint256(GameStatus.CHALLENGER_WINS));
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
+        invalidGameProxy.claimCredit(parentFaultProver);
         uint256 proverAfterBalance = parentFaultProver.balance;
         assertEq(proverAfterBalance - proverInitialBalance, proposerBond * (proverRewardPercentage + challengerRewardPercentage) / percentageDivisor);
         proverInitialBalance = proverAfterBalance;
 
+        vm.warp(parentCreateTimestamp);
         childGameProxy2.resolve();
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
+
+        vm.expectRevert(abi.encodeWithSelector(NoCreditToClaim.selector));
+        childGameProxy2.claimCredit(childValidityProver);
+        childGameProxy2.claimCredit(childChallenger);
+        childGameProxy2.claimCredit(parentFaultProver);
         assertEq(uint256(childGameProxy2.status()), uint256(GameStatus.CHALLENGER_WINS));
         uint256 challengerAfterBalance = childChallenger.balance;
         uint256 validityProverAfterBalance = childValidityProver.balance;
@@ -604,26 +613,40 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         assertEq(invalidChildProxy.isChallengeSuccess(), true);
         vm.stopPrank();
 
+        vm.warp(parentCreateTimestamp);
         invalidGameProxy.resolve();
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
         assertEq(uint256(invalidGameProxy.status()), uint256(GameStatus.CHALLENGER_WINS));
+
+        invalidGameProxy.claimCredit(parentFaultProver);
         afterBalance = parentFaultProver.balance;
         assertEq(afterBalance - parentFaultProverInitialBalance, proposerBond * proverRewardPercentage / percentageDivisor);
         parentFaultProverInitialBalance = afterBalance;
 
+        invalidGameProxy.claimCredit(parentChallenger);
         afterBalance = parentChallenger.balance;
         assertEq(afterBalance - parentChallengerInitialBalance, proposerBond * challengerRewardPercentage / percentageDivisor);
 
+        vm.warp(parentCreateTimestamp);
         invalidChildProxy.resolve();
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
         assertEq(uint256(invalidChildProxy.status()), uint256(GameStatus.CHALLENGER_WINS));
+
+        vm.expectRevert(abi.encodeWithSelector(NoCreditToClaim.selector));
+        invalidChildProxy.claimCredit(childFaultProver);
         afterBalance = childFaultProver.balance;
         assertEq(afterBalance - childFaultProverInitialBalance, 0);
 
+        vm.expectRevert(abi.encodeWithSelector(NoCreditToClaim.selector));
+        invalidChildProxy.claimCredit(childValidityProver);
         afterBalance = childValidityProver.balance;
         assertEq(afterBalance - childValidityProverInitialBalance, 0);
 
+        invalidChildProxy.claimCredit(childChallenger);
         afterBalance = childChallenger.balance;
         assertEq(childChallengerInitialBalance - afterBalance, challengerBond);
 
+        invalidChildProxy.claimCredit(parentFaultProver);
         afterBalance = parentFaultProver.balance;
         assertEq(afterBalance - parentFaultProverInitialBalance, (proposerBond + challengerBond) * proverRewardPercentage / percentageDivisor);
     }
@@ -645,7 +668,7 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
 
         uint256 proposerInitialBalance = parentGameProxy.gameCreator().balance;
 
-        assertEq(address(parentGameProxy).balance, proposerBond + challengerBond * parentClaims.length);
+        assertEq(delayedWeth.balanceOf(address(parentGameProxy)), proposerBond + challengerBond * parentClaims.length);
         vm.stopPrank();
         vm.expectRevert(abi.encodeWithSelector(ClockNotExpired.selector));
         parentGameProxy.resolve();
@@ -653,16 +676,19 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         parentGameProxy.resolve();
         assertEq(uint256(parentGameProxy.status()), uint256(GameStatus.DEFENDER_WINS));
 
+        vm.warp(parentCreateTimestamp + parentGameProxy.maxClockDuration().raw() + faultGameWithdrawalDelay + 2);
+        vm.expectRevert(abi.encodeWithSelector(NoCreditToClaim.selector));
+        parentGameProxy.claimCredit(parentChallenger);
         uint256 parentChallengerAfterBalance = parentChallenger.balance;
         assertEq(parentChallengerInitialBalance - parentChallengerAfterBalance, challengerBond * parentClaims.length);
 
+        parentGameProxy.claimCredit(parentGameProxy.gameCreator());
         uint256 proposerAfterBalance = parentGameProxy.gameCreator().balance;
         assertEq(proposerAfterBalance - proposerInitialBalance, proposerBond);
 
+        parentGameProxy.claimCredit(parentValidityProver);
         uint256 validityProverAfterBalance = parentValidityProver.balance;
         assertEq(validityProverAfterBalance - validityProverInitialBalance, challengerBond * parentClaims.length * proverRewardPercentage / percentageDivisor);
-
-        assertEq(address(parentGameProxy).balance, 0);
     }
 
 }

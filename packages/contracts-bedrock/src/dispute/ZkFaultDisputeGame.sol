@@ -289,6 +289,12 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         challengedClaimsTimestamp[_disputeClaimIndex] = uint64(block.timestamp);
         challengers[_disputeClaimIndex] = payable(msg.sender);
         challengedClaimIndexes.push(_disputeClaimIndex);
+        // todo event
+        // get challengedClaimIndexes length
+        /// @notice Returns the length of the `claimData` array.
+//            function claimDataLen() external view returns (uint256 len_) {
+//                len_ = claimData.length;
+//            }
     }
 
     function submitProofForSignal(uint256 _disputeClaimIndex, Claim[] calldata _originalClaims, bytes calldata _proof) external override {
@@ -339,6 +345,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
         validityProofProvers[_disputeClaimIndex] = payable(msg.sender);
         invalidChallengeClaims[_disputeClaimIndex] = true;
         invalidChallengeClaimIndexes.push(_disputeClaimIndex);
+        // todo event
     }
 
     function resolveClaim() external override {
