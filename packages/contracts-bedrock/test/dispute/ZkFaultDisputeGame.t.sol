@@ -6,6 +6,7 @@ import { Vm } from "forge-std/Vm.sol";
 
 import { DisputeGameFactory_Init } from "test/dispute/DisputeGameFactory.t.sol";
 import { ZkFaultDisputeGame, IDisputeGame} from "src/dispute/ZkFaultDisputeGame.sol";
+import { AnchorStateRegistry } from "src/dispute/AnchorStateRegistry.sol";
 
 import "src/dispute/lib/Types.sol";
 import "src/dispute/lib/Errors.sol";
@@ -22,6 +23,7 @@ contract ZkFaultDisputeGame_Init is DisputeGameFactory_Init {
     uint256 internal constant percentageDivisor = 10000;
     uint256 internal constant challengerBond = 1 ether;
     uint256 internal constant proposerBond = 1 ether;
+    address payable internal constant feeVaultAddress = payable(address(0));
     /// @dev The implementation of the game being tested.
     ZkFaultDisputeGame internal gameImpl;
 
@@ -41,6 +43,9 @@ contract ZkFaultDisputeGame_Init is DisputeGameFactory_Init {
             _gameType: GAME_TYPE,
             _maxGenerateProofDuration: maxGenerateProofDuration,
             _maxDetectFaultDuration: maxDetectFaultDuration,
+            _PROPOSER_BOND: proposerBond,
+            _CHALLENGER_BOND: challengerBond,
+            _FEE_VAULT_ADDRESS: feeVaultAddress,
             _CHALLENGER_REWARD_PERCENTAGE: challengerRewardPercentage,
             _PROVER_REWARD_PERCENTAGE: proverRewardPercentage,
             _weth: delayedWeth,
@@ -60,8 +65,8 @@ contract ZkFaultDisputeGame_Init is DisputeGameFactory_Init {
 *** Use opbnb testnet block 47528965-47528980 to generate zk proof
 *** Two Games:
 *** 1. Parent Game: 47528965-47528974
-*** 2. Child Game : 47528964-47528980
-*** https://testnet.opbnbscan.com/tx?block=47528956
+*** 2. Child Game : 47528974-47528980
+*** https://testnet.opbnbscan.com/tx?block=47528965
 *** (47528965, 47528968] proof: 8653506623244edee8024efd99f19b806a8527b78291d9728516364ff8ee36728cd582500c68ca9edb5681591fb4ad0796ed6b983f8796c3b75f8bd5e360d61baa65191a1d63351599586537a801f816ae02b809be4a7b4076df97d36e48390b0ccce0e700dfe1e2be1ce304ed5e91b84f4914ee7b4a9c1f0cbb28b5dbb7ab7e1efaa5e4264449cf0efcf92eeeb51763f76c0232c47853e2d929a6af64754b0d23b90d791931dec9b23c02c0671d872a47d97c4c99050f78a48be7ab65aad140356b850210f70475b1388d112a18d7be71c39fba19efc10310d46f5d3f8ac1d4d2c118fe210d6483910c4ed03381ac18211238fe59f00b57d37c2e7146436dab82c544442c8188f22adba2be9fc50316a4a8888f03493b6e63a917c7742fbc53b764aca00e22058ecc7e4865eeac88007aa1d387a630522d5d1333e64023a76b71c8635d304fa2d0b95e5cb3aab490e215c086103290fd62ae9c3599bf244a15212f45fd0ff30621ac7a1d311695ec737e2fb306332a69fe73d9db110cf73a1d23630caf09c649fea0964cdd2855239803bb0421843eac61073090bbf456f7ad315ab6ea274fa6aa6375cada850c0081f30163c8ba95b433c6f53148a656fb934870ec192052b7c898af154eb1e51fa77361765c0244c285f667ce2c3297e7c67920060f2e823f1e94b5919cb386362ad0b752ba232fe734c982f83cfd6e1234d11dbe5b2cc612f3a915721531c4c5ae327605d73a999c43867d6aae6fc955f5de40b78f0bf6f436f3908dd11de20030558502d0f84be4abaf8058067f4ac439410751b22fdc89bcb749833f5ac39baaa29de3b8a58d660f19e5885775a693596f2adfec0b5f33b5113e56bf1409dc12ffc2698aae41a9515c98e5660de179ba463046951ea791ea82af0135da8f759b1c41b6098e07e9563a0263969472a7abb3f5f38424a44a135fe04846da2609ce77fedea0aa11bef7cbc1d505728df5d010b365890d507299095b152518fd4b00f7315d011aebb65b0893392b49c64d7fb782df9c1f9f04fbb757cfb9e0b72306e8162a45246b5f947093f99f4122ad64fc87d9131e7b6a212d7b8f19479ff8f0dd3edd8b7961783d0fcf009a085dab597504182e11610ca08ee877d657a768584dcbf8a366052a7d418703aa8e4744b14d8b905b1e2552638af0be86f0500d4a8bc563482d22c2b8fd9c4121898fc54415c6773b
 *** (47528968, 47528971] proof: 865350662799a0f21694ab08e1b809bc2a4e29bfced51b8c874c15854824230bb654e8090c79aad0adb9933f7bf7a9ae25835dc9f23036eeb91d2f07ac2b9db7bd0da148155d54c08125cd34d56cc3400fdfabe4869aa99f6ea55ce81abbbe960c88ee78290b65352cdfe26641ea2a473cb5034ba117b8a1771ccc60cd9ce7b2efc6eb5422f204c12f24beae751cc14214d485b16bb637416d98a4092726ddc47c7276f6215713698141591b79d3c978753442e6c8019c5e224d8a6d63bf7853a072d8a71871b64bf3f96508dfa74b4dd5416f1c4acd0a9780a907e00feec9b494e300e00fa3e79754d4574a279104e6f652afd4f329a467f5a4bfcd47ee8df07ef87eea19bcced91d1f4ddd4fa71af478c9aba42e219e3b27fbd3fe3dfd2eabbe703dd21a60fbeacccca280425c9cf9793d729db4023c7b5c58e23bc4b923789806fac82d272f19950ae0eccc3bc4e993b4319c15f69b69809ede167d1fb03b3c2e8629126e55f56fedddfbff41eab7b03365f1302afda1921a20b69778c1df0eb2987d0d11d70a01305b249a1806c0ebd2aca0b22b91ceb6a2cb4dc363a97edf216eac1d32e95fb9ab56349e82bccca0ae9ce6b7fb4aadfcab024e08d7585ddd875b782445f35f345683324c9a27db07f2e2fe0a55b4a187272f45aa76838e007ad8ac2ae51a6eb3448a6396d5420c2667f5d2f06e92107e894cb767c800ac1260972728870b1c346be18921b7c8768a71a759a09dcaa9f57a5a484f2b04afee6689570364d3285028eb7deebaac404cdf9ef700dcb7c50e3c7284222929ff881121ff1f419490b47d63403854b628483f51d649ef6ce8cef27a004eebcf04cc6f675c17fdee4478a23a95d8e38f429b2aa2fe24f44e0ad8d87c26a899e3f2757281782e51658e5a3724a2393dd715038bd0876ca78fe0474d730454e99d7f5f33780d1d85c555d6ed79a6cc645bc70968f81bedb7fa9ceea85a96b7229dd417e802d82271fae8f776bc05bb72f73f4e6a0256cacde3f9aa7e3ea3a9665b2c34abf0a80ef13896de49152e936346be7f8dd1536d8fe57878ae8864890323dbe79ff58a29d7f2632dd5a05d9d2589d28e2c0f99b3793533869b355f404f98c12a8bf84f1777426713c0e79ef5772b7416cf144c1a80b915b8da94d6b9dff3ee15dfbe1505a31c41ee062bb6b15a3324cf2fb929735178e59c29f65a16fda981204d4bb3
 *** (47528971, 47528974] proof: 8653506626d363b85c9a5d9ca3ff305f93621efcad98edb97278bf91e3965f79221758e6305469b9f769d5b4f1af6fc36d9b906e125a6bbf0ca8429fc22875f98b12402d2d57ad93b081e9bdab5aea15d86d98077b833fa2527b0d71650520d56db9039f1a62897864cd400ec08b1cfe3f5e55cc1eb28f86f971e296dd4358bcb374683b232e1cc975181cf2d3e224095edf916f35d37922fa7e62a4af5ae564929feec62700f8435383ae63e5a2f4c8996d3578277251f6dd29978a10297b8f5b3b4bcb1e32a58fc3ed0b76092ed72e5c4c51deb31839555798a248e86175457840eb9f14226aa60c4380991dedaaa3026b8165b216e4d6a6b7ff330dbd906c200bc95c0296f130f46504cbd4f6fad92df66564b251482fcd7fefa37949e76d554163131e1f22cc5926ae46d652f545ad95520c0c92f7e36bacb03223fda191ee67d1432fb918dc85f0bc8ee7c6af391e95bbeea6df71161ef4153b74ea9bbbf9fdcf9927dedfca2d5896531b669966af2f351b1ad5b20260d94106b014b58ca37534cf1cd38d37f4765830b84a9b9460104555813decea22fe06d2100078708f5d54a00f6101a1a7c8dea39d6e5d97fa23c88c77919d0ad9999d5e8adf63c2d6a396290833ccd6d754481abbba5fa9c08506679bf9e38361e2ab3cd9e2986e2d9c9ec803c57a7d357535339fcebfac5fe320cf05ed86a61858b880005f4bd68fb5433207e97b0309d712116e80dafcac389670a3cc02d2012191ecaa459c030f96840a12f02fc9b06c9d4c8d4cb5fd3b0e7863f55db5862faf1e9e86040a5028541ac227b7e932794832756cc293efc8ee35feb66f25bcbf1201b3adfe03b4770de18d0c9040ec5e989285f9fe53761496b497a5dfbe822fc57ff24b13d4f1bc11712d0938a63efe5985bcdbfbae3b5f9d5f929655f24271b5523682814faeeb5a5dbf089a02906313ec148e4c91e0ab65e55f9b93e7ee244739d733b685461231eb46152c72f2cdd5dec91bfe510110c97bbf2f0ae9e61f6f4b707c894b6ba1c09224010f54aebd98da4473e93d91aef8aad009699c3307db44a3e465654567eeb2cc0fdb561bc244019b2cd044b1e04cc34f936ae1df9a396c1315f8307c1ed88df218572d4a53493b02286cd9ede0b59a5720b62706d4d7dcfa7b4730f099d314cd1142131a9daa5750e9c85b25f76f4f1b722ae62a457ceeb7e9cccb06d9b7f314
@@ -88,7 +93,16 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
             root: Hash.wrap(bytes32(0xeb184356c1e393bf4ab709254068cbb11ed723e45a5ff832b7394636786f52e2)),
             l2BlockNumber: 47528965
         });
-        anchorStateRegistry.setAnchorState(GAME_TYPE, outputRoot);
+        AnchorStateRegistry.StartingAnchorRoot[] memory _startingAnchorRoots = new AnchorStateRegistry.StartingAnchorRoot[](1);
+        _startingAnchorRoots[0] = AnchorStateRegistry.StartingAnchorRoot({
+            gameType: GAME_TYPE,
+            outputRoot: outputRoot
+        });
+        vm.store(address(anchorStateRegistry),
+            bytes32(0x0000000000000000000000000000000000000000000000000000000000000000),
+            bytes32(0x0000000000000000000000000000000000000000000000000000000000000000));
+        // anchorStateRegistry.setAnchorState(GAME_TYPE, outputRoot);
+        anchorStateRegistry.initialize(_startingAnchorRoots);
         // block 47528965
         parentClaims.push(Claim.wrap(bytes32(0xab7649c15939b35ace364954fd6b3859363784d3751d735c40581ade07808dc5)));
         parentClaims.push(Claim.wrap(bytes32(0xb9b9a9fe5b39804effc888ec9acb23b2f3c5772c368a6297966df44e53c2ebae)));
@@ -108,6 +122,11 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         assertEq(parentGameProxy.maxGenerateProofDuration().raw(), 100);
         assertEq(parentGameProxy.maxDetectFaultDuration().raw(), 100);
         assertEq(parentGameProxy.maxClockDuration().raw(), 200);
+        assertEq(parentGameProxy.CHALLENGER_BOND(), 1 ether);
+        assertEq(parentGameProxy.PROPOSER_BOND(), 1 ether);
+        assertEq(parentGameProxy.FEE_VAULT_ADDRESS(), address(0));
+        assertEq(parentGameProxy.CHALLENGER_REWARD_PERCENTAGE(), 1000);
+        assertEq(parentGameProxy.PROVER_REWARD_PERCENTAGE(), 5000);
         assertEq(address(parentGameProxy.anchorStateRegistry()), address(anchorStateRegistry));
         assertEq(address(parentGameProxy.config()), address(zkFaultProofConfig));
         // Label the proxy
@@ -233,6 +252,7 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         Claim expectedClaim = parentClaims[disputeClaimIndex];
         parentClaims[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000001));
         bytes memory extraData;
+        vm.warp(parentCreateTimestamp);
         ZkFaultDisputeGame invalidGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame{ value: proposerBond }(
             GAME_TYPE, parentClaims, type(uint64).max, parentClaimBlockNumber, extraData)));
         // Challenge the game
@@ -241,16 +261,17 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         vm.deal(faultProver, 100 ether);
         vm.startPrank(faultProver);
         uint256 proverInitialBalance = faultProver.balance;
-        uint256 contractBalance = address(invalidGameProxy).balance;
+        uint256 contractBalance = delayedWeth.balanceOf(address(invalidGameProxy));
         assertEq(contractBalance, proposerBond);
         invalidGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, proof);
         invalidGameProxy.resolve();
-        uint256 proverAfterBalance = faultProver.balance;
-        assertEq(address(invalidGameProxy).balance, 0 ether);
         uint256 reward = contractBalance * (proverRewardPercentage + challengerRewardPercentage) / percentageDivisor;
+        uint256 faultGameWithdrawalDelay = 604800;
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
+        invalidGameProxy.claimCredit(faultProver);
+        uint256 proverAfterBalance = faultProver.balance;
         assertEq(proverAfterBalance - proverInitialBalance, reward);
         assertEq(uint256(invalidGameProxy.status()), uint256(GameStatus.CHALLENGER_WINS));
-        // uint256 proverAfterBalance = msg.sender.balance;
         vm.stopPrank();
     }
 
@@ -267,6 +288,7 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         Claim expectedClaim = parentClaims[disputeClaimIndex];
         parentClaims[disputeClaimIndex] = Claim.wrap(bytes32(0x0000000000000000000000000000000000000000000000000000000000000002));
         bytes memory proof = hex"8653506623244edee8024efd99f19b806a8527b78291d9728516364ff8ee36728cd582500c68ca9edb5681591fb4ad0796ed6b983f8796c3b75f8bd5e360d61baa65191a1d63351599586537a801f816ae02b809be4a7b4076df97d36e48390b0ccce0e700dfe1e2be1ce304ed5e91b84f4914ee7b4a9c1f0cbb28b5dbb7ab7e1efaa5e4264449cf0efcf92eeeb51763f76c0232c47853e2d929a6af64754b0d23b90d791931dec9b23c02c0671d872a47d97c4c99050f78a48be7ab65aad140356b850210f70475b1388d112a18d7be71c39fba19efc10310d46f5d3f8ac1d4d2c118fe210d6483910c4ed03381ac18211238fe59f00b57d37c2e7146436dab82c544442c8188f22adba2be9fc50316a4a8888f03493b6e63a917c7742fbc53b764aca00e22058ecc7e4865eeac88007aa1d387a630522d5d1333e64023a76b71c8635d304fa2d0b95e5cb3aab490e215c086103290fd62ae9c3599bf244a15212f45fd0ff30621ac7a1d311695ec737e2fb306332a69fe73d9db110cf73a1d23630caf09c649fea0964cdd2855239803bb0421843eac61073090bbf456f7ad315ab6ea274fa6aa6375cada850c0081f30163c8ba95b433c6f53148a656fb934870ec192052b7c898af154eb1e51fa77361765c0244c285f667ce2c3297e7c67920060f2e823f1e94b5919cb386362ad0b752ba232fe734c982f83cfd6e1234d11dbe5b2cc612f3a915721531c4c5ae327605d73a999c43867d6aae6fc955f5de40b78f0bf6f436f3908dd11de20030558502d0f84be4abaf8058067f4ac439410751b22fdc89bcb749833f5ac39baaa29de3b8a58d660f19e5885775a693596f2adfec0b5f33b5113e56bf1409dc12ffc2698aae41a9515c98e5660de179ba463046951ea791ea82af0135da8f759b1c41b6098e07e9563a0263969472a7abb3f5f38424a44a135fe04846da2609ce77fedea0aa11bef7cbc1d505728df5d010b365890d507299095b152518fd4b00f7315d011aebb65b0893392b49c64d7fb782df9c1f9f04fbb757cfb9e0b72306e8162a45246b5f947093f99f4122ad64fc87d9131e7b6a212d7b8f19479ff8f0dd3edd8b7961783d0fcf009a085dab597504182e11610ca08ee877d657a768584dcbf8a366052a7d418703aa8e4744b14d8b905b1e2552638af0be86f0500d4a8bc563482d22c2b8fd9c4121898fc54415c6773b";
+        vm.warp(parentCreateTimestamp);
         ZkFaultDisputeGame invalidGameProxy = ZkFaultDisputeGame(address(disputeGameFactory.createZkFaultDisputeGame{ value: proposerBond }(
             GAME_TYPE, parentClaims, type(uint64).max, parentClaimBlockNumber, extraData)));
 
@@ -283,21 +305,25 @@ contract ZkFaultDisputeGame_Test is ZkFaultDisputeGame_Init {
         invalidGameProxy.challengeByProof(disputeClaimIndex, expectedClaim, parentClaims, proof);
         vm.stopPrank();
 
-        uint256 contractBalance = address(invalidGameProxy).balance;
+        uint256 contractBalance = delayedWeth.balanceOf(address(invalidGameProxy));
         assertEq(contractBalance, proposerBond + challengerBond * 2);
 
         uint256 challengerInitialBalance = challenger.balance;
         uint256 challenger2InitialBalance = challenger2.balance;
         uint256 proverInitialBalance = faultProver.balance;
         invalidGameProxy.resolve();
+        uint256 faultGameWithdrawalDelay = 604800;
+        vm.warp(parentCreateTimestamp + faultGameWithdrawalDelay + 1);
+        invalidGameProxy.claimCredit(faultProver);
         uint256 proverAfterBalance = faultProver.balance;
         assertEq(uint256(invalidGameProxy.status()), uint256(GameStatus.CHALLENGER_WINS));
-        assertEq(address(invalidGameProxy).balance, 0 ether);
         // First refund to challenger and challenger2
         contractBalance = contractBalance - challengerBond * 2;
+        invalidGameProxy.claimCredit(challenger2);
         assertEq(challenger2.balance - challenger2InitialBalance, challengerBond);
         // Then calculate the challenger reward and the prover reward
         uint256 challengeReward = contractBalance * challengerRewardPercentage / percentageDivisor;
+        invalidGameProxy.claimCredit(challenger);
         assertEq(challenger.balance - challengerInitialBalance, challengeReward + challengerBond);
         uint256 proverReward = contractBalance * proverRewardPercentage / percentageDivisor;
         assertEq(proverAfterBalance - proverInitialBalance, proverReward);

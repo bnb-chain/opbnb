@@ -89,7 +89,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
     /// @notice The latest finalized output root, serving as the anchor for output bisection.
     OutputRoot public startingOutputRoot;
 
-    uint256 public constant PERCENTAGE_DIVISOR = 1000;
+    uint256 public constant PERCENTAGE_DIVISOR = 10000;
     uint256 public immutable PROPOSER_BOND;
     uint256 public immutable CHALLENGER_BOND;
     address payable public immutable FEE_VAULT_ADDRESS;
@@ -276,6 +276,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
 
     function challengeBySignal(uint256 _disputeClaimIndex) payable external override {
         if (msg.value != CHALLENGER_BOND) revert IncorrectBondAmount();
+        WETH.deposit{ value: msg.value }();
         if (status != GameStatus.IN_PROGRESS) revert GameNotInProgress();
         if (parentGameStatus() == GameStatus.CHALLENGER_WINS) revert ParentGameIsInvalid();
         requireNotExpired(MAX_DETECT_FAULT_DURATION, createdAt);
@@ -416,10 +417,12 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
             for (uint256 i = 0; i < challengedClaimIndexes.length; i++) {
                 if (!invalidChallengeClaims[challengedClaimIndexes[i]]) {
                     // refund the bond
-                    challengers[challengedClaimIndexes[i]].transfer(CHALLENGER_BOND);
+                    _distributeBond(challengers[challengedClaimIndexes[i]], CHALLENGER_BOND);
+                    currentContractBalance = currentContractBalance - CHALLENGER_BOND;
                 }
             }
             // TODO reward part of challengers bond to validity provers, current reward is zero
+            uint256 initialBalance = currentContractBalance;
             // reward the special challenger who submitted the signal which is proven to be valid
             // 1. someone submitted a valid fault proof corresponding to the challenge index; or
             // 2. the generate proof window is expired and no one submitted a validity proof
@@ -438,7 +441,7 @@ contract ZkFaultDisputeGame is IZkFaultDisputeGame, Clone, ISemver {
                 currentContractBalance = currentContractBalance - challengerBond;
             }
             // reward the fault proof prover
-            uint256 proverBond = (currentContractBalance * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR;
+            uint256 proverBond = (initialBalance * PROVER_REWARD_PERCENTAGE) / PERCENTAGE_DIVISOR;
             _distributeBond(faultProofProver, proverBond);
             currentContractBalance = currentContractBalance - proverBond;
         } else if (status_ == GameStatus.DEFENDER_WINS) {
