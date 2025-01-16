@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/contracts"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/outputs"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/zk"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
@@ -40,6 +42,8 @@ func NewZKGamePlayer(
 	factory contracts.DisputeGameFactory,
 	sender TxSender,
 	index uint64,
+	challengeByProof bool,
+	dir string,
 ) (*ZKGamePlayer, error) {
 	logger = logger.New("zkgame", addr, "idx", index)
 
@@ -74,9 +78,25 @@ func NewZKGamePlayer(
 	if err != nil {
 		return nil, fmt.Errorf("failed to load max detect fault duration: %w", err)
 	}
+	maxClockDuration, err := loader.GetMaxClockDuration(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fail get max clock duration:%w", err)
+	}
+	maxGenerateProofDuration, err := loader.GetMaxGenerateProofDuration(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fail get max generate proof duration:%w", err)
+	}
 	createAt, err := loader.GetCreatedAt(ctx)
 	if err != nil {
 		return nil, err
+	}
+	config, err := loader.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	blockDistance, err := config.GetBlockDistance(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load block distance: %w", err)
 	}
 
 	startBlock, endBlock, err := loader.GetBlockRange(ctx)
@@ -84,12 +104,21 @@ func NewZKGamePlayer(
 		return nil, fmt.Errorf("failed to load game block range: %w", err)
 	}
 
+	proofAccessor, err := zk.NewProofAccessor(dir, l1Head)
+	if err != nil {
+		return nil, fmt.Errorf("fail new proofAccessor: %w", err)
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("could not create proofs directory %v: %w", dir, err)
+	}
+
 	gameFactory, ok := factory.(*contracts.ZkGameFactory)
 	if !ok {
 		return nil, fmt.Errorf("factory should be zkGameFactory,gameAddr:%s", addr)
 	}
-	agent := NewZkAgent(m, clock, l1Clock, loader, outputCacheLoader, startBlock, endBlock, detectFaultDuration,
-		createAt, logger, l1Head, l1HeaderSource, addr, gameFactory, sender)
+	agent := NewZkAgent(m, clock, l1Clock, loader, outputCacheLoader, startBlock, endBlock, detectFaultDuration, maxGenerateProofDuration, maxClockDuration,
+		createAt, logger, l1Head, l1HeaderSource, addr, gameFactory, sender, challengeByProof, proofAccessor, blockDistance)
 
 	return &ZKGamePlayer{
 		logger:            logger,

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/contracts/metrics"
 	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching/rpcblock"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
@@ -250,6 +251,83 @@ func (z *ZKFaultDisputeGameContract) GetMaxClockDuration(ctx context.Context) (t
 	return time.Duration(result.GetUint64(0)) * time.Second, nil
 }
 
+func (z *ZKFaultDisputeGameContract) GetConfig(ctx context.Context) (ZkGameConfig, error) {
+	defer z.metrics.StartContractRequest("GetConfig")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodConfig))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+	config := NewZkGameConfig(z.metrics, result.GetAddress(0), z.multiCaller)
+	return config, nil
+}
+
+func (z *ZKFaultDisputeGameContract) ChallengeByProofTx(
+	ctx context.Context,
+	challengeIdx int,
+	expectedClaim eth.Bytes32,
+	originClaims []eth.Bytes32,
+	proofData []byte,
+) (txmgr.TxCandidate, error) {
+	call := z.contract.Call(methodChallengeByProof, big.NewInt(int64(challengeIdx)), expectedClaim, originClaims, proofData)
+	return z.txWithBond(ctx, call)
+}
+
+func (z *ZKFaultDisputeGameContract) GetAllChallengedClaimIndexes(ctx context.Context) ([]*big.Int, error) {
+	defer z.metrics.StartContractRequest("GetAllChallengedClaimIndexes")()
+	results, err := batching.ReadArray(ctx, z.multiCaller, rpcblock.Latest, z.contract.Call(methodChallengedClaimIndexesLen), func(i *big.Int) *batching.ContractCall {
+		return z.contract.Call(methodChallengedClaimIndexes, i)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load challengedClaimIndexes: %w", err)
+	}
+
+	var challengedClaimIndexes []*big.Int
+	for _, result := range results {
+		challengedClaimIndexes = append(challengedClaimIndexes, result.GetBigInt(0))
+	}
+	return challengedClaimIndexes, nil
+}
+
+func (z *ZKFaultDisputeGameContract) GetInvalidChallengeClaims(ctx context.Context, idx *big.Int) (bool, error) {
+	defer z.metrics.StartContractRequest("GetInvalidChallengeClaims")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodInvalidChallengeClaims, idx))
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch invalidChallengeClaims: %w,idx:%s", err, idx)
+	}
+	return result.GetBool(0), nil
+}
+
+func (z *ZKFaultDisputeGameContract) GetMaxGenerateProofDuration(ctx context.Context) (time.Duration, error) {
+	defer z.metrics.StartContractRequest("GetMaxGenerateProofDuration")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodMaxGenerateProofDuration))
+	if err != nil {
+		return time.Duration(0), fmt.Errorf("failed to fetch MaxGenerateProofDuration: %w", err)
+	}
+	return time.Duration(result.GetUint64(0)) * time.Second, nil
+}
+
+func (z *ZKFaultDisputeGameContract) GetChallengedClaimsTimestamp(
+	ctx context.Context,
+	idx *big.Int,
+) (time.Time, error) {
+	defer z.metrics.StartContractRequest("GetChallengedClaimsTimestamp")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodChallengedClaimsTimestamp, idx))
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to fetch challenged claims timestamp: %w", err)
+	}
+
+	return time.Unix(int64(result.GetUint64(0)), 0), nil
+}
+
+func (z *ZKFaultDisputeGameContract) SubmitProofForSignalTx(
+	idx *big.Int,
+	originalClaims []eth.Bytes32,
+	proofData []byte,
+) (txmgr.TxCandidate, error) {
+	call := z.contract.Call(methodSubmitProofForSignal, idx, originalClaims, proofData)
+	return call.ToTxCandidate()
+}
+
 type ZKFaultDisputeGame interface {
 	GetStatus(ctx context.Context) (gameTypes.GameStatus, error)
 	GetClaimCount(context.Context) (uint64, error)
@@ -269,4 +347,21 @@ type ZKFaultDisputeGame interface {
 	CallResolve(ctx context.Context) (gameTypes.GameStatus, error)
 	ResolveTx() (txmgr.TxCandidate, error)
 	GetMaxClockDuration(ctx context.Context) (time.Duration, error)
+	GetConfig(ctx context.Context) (ZkGameConfig, error)
+	ChallengeByProofTx(
+		ctx context.Context,
+		challengeIdx int,
+		expectedClaim eth.Bytes32,
+		originClaims []eth.Bytes32,
+		proofData []byte,
+	) (txmgr.TxCandidate, error)
+	GetAllChallengedClaimIndexes(ctx context.Context) ([]*big.Int, error)
+	GetInvalidChallengeClaims(ctx context.Context, idx *big.Int) (bool, error)
+	GetMaxGenerateProofDuration(ctx context.Context) (time.Duration, error)
+	GetChallengedClaimsTimestamp(ctx context.Context, idx *big.Int) (time.Time, error)
+	SubmitProofForSignalTx(
+		idx *big.Int,
+		originalClaims []eth.Bytes32,
+		proofData []byte,
+	) (txmgr.TxCandidate, error)
 }

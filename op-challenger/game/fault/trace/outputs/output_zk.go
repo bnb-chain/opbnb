@@ -17,8 +17,8 @@ type OutputCacheLoader struct {
 	ctx          context.Context
 }
 
-func (l *OutputCacheLoader) Load(startBlock uint64, endBlock uint64) []*eth.OutputResponse {
-	currentBlock := startBlock + 3
+func (l *OutputCacheLoader) Load(startBlock uint64, endBlock uint64, distance uint64) []*eth.OutputResponse {
+	currentBlock := startBlock + distance
 	var needFetchBlock []uint64
 	var result []*eth.OutputResponse
 	for currentBlock <= endBlock {
@@ -27,8 +27,7 @@ func (l *OutputCacheLoader) Load(startBlock uint64, endBlock uint64) []*eth.Outp
 		} else {
 			result = append(result, outputInCache)
 		}
-		//todo_welkin add flag for 3
-		currentBlock = currentBlock + 3
+		currentBlock = currentBlock + distance
 	}
 
 	if len(needFetchBlock) > 0 {
@@ -46,8 +45,8 @@ func (l *OutputCacheLoader) Load(startBlock uint64, endBlock uint64) []*eth.Outp
 			break
 		}
 	}
-	if len(result) != int(endBlock-startBlock)/3 {
-		l.logger.Warn("maybe miss outputRoot in loader", "len", len(result), "endBlock", endBlock, "startBlock", startBlock)
+	if len(result) != int((endBlock-startBlock)/distance) {
+		l.logger.Warn("maybe miss outputRoot in loader", "len", len(result), "endBlock", endBlock, "startBlock", startBlock, "distance", distance)
 	}
 	slices.SortFunc(result, func(a, b *eth.OutputResponse) int {
 		return int(a.BlockRef.Number - b.BlockRef.Number)

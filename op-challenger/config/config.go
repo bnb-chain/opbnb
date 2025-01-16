@@ -153,10 +153,11 @@ type Config struct {
 
 	MaxPendingTx uint64 // Maximum number of pending transactions (0 == no limit)
 
-	TxMgrConfig   txmgr.CLIConfig
-	MetricsConfig opmetrics.CLIConfig
-	PprofConfig   oppprof.CLIConfig
-	ZKDisputeGame bool
+	TxMgrConfig        txmgr.CLIConfig
+	MetricsConfig      opmetrics.CLIConfig
+	PprofConfig        oppprof.CLIConfig
+	ZKDisputeGame      bool
+	ZKChallengeByProof bool
 }
 
 func NewConfig(

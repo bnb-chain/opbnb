@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/contracts"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/outputs"
+	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/trace/zk"
 	"github.com/ethereum-optimism/optimism/op-challenger/game/fault/types"
 	gameTypes "github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-challenger/metrics"
@@ -26,31 +28,35 @@ const (
 	NotHandledYet LastAgentState = iota
 	SkipChallenge
 	Challenged
+	ValidGame
 	Resolved
 )
 
 type ZkAgent struct {
-	metrics                metrics.Metricer
-	systemClock            clock.Clock
-	l1Clock                types.ClockReader
-	responder              Responder
-	selective              bool
-	maxClockDuration       time.Duration
-	log                    log.Logger
-	zkFaultDisputeGame     contracts.ZKFaultDisputeGame
-	outputCacheLoader      *outputs.OutputCacheLoader
-	startBlock             uint64
-	endBlock               uint64
-	maxDetectFaultDuration time.Duration
-	createAt               time.Time
-	originClaims           []eth.Bytes32
-	targetChallengeIdx     int
-	l1Head                 eth.BlockID
-	l1Source               L1HeaderSource
-	gameAddr               common.Address
-	factory                *contracts.ZkGameFactory
-	lastState              LastAgentState
-	txSender               TxSender
+	metrics                  metrics.Metricer
+	systemClock              clock.Clock
+	l1Clock                  types.ClockReader
+	maxClockDuration         time.Duration
+	log                      log.Logger
+	zkFaultDisputeGame       contracts.ZKFaultDisputeGame
+	outputCacheLoader        *outputs.OutputCacheLoader
+	startBlock               uint64
+	endBlock                 uint64
+	maxDetectFaultDuration   time.Duration
+	createAt                 time.Time
+	originClaims             []eth.Bytes32
+	expectedClaim            eth.Bytes32
+	targetChallengeIdx       int
+	l1Head                   eth.BlockID
+	l1Source                 L1HeaderSource
+	gameAddr                 common.Address
+	factory                  *contracts.ZkGameFactory
+	lastState                LastAgentState
+	txSender                 TxSender
+	challengeByProof         bool
+	proofAccessor            *zk.ProofAccessor
+	blockDistance            *big.Int
+	maxGenerateProofDuration time.Duration
 }
 
 func NewZkAgent(
@@ -62,6 +68,8 @@ func NewZkAgent(
 	startBlock uint64,
 	endBlock uint64,
 	maxDetectFaultDuration time.Duration,
+	maxClockDuration time.Duration,
+	maxGenerateProofDuration time.Duration,
 	createAt time.Time,
 	logger log.Logger,
 	l1Head eth.BlockID,
@@ -69,24 +77,32 @@ func NewZkAgent(
 	addr common.Address,
 	factory *contracts.ZkGameFactory,
 	sender TxSender,
+	challengeByProof bool,
+	proofAccessor *zk.ProofAccessor,
+	blockDistance *big.Int,
 ) *ZkAgent {
 	return &ZkAgent{
-		metrics:                m,
-		systemClock:            systemClock,
-		l1Clock:                l1Clock,
-		zkFaultDisputeGame:     loader,
-		outputCacheLoader:      cacheLoader,
-		startBlock:             startBlock,
-		endBlock:               endBlock,
-		maxDetectFaultDuration: maxDetectFaultDuration,
-		createAt:               createAt,
-		log:                    logger,
-		l1Head:                 l1Head,
-		l1Source:               l1Source,
-		gameAddr:               addr,
-		factory:                factory,
-		txSender:               sender,
-		lastState:              NotHandledYet,
+		metrics:                  m,
+		systemClock:              systemClock,
+		l1Clock:                  l1Clock,
+		zkFaultDisputeGame:       loader,
+		outputCacheLoader:        cacheLoader,
+		startBlock:               startBlock,
+		endBlock:                 endBlock,
+		maxDetectFaultDuration:   maxDetectFaultDuration,
+		maxGenerateProofDuration: maxGenerateProofDuration,
+		maxClockDuration:         maxClockDuration,
+		createAt:                 createAt,
+		log:                      logger,
+		l1Head:                   l1Head,
+		l1Source:                 l1Source,
+		gameAddr:                 addr,
+		factory:                  factory,
+		txSender:                 sender,
+		lastState:                NotHandledYet,
+		challengeByProof:         challengeByProof,
+		proofAccessor:            proofAccessor,
+		blockDistance:            blockDistance,
 	}
 }
 
@@ -111,6 +127,15 @@ func (z *ZkAgent) Act(ctx context.Context) error {
 		z.log.Debug("skip challenge", "lastState", z.lastState)
 		return nil
 	}
+
+	if z.lastState == ValidGame {
+		err := z.findChallengeAndResponseByProof(ctx)
+		if err != nil {
+			return fmt.Errorf("find challenge and response by proof failed: %w", err)
+		}
+		return nil
+	}
+
 	should, err := z.shouldChallenge(ctx, z.zkFaultDisputeGame, z.gameAddr, z.startBlock, z.endBlock, z.l1Head.Number)
 	if err != nil {
 		return err
@@ -132,14 +157,21 @@ func (z *ZkAgent) Act(ctx context.Context) error {
 			z.lastState = SkipChallenge
 			return fmt.Errorf("discovered a game that should be challenged, but the challenge period has passed! deadline:%s", detectFaultDeadline)
 		}
-		err = z.submitChallengeBySignal(ctx)
-		if err != nil {
-			return err
+		if z.challengeByProof {
+			err := z.submitChallengeByProof(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := z.submitChallengeBySignal(ctx)
+			if err != nil {
+				return err
+			}
 		}
 		z.lastState = Challenged
 		z.log.Debug("challenge success")
 	} else {
-		z.lastState = SkipChallenge
+		z.lastState = ValidGame
 		z.log.Debug("game is ok or has already been challenged, skip challenge")
 	}
 
@@ -178,12 +210,8 @@ func (z *ZkAgent) tryResolve(ctx context.Context) bool {
 			}
 		}
 	}
-	maxClockDuration, err := z.zkFaultDisputeGame.GetMaxClockDuration(ctx)
-	if err != nil {
-		z.log.Error("fail get max clock duration when trying resolve", "err", err)
-		return false
-	}
-	deadline := z.createAt.Add(maxClockDuration)
+
+	deadline := z.createAt.Add(z.maxClockDuration)
 	if time.Now().Before(deadline) {
 		z.log.Debug("not exceeding maxClockDuration, temporarily do not resolve", "deadline", deadline)
 		return false
@@ -247,14 +275,22 @@ func (z *ZkAgent) shouldChallenge(
 		return false, fmt.Errorf("failed to load end block outputRoot resp: %w", err)
 	}
 	if rootClaim != common.Hash(endBlockOutputRootResp.OutputRoot) {
-		targetIdx = int(endBlock-startBlock)/3 - 1
+		targetIdx = int((endBlock-startBlock)/z.blockDistance.Uint64()) - 1
 		claimsHashNotEqual = true
+		if z.challengeByProof {
+			createCallData, err := z.getGameCreateCallData(ctx, l1ParentBlockNumber, addr)
+			if err != nil {
+				return false, fmt.Errorf("failed to get create call data when challenged by proof: %w", err)
+			}
+			z.originClaims = createCallData.Claims
+			z.expectedClaim = endBlockOutputRootResp.OutputRoot
+		}
 	} else {
 		claimsHash, err := game.GetClaimsHash(ctx)
 		if err != nil {
 			return false, fmt.Errorf("failed to get claims hash: %w", err)
 		}
-		outputRootResps := z.outputCacheLoader.Load(startBlock, endBlock)
+		outputRootResps := z.outputCacheLoader.Load(startBlock, endBlock, z.blockDistance.Uint64())
 		var outputRoots []eth.Bytes32
 		for _, outputRootResp := range outputRootResps {
 			outputRoots = append(outputRoots, outputRootResp.OutputRoot)
@@ -268,6 +304,7 @@ func (z *ZkAgent) shouldChallenge(
 			}
 			targetIdx = idx
 			z.originClaims = originClaims
+			z.expectedClaim = outputRootResps[idx].OutputRoot
 		}
 	}
 
@@ -396,6 +433,67 @@ func (z *ZkAgent) isParentGamesValid(ctx context.Context) (bool, error) {
 		parent = parentGame
 	}
 	return true, nil
+}
+
+func (z *ZkAgent) submitChallengeByProof(ctx context.Context) error {
+	baseBlock := z.startBlock + uint64(z.targetChallengeIdx)*z.blockDistance.Uint64()
+	challengeBlock := z.startBlock + uint64(z.targetChallengeIdx+1)*z.blockDistance.Uint64()
+	proofData, err := z.proofAccessor.GetProof(baseBlock, challengeBlock)
+	if err != nil {
+		return fmt.Errorf("fail get challenge proof: %w", err)
+	}
+	tx, err := z.zkFaultDisputeGame.ChallengeByProofTx(ctx, z.targetChallengeIdx, z.expectedClaim, z.originClaims, proofData)
+	if err != nil {
+		return fmt.Errorf("fail build challenge tx by proof: %w", err)
+	}
+	err = z.txSender.SendAndWaitSimple("challengeByProof", tx)
+	if err != nil {
+		return fmt.Errorf("fail send challenge by proof: %w", err)
+	}
+	return nil
+}
+
+func (z *ZkAgent) findChallengeAndResponseByProof(ctx context.Context) error {
+	challengedClaimIndexes, err := z.zkFaultDisputeGame.GetAllChallengedClaimIndexes(ctx)
+	if err != nil {
+		return fmt.Errorf("fail get all challenged claim indexes: %w", err)
+	}
+	for _, idx := range challengedClaimIndexes {
+		isInvalid, err := z.zkFaultDisputeGame.GetInvalidChallengeClaims(ctx, idx)
+		if err != nil {
+			return fmt.Errorf("fail get invalid challenge claims: %w,idx:%s", err, idx)
+		}
+		if !isInvalid {
+			challengeTime, err := z.zkFaultDisputeGame.GetChallengedClaimsTimestamp(ctx, idx)
+			if err != nil {
+				return fmt.Errorf("fail get challenged claims timestamp: %w,idx:%s", err, idx)
+			}
+			responseDeadline := challengeTime.Add(z.maxGenerateProofDuration)
+			if time.Now().After(responseDeadline) {
+				z.log.Error("the game needs to respond to the challenge, but it has already exceeded the maxGenerateProofDuration time.", "idx", idx, "deadline", responseDeadline)
+				return fmt.Errorf("it has already exceeded the maxGenerateProofDuration time,idx:%s", idx)
+			}
+			createCallData, err := z.getGameCreateCallData(ctx, z.l1Head.Number, z.gameAddr)
+			if err != nil {
+				return fmt.Errorf("failed to get create call data when response the challenge by proof: %w", err)
+			}
+			baseBlock := z.startBlock + idx.Uint64()*z.blockDistance.Uint64()
+			challengeBlock := z.startBlock + (idx.Uint64()+1)*z.blockDistance.Uint64()
+			proofData, err := z.proofAccessor.GetProof(baseBlock, challengeBlock)
+			if err != nil {
+				return fmt.Errorf("fail get response proof: %w", err)
+			}
+			tx, err := z.zkFaultDisputeGame.SubmitProofForSignalTx(idx, createCallData.Claims, proofData)
+			if err != nil {
+				return fmt.Errorf("fail build proof tx for signal challenge: %w", err)
+			}
+			err = z.txSender.SendAndWaitSimple("submitProofForSignal", tx)
+			if err != nil {
+				return fmt.Errorf("fail send proof tx for signal challenge: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func calHash(cache []eth.Bytes32) common.Hash {

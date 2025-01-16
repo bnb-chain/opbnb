@@ -222,6 +222,11 @@ var (
 		Usage:   "Indicates that the current game type is zkDisputeGame",
 		EnvVars: prefixEnvVars("ZK_DISPUTE_GAME"),
 	}
+	ZKChallengeByProofFlag = &cli.BoolFlag{
+		Name:    "zk-challenge-by-proof",
+		Usage:   "Instruct the challenger to directly generate proof to initiate the challenge.",
+		EnvVars: prefixEnvVars("ZK_CHALLENGE_BY_PROOF"),
+	}
 )
 
 // requiredFlags are checked by [CheckRequired]
@@ -550,5 +555,6 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 		SelectiveClaimResolution:        ctx.Bool(SelectiveClaimResolutionFlag.Name),
 		AllowInvalidPrestate:            ctx.Bool(UnsafeAllowInvalidPrestate.Name),
 		ZKDisputeGame:                   ctx.Bool(ZKDisputeGameFlag.Name),
+		ZKChallengeByProof:              ctx.Bool(ZKChallengeByProofFlag.Name),
 	}, nil
 }
