@@ -61,7 +61,7 @@ func (h *OutputRootCacheHandler) loop(parentGame *GameInformation, distance *big
 	var lastBlockRef *eth.L2BlockRef
 	for currentBlockNumber.Cmp(endBlockNumber) <= 0 {
 		blockList = append(blockList, currentBlockNumber)
-		currentBlockNumber.Add(currentBlockNumber, distance)
+		currentBlockNumber = new(big.Int).Add(currentBlockNumber, distance)
 	}
 
 	for {
