@@ -39,7 +39,7 @@ func NewZKFaultDisputeGameContract(
 		return nil, fmt.Errorf("failed to retrieve version of dispute game %v: %w", addr, err)
 	}
 	version := result.GetString(0)
-	if strings.HasPrefix(version, "1.2.") {
+	if strings.HasPrefix(version, "1.0.") {
 		// Detected an older version of contracts, use a compatibility shim.
 		return &ZKFaultDisputeGameContract{
 			metrics:     metrics,
@@ -47,7 +47,7 @@ func NewZKFaultDisputeGameContract(
 			contract:    batching.NewBoundContract(contractAbi, addr),
 		}, nil
 	} else {
-		return nil, fmt.Errorf("zk fault dispute game contract version %v does not start with '1.2.',addr:%s", version, addr)
+		return nil, fmt.Errorf("zk fault dispute game contract version %v does not start with '1.0.',addr:%s", version, addr)
 	}
 }
 
