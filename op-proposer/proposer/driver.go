@@ -26,10 +26,12 @@ import (
 )
 
 var (
-	supportedL2OutputVersion  = eth.Bytes32{}
-	ErrProposerNotRunning     = errors.New("proposer is not running")
-	DisputeGameCreatedABI     = "DisputeGameCreated(address,uint32,bytes32)"
-	DisputeGameCreatedABIHash = crypto.Keccak256Hash([]byte(DisputeGameCreatedABI))
+	supportedL2OutputVersion         = eth.Bytes32{}
+	ErrProposerNotRunning            = errors.New("proposer is not running")
+	DisputeGameCreatedABI            = "DisputeGameCreated(address,uint32,bytes32)"
+	DisputeGameCreatedABIHash        = crypto.Keccak256Hash([]byte(DisputeGameCreatedABI))
+	ZkDisputeGameIndexUpdatedABI     = "ZkDisputeGameIndexUpdated(uint256)"
+	ZkDisputeGameIndexUpdatedABIHash = crypto.Keccak256Hash([]byte(ZkDisputeGameIndexUpdatedABI))
 )
 
 const (
@@ -86,6 +88,7 @@ type L2OutputSubmitter struct {
 	anchorStateRegistryContract *bindings.AnchorStateRegistryCaller
 	outputRootCacheHandler      *OutputRootCacheHandler
 	lastSubmittedGame           *common.Address
+	lastSubmittedGameIdx        *big.Int
 	zkLastGamePersistenceCache  *LastGamePersistenceCache
 }
 
@@ -185,7 +188,7 @@ func newDGFSubmitter(ctx context.Context, cancel context.CancelFunc, setup Drive
 		anchorStateRegistryContract: anchorStateRegistryContract,
 	}
 	if setup.Cfg.IsZKDisputeGame {
-		l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.FetchOutput, setup.Cfg.ZKProposalBatchSize, setup.Cfg.ZKProposalStepSize)
+		l.outputRootCacheHandler = newOutputRootCacheHandler(ctx, l.Log, l.BatchFetchOutput, setup.Cfg.ZKProposalBatchSize)
 		if setup.Cfg.ZKProposalLastGameCachePathFlag != "" {
 			l.zkLastGamePersistenceCache = NewLastGamePersistenceCache(setup.Cfg.ZKProposalLastGameCachePathFlag)
 			lastGameInfo, err := l.zkLastGamePersistenceCache.loadFile()
@@ -193,7 +196,8 @@ func newDGFSubmitter(ctx context.Context, cancel context.CancelFunc, setup Drive
 				log.Warn("read zk last game cache file fail", "err", err, "path", setup.Cfg.ZKProposalLastGameCachePathFlag)
 			} else {
 				l.lastSubmittedGame = lastGameInfo.Address
-				log.Info("read zk last game cache file", "path", setup.Cfg.ZKProposalLastGameCachePathFlag, "address", lastGameInfo.Address)
+				l.lastSubmittedGameIdx = lastGameInfo.Idx
+				log.Info("read zk last game cache file", "path", setup.Cfg.ZKProposalLastGameCachePathFlag, "address", lastGameInfo.Address, "idx", lastGameInfo.Idx)
 			}
 		}
 	}
@@ -241,7 +245,7 @@ func (l *L2OutputSubmitter) StopL2OutputSubmitting() error {
 	close(l.done)
 	l.wg.Wait()
 	if l.zkLastGamePersistenceCache != nil && l.lastSubmittedGame != nil {
-		err := l.zkLastGamePersistenceCache.cacheFile(l.lastSubmittedGame)
+		err := l.zkLastGamePersistenceCache.cacheFile(l.lastSubmittedGame, l.lastSubmittedGameIdx)
 		if err != nil {
 			l.Log.Warn("zk last game cache file fail", "err", err, "lastSubmittedGame", l.lastSubmittedGame)
 		} else {
@@ -560,7 +564,32 @@ func (l *L2OutputSubmitter) loopZKDGF(ctx context.Context) {
 				parentGame := l.findValidParentGame(ctx)
 				if parentGame != nil {
 					l.Log.Debug("found parent game,will start getting outputRoot from it", "idx", parentGame.game.Index.Uint64())
-					l.outputRootCacheHandler.startFrom(parentGame)
+					gameImpls, err := l.dgfContract.GameImpls(&bind.CallOpts{}, zkDisputeGameType)
+					if err != nil {
+						l.Log.Error("get current GameImpls failed", "err", err)
+						continue
+					}
+					gameCaller, err := bindings.NewZKFaultDisputeGameCaller(gameImpls, l.L1Client)
+					if err != nil {
+						l.Log.Error("get current GameImpls failed", "err", err)
+						continue
+					}
+					config, err := gameCaller.Config(&bind.CallOpts{})
+					if err != nil {
+						l.Log.Error("get current Config failed", "err", err)
+						continue
+					}
+					configCaller, err := bindings.NewZKFaultProofConfigCaller(config, l.L1Client)
+					if err != nil {
+						l.Log.Error("get current Config caller failed", "err", err)
+						continue
+					}
+					blockDistance, err := configCaller.BlockDistance(&bind.CallOpts{})
+					if err != nil {
+						l.Log.Error("get current blockDistance from Config failed", "err", err)
+						continue
+					}
+					l.outputRootCacheHandler.startFrom(parentGame, blockDistance)
 				} else {
 					l.Log.Warn("fail find valid parent game data,will retry later")
 					time.Sleep(500 * time.Millisecond)
@@ -600,7 +629,7 @@ type GameInformation struct {
 
 func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInformation {
 	if l.lastSubmittedGame != nil {
-		information, err := l.getGameInformationByAddr(l.lastSubmittedGame)
+		information, err := l.getGameInformationByAddr(l.lastSubmittedGame, l.lastSubmittedGameIdx)
 		if err != nil {
 			l.Log.Error("Failed to get parent game information", "err", err, "addr", l.lastSubmittedGame)
 			return nil
@@ -620,7 +649,7 @@ func (l *L2OutputSubmitter) findValidParentGame(ctx context.Context) *GameInform
 			return makeDummyParentGame(latestValidBlockNumber)
 		}
 		address := common.HexToAddress(l.Cfg.ZKParentGameAddress)
-		information, err := l.getGameInformationByAddr(&address)
+		information, err := l.getGameInformationByAddr(&address, nil)
 		if err != nil {
 			l.Log.Error("Failed to get parent game information by config", "err", err, "addr", l.Cfg.ZKParentGameAddress)
 			return nil
@@ -813,27 +842,42 @@ func (l *L2OutputSubmitter) sendZKDGFTransaction(ctx context.Context, batchData 
 			"tx_hash", receipt.TxHash,
 			"l1blocknum", batchData.lastSyncStatus.CurrentL1.Number,
 			"l1blockhash", batchData.lastSyncStatus.CurrentL1.Hash)
-		submittedGameAddr, err := l.getSubmittedGameAddr(receipt)
+		submittedGameAddr, idx, err := l.getSubmittedGameAddrAndIdx(receipt)
 		if err != nil {
 			l.Log.Error("get submitted game fail", "tx_hash", receipt.TxHash, "err", err)
 			return nil
 		}
 		l.Log.Debug("the game submitted addr get done", "addr", submittedGameAddr)
 		l.lastSubmittedGame = &submittedGameAddr
+		l.lastSubmittedGameIdx = idx
 	}
 	return nil
 
 }
 
-func (l *L2OutputSubmitter) getSubmittedGameAddr(receipt *types.Receipt) (common.Address, error) {
+func (l *L2OutputSubmitter) getSubmittedGameAddrAndIdx(receipt *types.Receipt) (common.Address, *big.Int, error) {
+	var addr *common.Address
+	var idx *big.Int
 	for _, oneLog := range receipt.Logs {
 		if oneLog.Address == *l.Cfg.DisputeGameFactoryAddr {
 			if oneLog.Topics[0] == DisputeGameCreatedABIHash {
-				return common.BytesToAddress(oneLog.Topics[1][12:]), nil
+				gameAddr := common.BytesToAddress(oneLog.Topics[1][12:])
+				addr = &gameAddr
+			}
+
+			if oneLog.Topics[0] == ZkDisputeGameIndexUpdatedABIHash {
+				idx = new(big.Int).SetBytes(oneLog.Topics[1][:])
+			}
+
+			if addr != nil && idx != nil {
+				break
 			}
 		}
 	}
-	return common.Address{}, errors.New("failed to get submitted game address")
+	if addr != nil && idx != nil {
+		return *addr, idx, nil
+	}
+	return common.Address{}, nil, errors.New("failed to get submitted game address")
 }
 
 func (l *L2OutputSubmitter) ProposeL2OutputZKDGFTxData(batchData *outputRootBatchData) ([]byte, *big.Int, error) {
@@ -848,15 +892,20 @@ func (l *L2OutputSubmitter) ProposeL2OutputZKDGFTxData(batchData *outputRootBatc
 	return data, bond, err
 }
 
-func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (*GameInformation, error) {
-	count, err := l.dgfContract.GameCount(&bind.CallOpts{})
-	if err != nil {
-		return nil, err
+func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address, idx *big.Int) (*GameInformation, error) {
+	var currentIdx *big.Int
+	if idx != nil {
+		currentIdx = idx
+	} else {
+		count, err := l.dgfContract.GameCount(&bind.CallOpts{})
+		if err != nil {
+			return nil, err
+		}
+		if count.Cmp(big.NewInt(0)) <= 0 {
+			return nil, errors.New("failed to get game information,game count <= 0")
+		}
+		currentIdx = count.Sub(count, big.NewInt(1))
 	}
-	if count.Cmp(big.NewInt(0)) <= 0 {
-		return nil, errors.New("failed to get game information,game count <= 0")
-	}
-	currentIdx := count.Sub(count, big.NewInt(1))
 	for {
 		l.Log.Debug("getGameInformationByAddr", "gameType", l.Cfg.DisputeGameType, "currentIdx", currentIdx)
 		games, err := l.dgfContract.FindLatestGames(&bind.CallOpts{}, l.Cfg.DisputeGameType, currentIdx, big.NewInt(50))
@@ -884,20 +933,66 @@ func (l *L2OutputSubmitter) getGameInformationByAddr(gameAddr *common.Address) (
 	return nil, errors.New("failed to get game information")
 }
 
+func (l *L2OutputSubmitter) BatchFetchOutput(
+	ctx context.Context,
+	block []*big.Int,
+) ([]*eth.OutputResponse, bool, error) {
+	rollupClient, err := l.RollupProvider.RollupClient(ctx)
+	if err != nil {
+		l.Log.Error("proposer unable to get rollup client", "err", err)
+		return nil, false, err
+	}
+
+	var blockUint64 []uint64
+	for _, one := range block {
+		blockUint64 = append(blockUint64, one.Uint64())
+	}
+
+	cCtx, cancel := context.WithTimeout(ctx, l.Cfg.NetworkTimeout)
+	defer cancel()
+
+	outputs, err := rollupClient.BatchOutputAtBlock(cCtx, blockUint64)
+	if err != nil {
+		l.Log.Error("failed to fetch output at block", "block", block, "err", err)
+		return nil, false, err
+	}
+	for idx, output := range outputs {
+		if output.Version != supportedL2OutputVersion {
+			l.Log.Error("unsupported l2 output version", "output_version", output.Version, "supported_version", supportedL2OutputVersion)
+			return nil, false, errors.New("unsupported l2 output version")
+		}
+		if output.BlockRef.Number != blockUint64[idx] { // sanity check, e.g. in case of bad RPC caching
+			l.Log.Error("invalid blockNumber", "next_block", block, "output_block", output.BlockRef.Number)
+			return nil, false, errors.New("invalid blockNumber")
+		}
+		// Always propose if it's part of the Finalized L2 chain. Or if allowed, if it's part of the safe L2 chain.
+		if output.BlockRef.Number > output.Status.FinalizedL2.Number && (!l.Cfg.AllowNonFinalized || output.BlockRef.Number > output.Status.SafeL2.Number) {
+			l.Log.Debug("not proposing yet, L2 block is not ready for proposal",
+				"l2_proposal", output.BlockRef,
+				"l2_safe", output.Status.SafeL2,
+				"l2_finalized", output.Status.FinalizedL2,
+				"allow_non_finalized", l.Cfg.AllowNonFinalized)
+			return nil, false, nil
+		}
+	}
+
+	return outputs, true, nil
+}
+
 func proposeL2OutputZKDGFTxData(dgfABI *abi.ABI, gameType uint32, data *outputRootBatchData) ([]byte, error) {
 	return dgfABI.Pack("createZkFaultDisputeGame", gameType, data.outputRootList, data.parentGameIndex.Uint64(), data.l2BlockNumber.Uint64(), []byte{})
 }
 
 func parseExtraData(data []byte) (*ZkDisputeGameExtraData, error) {
-	if len(data) < 64 {
-		return nil, errors.New("extra data len<64")
+	if len(data) < 88 {
+		return nil, errors.New("extra data len<88")
 	}
-	allClaimsHash := common.BytesToHash(data[:common.HashLength])
-	parentGameAddress := common.BytesToAddress(data[36 : 36+common.AddressLength])
+	allClaimsHash := common.BytesToHash(data[32 : 32+common.HashLength])
+	parentGameAddress := common.BytesToAddress(data[68 : 68+common.AddressLength])
 	return &ZkDisputeGameExtraData{
+		endL2BlockNumber:  new(big.Int).SetBytes(data[0:32]),
 		allClaimsHash:     allClaimsHash,
-		lengthClaims:      new(big.Int).SetBytes(data[32:36]),
+		lengthClaims:      new(big.Int).SetBytes(data[64:68]),
 		parentGameAddress: parentGameAddress,
-		endL2BlockNumber:  new(big.Int).SetBytes(data[56:64]),
 	}, nil
 }

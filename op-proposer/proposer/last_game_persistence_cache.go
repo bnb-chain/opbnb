@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,6 +15,7 @@ import (
 
 type LastGameInfo struct {
 	Address *common.Address `json:"address,omitempty"`
+	Idx     *big.Int        `json:"idx,omitempty"`
 }
 
 type LastGamePersistenceCache struct {
@@ -43,10 +45,10 @@ func (c *LastGamePersistenceCache) loadFile() (*LastGameInfo, error) {
 	return &config, nil
 }
 
-func (c *LastGamePersistenceCache) cacheFile(address *common.Address) error {
+func (c *LastGamePersistenceCache) cacheFile(address *common.Address, idx *big.Int) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data, err := json.Marshal(&LastGameInfo{Address: address})
+	data, err := json.Marshal(&LastGameInfo{Address: address, Idx: idx})
 	if err != nil {
 		return fmt.Errorf("marshall new config: %w", err)
 	}

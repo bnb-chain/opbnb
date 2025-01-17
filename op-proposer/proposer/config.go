@@ -66,8 +66,6 @@ type CLIConfig struct {
 	WaitNodeSync bool
 	// ZKProposalBatchSize is defined as the number of block heights of outputRoot submitted in a batch when the game type is zk dispute game.
 	ZKProposalBatchSize uint64
-	// ZKProposalStepSize is the step size for obtaining the outputRoot when the game type is a zk dispute game.
-	ZKProposalStepSize uint64
 	// ZKParentGameAddress specifies the address of the parent game to be used at startup when the game type is a zk dispute game.
 	ZKParentGameAddress string
 	// ZKProposalLastGameCachePathFlag specifies the storage path for the last game's cache
@@ -127,7 +125,6 @@ func NewConfig(ctx *cli.Context) *CLIConfig {
 		ProposalInterval:                ctx.Duration(flags.ProposalIntervalFlag.Name),
 		DisputeGameType:                 uint32(ctx.Uint(flags.DisputeGameTypeFlag.Name)),
 		ZKProposalBatchSize:             uint64(ctx.Uint(flags.ZKProposalBatchSizeFlag.Name)),
-		ZKProposalStepSize:              uint64(ctx.Uint(flags.ZKProposalStepSizeFlag.Name)),
 		ZKParentGameAddress:             ctx.String(flags.ZKProposalParentGameAddressFlag.Name),
 		ZKProposalLastGameCachePathFlag: ctx.String(flags.ZKProposalLastGameCachePathFlag.Name),
 		ActiveSequencerCheckDuration:    ctx.Duration(flags.ActiveSequencerCheckDurationFlag.Name),

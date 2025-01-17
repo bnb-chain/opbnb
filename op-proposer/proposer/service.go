@@ -51,7 +51,6 @@ type ProposerConfig struct {
 	WaitNodeSync                    bool
 	AnchorStateRegistryAddr         *common.Address
 	ZKProposalBatchSize             uint64
-	ZKProposalStepSize              uint64
 	ZKParentGameAddress             string
 	ZKProposalLastGameCachePathFlag string
 }
@@ -82,7 +81,12 @@ type ProposerService struct {
 // ProposerServiceFromCLIConfig creates a new ProposerService from a CLIConfig.
 // The service components are fully started, except for the driver,
 // which will not be submitting state (if it was configured to) until the Start part of the lifecycle.
-func ProposerServiceFromCLIConfig(ctx context.Context, version string, cfg *CLIConfig, log log.Logger) (*ProposerService, error) {
+func ProposerServiceFromCLIConfig(
+	ctx context.Context,
+	version string,
+	cfg *CLIConfig,
+	log log.Logger,
+) (*ProposerService, error) {
 	var ps ProposerService
 	if err := ps.initFromCLIConfig(ctx, version, cfg, log); err != nil {
 		return nil, errors.Join(err, ps.Stop(ctx)) // try to clean up our failed initialization attempt
@@ -90,7 +94,12 @@ func ProposerServiceFromCLIConfig(ctx context.Context, version string, cfg *CLIC
 	return &ps, nil
 }
 
-func (ps *ProposerService) initFromCLIConfig(ctx context.Context, version string, cfg *CLIConfig, log log.Logger) error {
+func (ps *ProposerService) initFromCLIConfig(
+	ctx context.Context,
+	version string,
+	cfg *CLIConfig,
+	log log.Logger,
+) error {
 	ps.Version = version
 	ps.Log = log
 
@@ -237,7 +246,6 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 		}
 		ps.AnchorStateRegistryAddr = &address
 		ps.ZKProposalBatchSize = cfg.ZKProposalBatchSize
-		ps.ZKProposalStepSize = cfg.ZKProposalStepSize
 		ps.ZKParentGameAddress = cfg.ZKParentGameAddress
 		ps.ZKProposalLastGameCachePathFlag = cfg.ZKProposalLastGameCachePathFlag
 	}

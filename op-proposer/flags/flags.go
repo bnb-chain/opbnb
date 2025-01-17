@@ -77,12 +77,6 @@ var (
 		Value:   3600,
 		EnvVars: prefixEnvVars("ZK_PROPOSAL_BATCH_SIZE"),
 	}
-	ZKProposalStepSizeFlag = &cli.UintFlag{
-		Name:    "zk-proposal-step-size",
-		Usage:   "When the game type is zk dispute game, you can specify the step size for obtaining the outputRoot",
-		Value:   3,
-		EnvVars: prefixEnvVars("ZK_PROPOSAL_STEP_SIZE"),
-	}
 	ZKProposalParentGameAddressFlag = &cli.StringFlag{
 		Name:    "zk-proposal-parent-game-address",
 		Usage:   "When the game type is zk dispute game, you can specify the address of the parent game to use at startup",
@@ -127,7 +121,6 @@ var optionalFlags = []cli.Flag{
 	ActiveSequencerCheckDurationFlag,
 	WaitNodeSyncFlag,
 	ZKProposalBatchSizeFlag,
-	ZKProposalStepSizeFlag,
 	ZKProposalParentGameAddressFlag,
 	ZKProposalLastGameCachePathFlag,
 }
