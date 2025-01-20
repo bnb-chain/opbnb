@@ -132,7 +132,7 @@ func registerZK(
 			return nil, fmt.Errorf("failed to create fault dispute game contracts: %w", err)
 		}
 		return NewZKGamePlayer(ctx, systemClock, l1Clock, logger, m, game.Proxy, contract, source, validator,
-			outputCacheLoader, factory, sender, game.Index, cfg.ZKChallengeByProof, dir)
+			outputCacheLoader, factory, sender, game.Index, cfg.ZKChallengeByProof, dir, cfg.ZKResponseChallengeByProof, cfg.ZKResponseChallengeClaimants)
 	}
 	registry.RegisterGameType(gameType, playerCreator)
 

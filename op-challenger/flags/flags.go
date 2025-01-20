@@ -227,6 +227,16 @@ var (
 		Usage:   "Instruct the challenger to directly generate proof to initiate the challenge.",
 		EnvVars: prefixEnvVars("ZK_CHALLENGE_BY_PROOF"),
 	}
+	ZKResponseChallengeByProofFlag = &cli.BoolFlag{
+		Name:    "zk-response-challenge-by-proof",
+		Usage:   "Enable the automatic response feature for zk dispute game creators to reply to challenges",
+		EnvVars: prefixEnvVars("ZK_RESPONSE_CHALLENGE_BY_PROOF"),
+	}
+	ZKResponseChallengeClaimantsFlag = &cli.StringSliceFlag{
+		Name:    "zk-response-challenge-claimants",
+		Usage:   "Specify the list of claimants, only responding to challenges from ZK dispute games created by specific claimants.",
+		EnvVars: prefixEnvVars("ZK_RESPONSE_CHALLENGE_CLAIMANTS"),
+	}
 )
 
 // requiredFlags are checked by [CheckRequired]
@@ -272,6 +282,8 @@ var optionalFlags = []cli.Flag{
 	UnsafeAllowInvalidPrestate,
 	ZKDisputeGameFlag,
 	ZKChallengeByProofFlag,
+	ZKResponseChallengeByProofFlag,
+	ZKResponseChallengeClaimantsFlag,
 }
 
 func init() {
@@ -517,6 +529,16 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 	if ctx.IsSet(flags.NetworkFlagName) {
 		asteriscNetwork = ctx.String(flags.NetworkFlagName)
 	}
+	var zkClaimants []common.Address
+	if ctx.IsSet(ZKResponseChallengeClaimantsFlag.Name) {
+		for _, addrStr := range ctx.StringSlice(ZKResponseChallengeClaimantsFlag.Name) {
+			claimant, err := opservice.ParseAddress(addrStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid zk claimant: %w", err)
+			}
+			zkClaimants = append(zkClaimants, claimant)
+		}
+	}
 	return &config.Config{
 		// Required Flags
 		L1EthRpc:                        ctx.String(L1EthRpcFlag.Name),
@@ -557,5 +579,7 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 		AllowInvalidPrestate:            ctx.Bool(UnsafeAllowInvalidPrestate.Name),
 		ZKDisputeGame:                   ctx.Bool(ZKDisputeGameFlag.Name),
 		ZKChallengeByProof:              ctx.Bool(ZKChallengeByProofFlag.Name),
+		ZKResponseChallengeByProof:      ctx.Bool(ZKResponseChallengeByProofFlag.Name),
+		ZKResponseChallengeClaimants:    zkClaimants,
 	}, nil
 }

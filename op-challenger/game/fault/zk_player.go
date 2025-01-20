@@ -44,6 +44,8 @@ func NewZKGamePlayer(
 	index uint64,
 	challengeByProof bool,
 	dir string,
+	responseChallengeByProof bool,
+	responseClaimants []common.Address,
 ) (*ZKGamePlayer, error) {
 	logger = logger.New("zkgame", addr, "idx", index)
 
@@ -118,7 +120,7 @@ func NewZKGamePlayer(
 		return nil, fmt.Errorf("factory should be zkGameFactory,gameAddr:%s", addr)
 	}
 	agent := NewZkAgent(m, clock, l1Clock, loader, outputCacheLoader, startBlock, endBlock, detectFaultDuration, maxGenerateProofDuration, maxClockDuration,
-		createAt, logger, l1Head, l1HeaderSource, addr, gameFactory, sender, challengeByProof, proofAccessor, blockDistance)
+		createAt, logger, l1Head, l1HeaderSource, addr, gameFactory, sender, challengeByProof, proofAccessor, blockDistance, responseChallengeByProof, responseClaimants)
 
 	return &ZKGamePlayer{
 		logger:            logger,

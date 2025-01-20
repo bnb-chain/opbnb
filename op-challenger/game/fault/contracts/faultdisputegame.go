@@ -71,6 +71,7 @@ var (
 	methodMaxGenerateProofDuration  = "maxGenerateProofDuration"
 	methodChallengedClaimsTimestamp = "challengedClaimsTimestamp"
 	methodSubmitProofForSignal      = "submitProofForSignal"
+	methodGameCreator               = "gameCreator"
 )
 
 var (

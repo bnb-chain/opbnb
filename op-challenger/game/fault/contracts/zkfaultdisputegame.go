@@ -327,6 +327,16 @@ func (z *ZKFaultDisputeGameContract) SubmitProofForSignalTx(
 	return call.ToTxCandidate()
 }
 
+func (z *ZKFaultDisputeGameContract) GetGameCreator(ctx context.Context) (common.Address, error) {
+	defer z.metrics.StartContractRequest("GetGameCreator")()
+	result, err := z.multiCaller.SingleCall(ctx, rpcblock.Latest, z.contract.Call(methodGameCreator))
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to fetch game creator: %w", err)
+	}
+
+	return result.GetAddress(0), nil
+}
+
 type ZKFaultDisputeGame interface {
 	GetStatus(ctx context.Context) (gameTypes.GameStatus, error)
 	GetClaimCount(context.Context) (uint64, error)
@@ -362,4 +372,5 @@ type ZKFaultDisputeGame interface {
 		originalClaims []eth.Bytes32,
 		proofData []byte,
 	) (txmgr.TxCandidate, error)
+	GetGameCreator(ctx context.Context) (common.Address, error)
 }

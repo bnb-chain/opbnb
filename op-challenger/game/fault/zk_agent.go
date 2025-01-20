@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/exp/slices"
 )
 
 type LastAgentState int
@@ -57,6 +58,8 @@ type ZkAgent struct {
 	proofAccessor            *zk.ProofAccessor
 	blockDistance            *big.Int
 	maxGenerateProofDuration time.Duration
+	responseChallengeByProof bool
+	responseClaimants        []common.Address
 }
 
 func NewZkAgent(
@@ -80,6 +83,8 @@ func NewZkAgent(
 	challengeByProof bool,
 	proofAccessor *zk.ProofAccessor,
 	blockDistance *big.Int,
+	responseChallengeByProof bool,
+	responseClaimants []common.Address,
 ) *ZkAgent {
 	return &ZkAgent{
 		metrics:                  m,
@@ -103,6 +108,8 @@ func NewZkAgent(
 		challengeByProof:         challengeByProof,
 		proofAccessor:            proofAccessor,
 		blockDistance:            blockDistance,
+		responseChallengeByProof: responseChallengeByProof,
+		responseClaimants:        responseClaimants,
 	}
 }
 
@@ -128,7 +135,7 @@ func (z *ZkAgent) Act(ctx context.Context) error {
 		return nil
 	}
 
-	if z.lastState == ValidGame {
+	if z.lastState == ValidGame && z.responseChallengeByProof {
 		err := z.findChallengeAndResponseByProof(ctx)
 		if err != nil {
 			return fmt.Errorf("find challenge and response by proof failed: %w", err)
@@ -473,6 +480,16 @@ func (z *ZkAgent) findChallengeAndResponseByProof(ctx context.Context) error {
 			if time.Now().After(responseDeadline) {
 				z.log.Error("the game needs to respond to the challenge, but it has already exceeded the maxGenerateProofDuration time.", "idx", idx, "deadline", responseDeadline)
 				return fmt.Errorf("it has already exceeded the maxGenerateProofDuration time,idx:%s", idx)
+			}
+			if len(z.responseClaimants) != 0 {
+				gameCreator, err := z.zkFaultDisputeGame.GetGameCreator(ctx)
+				if err != nil {
+					return fmt.Errorf("fail get game creator: %w", err)
+				}
+				if !slices.Contains(z.responseClaimants, gameCreator) {
+					z.log.Debug("gameCreator not in responseClaimants,skip")
+					return nil
+				}
 			}
 			createCallData, err := z.getGameCreateCallData(ctx, z.l1Head.Number, z.gameAddr)
 			if err != nil {
