@@ -271,6 +271,7 @@ var optionalFlags = []cli.Flag{
 	SelectiveClaimResolutionFlag,
 	UnsafeAllowInvalidPrestate,
 	ZKDisputeGameFlag,
+	ZKChallengeByProofFlag,
 }
 
 func init() {

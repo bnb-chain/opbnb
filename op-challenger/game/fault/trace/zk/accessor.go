@@ -40,7 +40,7 @@ func mockFile(filePath string) error {
 		return fmt.Errorf("open file (%v) for writing: %w", tmpFile, err)
 	}
 	defer file.Close() // Ensure file is closed even if write or sync fails
-	data := hexutil.MustDecode("0x1")
+	data := hexutil.MustDecode("0x01")
 	if _, err = file.Write(data); err != nil {
 		return fmt.Errorf("write new config to temp file (%v): %w", tmpFile, err)
 	}
