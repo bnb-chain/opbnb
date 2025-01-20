@@ -158,7 +158,7 @@ func (z *ZkAgent) Act(ctx context.Context) error {
 			return fmt.Errorf("discovered a game that should be challenged, but the challenge period has passed! deadline:%s", detectFaultDeadline)
 		}
 		if z.challengeByProof {
-			err := z.submitChallengeByProof(ctx)
+			err := z.submitChallengeByProof()
 			if err != nil {
 				return err
 			}
@@ -435,14 +435,14 @@ func (z *ZkAgent) isParentGamesValid(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (z *ZkAgent) submitChallengeByProof(ctx context.Context) error {
+func (z *ZkAgent) submitChallengeByProof() error {
 	baseBlock := z.startBlock + uint64(z.targetChallengeIdx)*z.blockDistance.Uint64()
 	challengeBlock := z.startBlock + uint64(z.targetChallengeIdx+1)*z.blockDistance.Uint64()
 	proofData, err := z.proofAccessor.GetProof(baseBlock, challengeBlock)
 	if err != nil {
 		return fmt.Errorf("fail get challenge proof: %w", err)
 	}
-	tx, err := z.zkFaultDisputeGame.ChallengeByProofTx(ctx, z.targetChallengeIdx, z.expectedClaim, z.originClaims, proofData)
+	tx, err := z.zkFaultDisputeGame.ChallengeByProofTx(z.targetChallengeIdx, z.expectedClaim, z.originClaims, proofData)
 	if err != nil {
 		return fmt.Errorf("fail build challenge tx by proof: %w", err)
 	}

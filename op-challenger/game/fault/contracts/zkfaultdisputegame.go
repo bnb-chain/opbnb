@@ -262,14 +262,13 @@ func (z *ZKFaultDisputeGameContract) GetConfig(ctx context.Context) (ZkGameConfi
 }
 
 func (z *ZKFaultDisputeGameContract) ChallengeByProofTx(
-	ctx context.Context,
 	challengeIdx int,
 	expectedClaim eth.Bytes32,
 	originClaims []eth.Bytes32,
 	proofData []byte,
 ) (txmgr.TxCandidate, error) {
 	call := z.contract.Call(methodChallengeByProof, big.NewInt(int64(challengeIdx)), expectedClaim, originClaims, proofData)
-	return z.txWithBond(ctx, call)
+	return call.ToTxCandidate()
 }
 
 func (z *ZKFaultDisputeGameContract) GetAllChallengedClaimIndexes(ctx context.Context) ([]*big.Int, error) {
@@ -349,7 +348,6 @@ type ZKFaultDisputeGame interface {
 	GetMaxClockDuration(ctx context.Context) (time.Duration, error)
 	GetConfig(ctx context.Context) (ZkGameConfig, error)
 	ChallengeByProofTx(
-		ctx context.Context,
 		challengeIdx int,
 		expectedClaim eth.Bytes32,
 		originClaims []eth.Bytes32,
