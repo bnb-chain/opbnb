@@ -454,6 +454,7 @@ func (z *ZkAgent) submitChallengeByProof() error {
 }
 
 func (z *ZkAgent) findChallengeAndResponseByProof(ctx context.Context) error {
+	z.log.Debug("find challenge and response by proof")
 	challengedClaimIndexes, err := z.zkFaultDisputeGame.GetAllChallengedClaimIndexes(ctx)
 	if err != nil {
 		return fmt.Errorf("fail get all challenged claim indexes: %w", err)
@@ -491,6 +492,7 @@ func (z *ZkAgent) findChallengeAndResponseByProof(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("fail send proof tx for signal challenge: %w", err)
 			}
+			z.log.Debug("response invalid challenge success", "idx", idx)
 		}
 	}
 	return nil
