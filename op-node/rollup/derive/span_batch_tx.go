@@ -91,7 +91,7 @@ func (tx *spanBatchTx) decodeTyped(b []byte) (spanBatchTxData, error) {
 		return nil, fmt.Errorf("failed to decode span batch: %w", ErrTypedTxTooShort)
 	}
 	switch b[0] {
-	case types.AccessListTxType: //有了
+	case types.AccessListTxType:
 		var inner spanBatchAccessListTxData
 		err := rlp.DecodeBytes(b[1:], &inner)
 		if err != nil {
@@ -156,7 +156,7 @@ func (tx *spanBatchTx) convertToFullTx(nonce, gas uint64, to *common.Address, ch
 			R:        R,
 			S:        S,
 		}
-	case types.AccessListTxType: //有了
+	case types.AccessListTxType:
 		batchTxInner := tx.inner.(*spanBatchAccessListTxData)
 		inner = &types.AccessListTx{
 			ChainID:    chainID,
@@ -220,7 +220,7 @@ func newSpanBatchTx(tx types.Transaction) (*spanBatchTx, error) {
 			Value:    tx.Value(),
 			Data:     tx.Data(),
 		}
-	case types.AccessListTxType: //有了
+	case types.AccessListTxType:
 		inner = &spanBatchAccessListTxData{
 			GasPrice:   tx.GasPrice(),
 			Value:      tx.Value(),

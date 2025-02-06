@@ -13,6 +13,42 @@ type DB struct {
 	db Hooks
 }
 
+func (p *DB) StateStoreReader() ethdb.Reader {
+	panic("not supported")
+}
+
+func (p *DB) BlockStoreReader() ethdb.Reader {
+	panic("not supported")
+}
+
+func (p *DB) BlockStoreWriter() ethdb.Writer {
+	panic("not supported")
+}
+
+func (p *DB) StateStore() ethdb.Database {
+	panic("not supported")
+}
+
+func (p *DB) SetStateStore(state ethdb.Database) {
+	panic("not supported")
+}
+
+func (p *DB) GetStateStore() ethdb.Database {
+	panic("not supported")
+}
+
+func (p *DB) BlockStore() ethdb.Database {
+	panic("not supported")
+}
+
+func (p *DB) SetBlockStore(block ethdb.Database) {
+	panic("not supported")
+}
+
+func (p *DB) HasSeparateBlockStore() bool {
+	panic("not supported")
+}
+
 func (p *DB) Has(key []byte) (bool, error) {
 	panic("not supported")
 }
