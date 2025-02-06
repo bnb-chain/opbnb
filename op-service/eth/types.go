@@ -21,15 +21,15 @@ import (
 type ErrorCode int
 
 const (
-	UnknownPayload           ErrorCode = -32001 // Payload does not exist / is not available.
+	UnknownPayload           ErrorCode = -38001 // Payload does not exist / is not available.
 	InvalidForkchoiceState   ErrorCode = -38002 // Forkchoice state is invalid / inconsistent.
 	InvalidPayloadAttributes ErrorCode = -38003 // Payload attributes are invalid / inconsistent.
 )
 
 const (
-	GetPayloadStage        = "getPayload"
-	NewPayloadStage        = "newPayload"
-	ForkchoiceUpdatedStage = "forkchoiceUpdated"
+	GetPayloadStage        = "sealApiGetPayloadErrStage"
+	NewPayloadStage        = "sealApiNewPayloadErrStage"
+	ForkchoiceUpdatedStage = "sealApiForkchoiceUpdatedErrStage"
 )
 
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")

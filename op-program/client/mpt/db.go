@@ -1,6 +1,8 @@
 package mpt
 
-import "github.com/ethereum/go-ethereum/ethdb"
+import (
+	"github.com/ethereum/go-ethereum/ethdb"
+)
 
 type Hooks struct {
 	Get    func(key []byte) []byte
@@ -14,19 +16,19 @@ type DB struct {
 }
 
 func (p *DB) StateStoreReader() ethdb.Reader {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) BlockStoreReader() ethdb.Reader {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) BlockStoreWriter() ethdb.Writer {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) StateStore() ethdb.Database {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) SetStateStore(state ethdb.Database) {
@@ -34,11 +36,11 @@ func (p *DB) SetStateStore(state ethdb.Database) {
 }
 
 func (p *DB) GetStateStore() ethdb.Database {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) BlockStore() ethdb.Database {
-	panic("not supported")
+	return p
 }
 
 func (p *DB) SetBlockStore(block ethdb.Database) {
@@ -46,7 +48,7 @@ func (p *DB) SetBlockStore(block ethdb.Database) {
 }
 
 func (p *DB) HasSeparateBlockStore() bool {
-	panic("not supported")
+	return false
 }
 
 func (p *DB) Has(key []byte) (bool, error) {
