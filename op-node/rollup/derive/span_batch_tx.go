@@ -47,12 +47,12 @@ type spanBatchDynamicFeeTxData struct {
 func (txData *spanBatchDynamicFeeTxData) txType() byte { return types.DynamicFeeTxType }
 
 type spanBatchSetCodeTxData struct {
-	Value      *big.Int              // wei amount
-	GasTipCap  *big.Int              // maxPriorityFeePerGas (EIP-1559)
-	GasFeeCap  *big.Int              // maxFeePerGas (EIP-1559)
-	Data       []byte                // contract invocation input data
-	AccessList types.AccessList      // EIP-2930 access list
-	AuthList   []types.Authorization // EIP-7702 authorization list
+	Value      *big.Int                     // wei amount
+	GasTipCap  *big.Int                     // maxPriorityFeePerGas (EIP-1559)
+	GasFeeCap  *big.Int                     // maxFeePerGas (EIP-1559)
+	Data       []byte                       // contract invocation input data
+	AccessList types.AccessList             // EIP-2930 access list
+	AuthList   []types.SetCodeAuthorization // EIP-7702 authorization list
 }
 
 func (txData *spanBatchSetCodeTxData) txType() byte { return types.SetCodeTxType }
@@ -190,7 +190,7 @@ func (tx *spanBatchTx) convertToFullTx(nonce, gas uint64, to *common.Address, ch
 	case types.SetCodeTxType:
 		batchTxInner := tx.inner.(*spanBatchSetCodeTxData)
 		inner = &types.SetCodeTx{
-			ChainID:    chainID.Uint64(),
+			ChainID:    uint256.MustFromBig(chainID),
 			Nonce:      nonce,
 			GasTipCap:  uint256.MustFromBig(batchTxInner.GasTipCap),
 			GasFeeCap:  uint256.MustFromBig(batchTxInner.GasFeeCap),
@@ -242,7 +242,7 @@ func newSpanBatchTx(tx types.Transaction) (*spanBatchTx, error) {
 			Value:      tx.Value(),
 			Data:       tx.Data(),
 			AccessList: tx.AccessList(),
-			AuthList:   tx.AuthList(),
+			AuthList:   tx.SetCodeAuthorizations(),
 		}
 
 	default:

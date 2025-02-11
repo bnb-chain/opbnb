@@ -184,8 +184,8 @@ github.com/bnb-chain/fastssz v0.1.2 h1:vTcXw5SwCtRYnl/BEclujiml7GXiVOZ74tub4GHpv
 github.com/bnb-chain/fastssz v0.1.2/go.mod h1:KcabV+OEw2QwgyY8Fc88ZG79CKYkFdu0kKWyfA3dI6o=
 github.com/bnb-chain/greenfield-cometbft v1.0.0 h1:0r6hOJWD/+es0gxP/exKuN/krgXAr3LCn5/XlcgDWr8=
 github.com/bnb-chain/greenfield-cometbft v1.0.0/go.mod h1:f35mk/r5ab6yvzlqEWZt68LfUje68sYgMpVlt2CUYMk=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20241227085525-b47710880c69 h1:5//2TuCoaoE9Ihp4jW4AuQlZvxU+jJNiY9BiNHse1gA=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20241227085525-b47710880c69/go.mod h1:hyHrrcHkUe3lRwfJs+JGrbOHp+pRdheRk+ren4TPhF8=
+github.com/bnb-chain/op-geth v1.101315.2-0.0.20250211105604-4938993c410b h1:41ofqQekH7zhnU8auIg/ylopKCGuPCqXjitFVQhK4rg=
+github.com/bnb-chain/op-geth v1.101315.2-0.0.20250211105604-4938993c410b/go.mod h1:hyHrrcHkUe3lRwfJs+JGrbOHp+pRdheRk+ren4TPhF8=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
