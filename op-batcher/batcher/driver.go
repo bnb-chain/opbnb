@@ -1,6 +1,7 @@
 package batcher
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -683,6 +685,27 @@ func (l *BatchSubmitter) sendTransaction(ctx context.Context, txdata txData, que
 	if err != nil {
 		// we log instead of return an error here because txmgr can do its own gas estimation
 		l.Log.Error("Failed to calculate intrinsic gas", "err", err)
+	} else if candidate.Blobs == nil {
+		minimumGasRequired, err := func(data []byte) (uint64, error) {
+			var (
+				z      = uint64(bytes.Count(data, []byte{0}))
+				nz     = uint64(len(data)) - z
+				tokens = nz*params.TxTokenPerNonZeroByte + z
+			)
+			if (math.MaxUint64-params.TxGas)/params.TxCostFloorPerToken < tokens {
+				return 0, errors.New("intrinsic gas too low")
+			}
+			return params.TxGas + tokens*params.TxCostFloorPerToken, nil
+		}(candidate.TxData)
+
+		if err != nil {
+			return err
+		}
+		//
+		baseGas := intrinsicGas - params.TxGas
+		finalGasLimit := max(baseGas, minimumGasRequired) + params.TxGas
+
+		candidate.GasLimit = finalGasLimit
 	} else {
 		candidate.GasLimit = intrinsicGas
 	}
