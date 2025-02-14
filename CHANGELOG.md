@@ -2,11 +2,14 @@
 
 ## v0.5.2
 
-This is a minor release and upgrading is optional.
+This is a minor release and must upgrade to this release before the Pascal & Prague hardforks time of BSC, supports EIP-7702.
+
+- Testnet: Feb-25-2025 06:00 AM +UTC
+- Mainnet: Late March.
 
 This release adds a new bootnode in the US region for testnet, improves sequencer recovery functionality, introduces a new engine_opSealPayload API, and updates documentation links.
 
-This release supports EIP-7702, op-node is compatible with type 7702 transactions from L1, also supports the Pascal & Prague hard forks of BSC.
+This release supports EIP-7702, op-node is compatible with type 7702 transactions from L1.
 
 ### What's Changed
 
