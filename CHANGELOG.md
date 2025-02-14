@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.2
+
+This is a minor release and upgrading is optional.
+
+This release adds a new bootnode in the US region for testnet, improves sequencer recovery functionality, introduces a new engine_opSealPayload API, and updates documentation links.
+
+### What's Changed
+
+* chore: add bootnode in us region(testnet) by @krish-nr in https://github.com/bnb-chain/opbnb/pull/249
+* feat: handle sequencer recover related logic by @krish-nr in https://github.com/bnb-chain/opbnb/pull/250
+* feat: add new engine_opSealPayload API  by @bnoieh in https://github.com/bnb-chain/opbnb/pull/248
+* doc: update outdated links in readme by @owen-reorg in https://github.com/bnb-chain/opbnb/pull/253
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.2
+- ghcr.io/bnb-chain/op-batcher:v0.5.2
+- ghcr.io/bnb-chain/op-proposer:v0.5.2
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.1...v0.5.2
+
 ## v0.5.1
 
 This is a minor release and upgrading is optional.
@@ -262,7 +283,7 @@ https://github.com/bnb-chain/opbnb/compare/v0.3.0...v0.3.1
 
 ## v0.3.0
 
-This is a recommended release for op-node. This release brings in upstream updates, see https://github.com/bnb-chain/opbnb/pull/121 for the contents. This is also a ready release for the next planed fork, which will bring in canyon fork from upstream as well.
+This is a recommended release for op-node. This release brings in upstream updates, see https://github.com/bnb-chain/opbnb/pull/121 for the contents. This is also a ready release for the next planned fork, which will bring in canyon fork from upstream as well.
 
 ### User Facing Changes
 
