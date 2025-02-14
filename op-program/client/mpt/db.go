@@ -1,6 +1,8 @@
 package mpt
 
-import "github.com/ethereum/go-ethereum/ethdb"
+import (
+	"github.com/ethereum/go-ethereum/ethdb"
+)
 
 type Hooks struct {
 	Get    func(key []byte) []byte
@@ -11,6 +13,42 @@ type Hooks struct {
 // DB implements the ethdb.Database to back the StateDB of Geth.
 type DB struct {
 	db Hooks
+}
+
+func (p *DB) StateStoreReader() ethdb.Reader {
+	return p
+}
+
+func (p *DB) BlockStoreReader() ethdb.Reader {
+	return p
+}
+
+func (p *DB) BlockStoreWriter() ethdb.Writer {
+	return p
+}
+
+func (p *DB) StateStore() ethdb.Database {
+	return p
+}
+
+func (p *DB) SetStateStore(state ethdb.Database) {
+	panic("not supported")
+}
+
+func (p *DB) GetStateStore() ethdb.Database {
+	return p
+}
+
+func (p *DB) BlockStore() ethdb.Database {
+	return p
+}
+
+func (p *DB) SetBlockStore(block ethdb.Database) {
+	panic("not supported")
+}
+
+func (p *DB) HasSeparateBlockStore() bool {
+	return false
 }
 
 func (p *DB) Has(key []byte) (bool, error) {
