@@ -6,12 +6,15 @@ This is a minor release and upgrading is optional.
 
 This release adds a new bootnode in the US region for testnet, improves sequencer recovery functionality, introduces a new engine_opSealPayload API, and updates documentation links.
 
+This release supports EIP-7702, op-node is compatible with type 7702 transactions from L1, also supports the Pascal & Prague hard forks of BSC.
+
 ### What's Changed
 
 * chore: add bootnode in us region(testnet) by @krish-nr in https://github.com/bnb-chain/opbnb/pull/249
 * feat: handle sequencer recover related logic by @krish-nr in https://github.com/bnb-chain/opbnb/pull/250
 * feat: add new engine_opSealPayload API  by @bnoieh in https://github.com/bnb-chain/opbnb/pull/248
 * doc: update outdated links in readme by @owen-reorg in https://github.com/bnb-chain/opbnb/pull/253
+* feat: EIP-7702 adaption by @krish-nr in https://github.com/bnb-chain/opbnb/pull/261
 
 ### Docker Images
 
