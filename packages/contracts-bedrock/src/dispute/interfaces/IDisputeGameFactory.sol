@@ -24,6 +24,10 @@ interface IDisputeGameFactory {
     /// @param newBond The new bond (in wei) for initializing the game type.
     event InitBondUpdated(GameType indexed gameType, uint256 indexed newBond);
 
+    /// @notice Emitted when a new dispute game is created, index updated
+    /// @param gameIndex The index of the DisputeGame.
+    event ZkDisputeGameIndexUpdated(uint256 indexed gameIndex);
+
     /// @notice Information about a dispute game found in a `findLatestGames` search.
     struct GameSearchResult {
         uint256 index;
@@ -90,6 +94,16 @@ interface IDisputeGameFactory {
         bytes calldata _extraData
     )
         external
+        payable
+        returns (IDisputeGame proxy_);
+
+    function createZkFaultDisputeGame(
+        GameType _gameType,
+        Claim[] calldata _claims,
+        uint64 _parentGameIndex,
+        uint64 _l2BlockNumber,
+        bytes calldata _extraData
+    ) external
         payable
         returns (IDisputeGame proxy_);
 

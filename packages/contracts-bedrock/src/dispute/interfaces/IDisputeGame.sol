@@ -45,6 +45,9 @@ interface IDisputeGame is IInitializable {
     /// @return l1Head_ The parent hash of the L1 block when the dispute game was created.
     function l1Head() external pure returns (Hash l1Head_);
 
+    /// @notice The l2BlockNumber of the disputed output root in the `L2OutputOracle`.
+    function l2BlockNumber() external view returns (uint256 l2BlockNumber_);
+
     /// @notice Getter for the extra data.
     /// @dev `clones-with-immutable-args` argument #4
     /// @return extraData_ Any extra data supplied to the dispute game contract by the creator.
