@@ -21,9 +21,15 @@ import (
 type ErrorCode int
 
 const (
-	UnknownPayload           ErrorCode = -32001 // Payload does not exist / is not available.
+	UnknownPayload           ErrorCode = -38001 // Payload does not exist / is not available.
 	InvalidForkchoiceState   ErrorCode = -38002 // Forkchoice state is invalid / inconsistent.
 	InvalidPayloadAttributes ErrorCode = -38003 // Payload attributes are invalid / inconsistent.
+)
+
+const (
+	GetPayloadStage        = "sealApiGetPayloadErrStage"
+	NewPayloadStage        = "sealApiNewPayloadErrStage"
+	ForkchoiceUpdatedStage = "sealApiForkchoiceUpdatedErrStage"
 )
 
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")
@@ -367,6 +373,12 @@ type ForkchoiceUpdatedResult struct {
 	PayloadID *PayloadID `json:"payloadId"`
 }
 
+type SealPayloadResponse struct {
+	ErrStage      string                    `json:"errStage"`
+	PayloadStatus PayloadStatusV1           `json:"payloadStatus"`
+	Payload       *ExecutionPayloadEnvelope `json:"payload"`
+}
+
 // SystemConfig represents the rollup system configuration that carries over in every L2 block,
 // and may be changed through L1 system config events.
 // The initial SystemConfig at rollup genesis is embedded in the rollup configuration.
@@ -512,4 +524,7 @@ const (
 
 	GetPayloadV2 EngineAPIMethod = "engine_getPayloadV2"
 	GetPayloadV3 EngineAPIMethod = "engine_getPayloadV3"
+
+	SealPayloadV2 EngineAPIMethod = "engine_opSealPayloadV2"
+	SealPayloadV3 EngineAPIMethod = "engine_opSealPayloadV3"
 )

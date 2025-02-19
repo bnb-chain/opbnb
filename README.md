@@ -1,12 +1,12 @@
 # opBNB - High-performance layer 2 solution
 
-The opBNB network is the Layer 2 scaling solution for the BNB Smart Chain(BSC) powered by [bedrock version](https://community.optimism.io/docs/developers/bedrock/) of Optimism OP Stack.
+The opBNB network is the Layer 2 scaling solution for the BNB Smart Chain(BSC) powered by bedrock version of [Optimism OP Stack](https://docs.optimism.io/stack/getting-started).
 
 It works by offloading transaction processing and resource usage from the BNB Smart Chain, while still posting data to the underlying network. Users interact with the opBNB network by depositing funds from BSC and using applications and contracts on opBNB. At its core, opBNB allows users to deposit and withdraw funds, use smart contracts, and view network data with high throughput and low fees. By leveraging Layer 2, opBNB is able to scale beyond the constraints of the BNB Smart Chain and provide an improved experience for users.
 
 ## Comparison
 
-Besides the [differentiators of bedrock](https://community.optimism.io/docs/developers/bedrock/differences/), opBNB is the solution that we aim to provide the best optimistic rollup solution on the BSC.
+Besides the [differentiators of OP Stack](https://docs.optimism.io/stack/differences), opBNB is the solution that we aim to provide the best optimistic rollup solution on the BSC.
 
 - Capacity can reach to 100m gas per second, which is much higher than other layer 2 solutions on the Ethereum.
 - Gas fee of transfer can reach as low as $0.005 on average.

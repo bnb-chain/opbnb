@@ -181,7 +181,7 @@ func TestAttributesHandler(t *testing.T) {
 	t.Run("drop stale attributes", func(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
-		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 		ah := NewAttributesHandler(logger, cfg, ec, eng)
 		defer eng.AssertExpectations(t)
 
@@ -195,7 +195,7 @@ func TestAttributesHandler(t *testing.T) {
 	t.Run("pending gets reorged", func(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
-		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 		ah := NewAttributesHandler(logger, cfg, ec, eng)
 		defer eng.AssertExpectations(t)
 
@@ -210,7 +210,7 @@ func TestAttributesHandler(t *testing.T) {
 		t.Run("consolidation fails", func(t *testing.T) {
 			logger := testlog.Logger(t, log.LevelInfo)
 			eng := &testutils.MockEngine{}
-			ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+			ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 			ah := NewAttributesHandler(logger, cfg, ec, eng)
 
 			ec.SetUnsafeHead(refA1)
@@ -264,7 +264,7 @@ func TestAttributesHandler(t *testing.T) {
 			fn := func(t *testing.T, lastInSpan bool) {
 				logger := testlog.Logger(t, log.LevelInfo)
 				eng := &testutils.MockEngine{}
-				ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+				ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 				ah := NewAttributesHandler(logger, cfg, ec, eng)
 
 				ec.SetUnsafeHead(refA1)
@@ -323,7 +323,7 @@ func TestAttributesHandler(t *testing.T) {
 
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
-		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 		ah := NewAttributesHandler(logger, cfg, ec, eng)
 
 		ec.SetUnsafeHead(refA0)
@@ -374,7 +374,7 @@ func TestAttributesHandler(t *testing.T) {
 
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
-		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 		ah := NewAttributesHandler(logger, cfg, ec, eng)
 
 		ec.SetUnsafeHead(refA0)
@@ -398,7 +398,7 @@ func TestAttributesHandler(t *testing.T) {
 	t.Run("no attributes", func(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
-		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync})
+		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
 		ah := NewAttributesHandler(logger, cfg, ec, eng)
 		defer eng.AssertExpectations(t)
 

@@ -285,7 +285,9 @@ func (s *EthClient) InfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.
 func (s *EthClient) BSCInfoByLabel(ctx context.Context, label eth.BlockLabel) (eth.BlockInfo, error) {
 	// can't hit the cache when querying the head due to reorgs / changes.
 	if label == eth.Finalized {
-		return s.bscFinalizedHeader(ctx, 21)
+		// -3 means automatically use the len(validators) of BSC network
+		// refs: https://github.com/bnb-chain/bsc/pull/2844
+		return s.bscFinalizedHeader(ctx, -3)
 	}
 	return s.headerCall(ctx, "eth_getBlockByNumber", label)
 }

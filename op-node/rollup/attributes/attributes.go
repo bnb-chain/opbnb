@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -153,6 +154,9 @@ func (eq *AttributesHandler) forceNextSafeAttributes(ctx context.Context, attrib
 			_ = eq.ec.CancelPayload(ctx, true)
 			return derive.NewResetError(fmt.Errorf("need reset to resolve pre-state problem: %w", err))
 		case derive.BlockInsertPayloadErr:
+			if strings.Contains(err.Error(), "INCONSISTENT") {
+				return derive.NewTemporaryError(fmt.Errorf("temporarily cannot insert new safe block: %w", err))
+			}
 			_ = eq.ec.CancelPayload(ctx, true)
 			eq.log.Warn("could not process payload derived from L1 data, dropping batch", "err", err)
 			// Count the number of deposits to see if the tx list is deposit only.
