@@ -241,7 +241,7 @@ func (e *EngineController) StartPayload(ctx context.Context, parent eth.L2BlockR
 		return errTyp, err
 	}
 
-	e.buildingInfo = eth.PayloadInfo{ID: id, Timestamp: uint64(attrs.Attributes.Timestamp)}
+	e.buildingInfo = eth.PayloadInfo{ID: id, Timestamp: uint64(attrs.Attributes.Timestamp) /*TODO: add ms timestamp*/}
 	e.buildingSafe = updateSafe
 	e.buildingOnto = parent
 	if updateSafe {

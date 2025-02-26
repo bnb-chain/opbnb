@@ -35,7 +35,7 @@ type L2BlockRef struct {
 	Number         uint64      `json:"number"`
 	ParentHash     common.Hash `json:"parentHash"`
 	Time           uint64      `json:"timestamp"`
-	MilliTime      uint64      `json:"millitimestamp"`
+	MilliTime      uint64      `json:"millitimestamp"` // mock
 	L1Origin       BlockID     `json:"l1origin"`
 	SequenceNumber uint64      `json:"sequenceNumber"` // distance to first block of epoch
 }

@@ -171,6 +171,7 @@ type ExecutionPayloadEnvelope struct {
 	ExecutionPayload      *ExecutionPayload `json:"executionPayload"`
 }
 
+// TODO: keep consistent with engine api style and bsc
 type ExecutionPayload struct {
 	ParentHash    common.Hash     `json:"parentHash"`
 	FeeRecipient  common.Address  `json:"feeRecipient"`
@@ -206,6 +207,11 @@ func (payload *ExecutionPayload) ParentID() BlockID {
 		n -= 1
 	}
 	return BlockID{Hash: payload.ParentHash, Number: n}
+}
+
+func (payload *ExecutionPayload) MilliTimestamp() uint64 {
+	// TODO: adapt + PrevRandao
+	return uint64(payload.Timestamp) * 1000
 }
 
 type rawTransactions []Data
@@ -326,6 +332,11 @@ type PayloadAttributes struct {
 	NoTxPool bool `json:"noTxPool,omitempty"`
 	// GasLimit override
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
+}
+
+func (pa *PayloadAttributes) MilliTimestamp() uint64 {
+	// TODO: adaptor PrevRandao
+	return uint64(pa.Timestamp) * 1000
 }
 
 type ExecutePayloadStatus string

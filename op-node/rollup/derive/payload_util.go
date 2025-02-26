@@ -42,6 +42,7 @@ func PayloadToBlockRef(rollupCfg *rollup.Config, payload *eth.ExecutionPayload) 
 	}
 
 	return eth.L2BlockRef{
+		// TODO: + PrevRandao
 		Hash:           payload.BlockHash,
 		Number:         uint64(payload.BlockNumber),
 		ParentHash:     payload.ParentHash,

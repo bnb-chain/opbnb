@@ -22,6 +22,7 @@ func AttributesMatchBlock(rollupCfg *rollup.Config, attrs *eth.PayloadAttributes
 	if parentHash != block.ParentHash {
 		return fmt.Errorf("parent hash field does not match. expected: %v. got: %v", parentHash, block.ParentHash)
 	}
+	// TODO: nothing to change
 	if attrs.Timestamp != block.Timestamp {
 		return fmt.Errorf("timestamp field does not match. expected: %v. got: %v", uint64(attrs.Timestamp), block.Timestamp)
 	}
@@ -46,7 +47,8 @@ func AttributesMatchBlock(rollupCfg *rollup.Config, attrs *eth.PayloadAttributes
 			if i == 0 {
 				logL1InfoTxns(rollupCfg, l, uint64(block.BlockNumber), uint64(block.Timestamp), otx, block.Transactions[i])
 			}
-			return fmt.Errorf("transaction %d does not match. expected: %v. got: %v", i, expect, otx)
+			return fmt.Errorf("transaction %d does not match. expected: %v. got: %v, block_millisecond_timestamp: %v",
+				i, expect, otx, block.MilliTimestamp())
 		}
 	}
 	if attrs.GasLimit == nil {
@@ -130,7 +132,7 @@ func logL1InfoTxns(rollupCfg *rollup.Config, l log.Logger, l2Number, l2Timestamp
 		return
 	}
 
-	l = l.New("number", l2Number, "time", l2Timestamp,
+	l = l.New("number", l2Number, "time_second", l2Timestamp,
 		"safe_l1_number", safeInfo.Number, "safe_l1_hash", safeInfo.BlockHash,
 		"safe_l1_time", safeInfo.Time, "safe_seq_num", safeInfo.SequenceNumber,
 		"safe_l1_basefee", safeInfo.BaseFee, "safe_batcher_addr", safeInfo.BatcherAddr,
