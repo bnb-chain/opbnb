@@ -368,6 +368,7 @@ func (b *RawSpanBatch) derive(blockTime, genesisTimestamp uint64, chainID *big.I
 	txIdx := 0
 	for i := 0; i < int(b.blockCount); i++ {
 		batch := SpanBatchElement{}
+		// TODO: need more attention to compatibility
 		batch.Timestamp = genesisTimestamp + b.relTimestamp + blockTime*uint64(i)
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {

@@ -83,6 +83,7 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 // createNextAttributes transforms a batch into a payload attributes. This sets `NoTxPool` and appends the batched transactions
 // to the attributes transaction list
 func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *SingularBatch, l2SafeHead eth.L2BlockRef) (*eth.PayloadAttributes, error) {
+	// TODO: polish timestamp
 	// sanity check parent hash
 	if batch.ParentHash != l2SafeHead.Hash {
 		return nil, NewResetError(fmt.Errorf("valid batch has bad parent hash %s, expected %s", batch.ParentHash, l2SafeHead.Hash))

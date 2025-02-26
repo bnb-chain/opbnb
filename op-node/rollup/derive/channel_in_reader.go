@@ -99,7 +99,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 		cr.metrics.RecordDerivedBatches("singular")
 		return batch, nil
 	case SpanBatchType:
-		if origin := cr.Origin(); !cr.cfg.IsDelta(origin.Time) {
+		if origin := cr.Origin(); !cr.cfg.IsDelta(origin.Time) { // TODO: why check l1 timestamp?
 			// Check hard fork activation with the L1 inclusion block time instead of the L1 origin block time.
 			// Therefore, even if the batch passed this rule, it can be dropped in the batch queue.
 			// This is just for early dropping invalid batches as soon as possible.

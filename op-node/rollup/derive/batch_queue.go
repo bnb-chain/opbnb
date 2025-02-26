@@ -96,7 +96,13 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	if len(bq.nextSpan) > 0 {
 		// There are cached singular batches derived from the span batch.
 		// Check if the next cached batch matches the given parent block.
-		if bq.nextSpan[0].Timestamp == parent.Time+bq.config.BlockTime {
+		expectedTs := uint64(0)
+		if bq.config.IsLorentz(parent.Timestamp()) {
+			expectedTs = bq.config.NextBlockMilliTimestamp(parent)
+		} else {
+			expectedTs = bq.config.NextBlockTimestamp(parent)
+		}
+		if bq.nextSpan[0].Timestamp == expectedTs {
 			// Pop first one and return.
 			nextBatch := bq.popNextBatch(parent)
 			// len(bq.nextSpan) == 0 means it's the last batch of the span.
@@ -104,7 +110,11 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 		} else {
 			// Given parent block does not match the next batch. It means the previously returned batch is invalid.
 			// Drop cached batches and find another batch.
-			bq.log.Warn("parent block does not match the next batch. dropped cached batches", "parent", parent.ID(), "nextBatchTime", bq.nextSpan[0].GetTimestamp())
+			bq.log.Warn("parent block does not match the next batch. dropped cached batches",
+				"parent", parent.ID(),
+				"actual_next_batch_timestamp", bq.nextSpan[0].GetTimestamp(),
+				"parent_timestamp", parent.Timestamp(),
+				"expected_next_batch_timestamp", expectedTs)
 			bq.nextSpan = bq.nextSpan[:0]
 		}
 	}
