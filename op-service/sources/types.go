@@ -63,6 +63,11 @@ func (h headerInfo) Time() uint64 {
 	return h.Header.Time
 }
 
+func (h headerInfo) MilliTime() uint64 {
+	// TODO:
+	return h.Header.Time * 1000
+}
+
 func (h headerInfo) MixDigest() common.Hash {
 	return h.Header.MixDigest
 }

@@ -41,6 +41,7 @@ const (
 	Delta    ForkName = "delta"
 	Ecotone  ForkName = "ecotone"
 	Fjord    ForkName = "fjord"
+	Lorentz  ForkName = "lorentz"
 	Interop  ForkName = "interop"
 	None     ForkName = "none"
 )
@@ -51,7 +52,8 @@ var nextFork = map[ForkName]ForkName{
 	Canyon:   Delta,
 	Delta:    Ecotone,
 	Ecotone:  Fjord,
-	Fjord:    Interop,
+	Fjord:    Lorentz,
+	Lorentz:  Interop,
 	Interop:  None,
 }
 

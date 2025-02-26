@@ -15,7 +15,8 @@ type BlockInfo interface {
 	Coinbase() common.Address
 	Root() common.Hash // state-root
 	NumberU64() uint64
-	Time() uint64
+	Time() uint64      // second timestamp
+	MilliTime() uint64 // millisecond timestamp
 	// MixDigest field, reused for randomness after The Merge (Bellatrix hardfork)
 	MixDigest() common.Hash
 	BaseFee() *big.Int
@@ -72,6 +73,11 @@ func (b blockInfo) ParentBeaconRoot() *common.Hash {
 	return b.Block.BeaconRoot()
 }
 
+func (b blockInfo) MilliTime() uint64 {
+	// TODO:
+	return b.Block.Time() * 1000
+}
+
 func BlockToInfo(b *types.Block) BlockInfo {
 	return blockInfo{b}
 }
@@ -100,6 +106,11 @@ func (h headerBlockInfo) NumberU64() uint64 {
 
 func (h headerBlockInfo) Time() uint64 {
 	return h.Header.Time
+}
+
+func (h headerBlockInfo) MilliTime() uint64 {
+	// TODO:
+	return h.Header.Time * 1000
 }
 
 func (h headerBlockInfo) MixDigest() common.Hash {

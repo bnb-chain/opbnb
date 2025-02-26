@@ -116,6 +116,9 @@ type Config struct {
 	// Active if FjordTime != nil && L2 block timestamp >= *FjordTime, inactive otherwise.
 	FjordTime *uint64 `json:"fjord_time,omitempty"`
 
+	// TODO: second timestamp fork time.
+	LorentzTime *uint64 `json:"lorentz_time,omitempty"`
+
 	// InteropTime sets the activation time for an experimental feature-set, activated like a hardfork.
 	// Active if InteropTime != nil && L2 block timestamp >= *InteropTime, inactive otherwise.
 	InteropTime *uint64 `json:"interop_time,omitempty"`
@@ -423,6 +426,11 @@ func (c *Config) IsFjord(timestamp uint64) bool {
 	return c.FjordTime != nil && timestamp >= *c.FjordTime
 }
 
+// TODO:
+func (c *Config) IsLorentz(timestamp uint64) bool {
+	return c.LorentzTime != nil && timestamp >= *c.LorentzTime
+}
+
 // IsFjordActivationBlock returns whether the specified block is the first block subject to the
 // Fjord upgrade.
 func (c *Config) IsFjordActivationBlock(l2BlockTime uint64) bool {
@@ -681,3 +689,23 @@ func fmtTime(v uint64) string {
 }
 
 type Epoch uint64
+
+// TODO: Lorentz fork support Millisecond l2 block interval
+const blockIntervalLorentz = 500 // Millisecond
+
+// MilliBlockInterval returns the block interval in milliseconds
+func (c *Config) MilliBlockInterval(t uint64 /*second timestamp*/) uint64 {
+	if c.IsLorentz(t) {
+		return blockIntervalLorentz
+	}
+	return c.BlockTime * 1000
+}
+
+func (c *Config) NextBlockMilliTimestamp(parent eth.L2BlockRef) uint64 { // by millisecond
+	return parent.MilliTimestamp() + c.MilliBlockInterval(parent.Timestamp())
+}
+
+// NextBlockTimestamp is mainly to support history fork time check.
+func (c *Config) NextBlockTimestamp(parent eth.L2BlockRef) uint64 { // by second
+	return c.NextBlockMilliTimestamp(parent) / 1000
+}

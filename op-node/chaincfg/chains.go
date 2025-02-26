@@ -143,6 +143,8 @@ var OPBNBMainnet = rollup.Config{
 	DeltaTime:              u64Ptr(1718871000),  // Jun-20-2024 08:10 AM +UTC
 	EcotoneTime:            u64Ptr(1718871600),  // Jun-20-2024 08:20 AM +UTC
 	FjordTime:              u64Ptr(1727157600),  // Sep-24-2024 06:00 AM +UTC
+
+	// TODO:
 }
 
 var OPBNBTestnet = rollup.Config{
@@ -179,6 +181,8 @@ var OPBNBTestnet = rollup.Config{
 	DeltaTime:              u64Ptr(1715754000),   // May-15-2024 06:20 AM +UTC
 	EcotoneTime:            u64Ptr(1715754600),   // May-15-2024 06:30 AM +UTC
 	FjordTime:              u64Ptr(1725948000),   // Sep-10-2024 06:00 AM +UTC
+
+	// TODO:
 }
 
 var OPBNBQANet = rollup.Config{
@@ -215,6 +219,8 @@ var OPBNBQANet = rollup.Config{
 	DeltaTime:              u64Ptr(0),
 	EcotoneTime:            u64Ptr(0),
 	FjordTime:              u64Ptr(1724392800), // AUG-23-2024 06:00 AM +UTC
+
+	// TODO:
 }
 
 func u64Ptr(v uint64) *uint64 {
