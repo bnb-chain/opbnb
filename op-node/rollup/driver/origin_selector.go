@@ -57,7 +57,11 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()
 	if pastSeqDrift {
-		log.Warn("Next L2 block time is past the sequencer drift + current origin time")
+		log.Warn("Next L2 block time is past the sequencer drift + current origin time",
+			"l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
+			"l2_block_ms_interval", los.cfg.BlockTime,
+			"l1_origin_ms_timestamp", currentOrigin.MilliTimestamp(),
+			"max_ms_drift", msd)
 		// Must fetch next L1 block as long as it may take, cause we are pastSeqDrift
 		refCtx = ctx
 	}

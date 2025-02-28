@@ -878,7 +878,7 @@ func (srv *ReqRespServer) handleSyncRequest(ctx context.Context, stream network.
 	if req < srv.cfg.Genesis.L2.Number {
 		return req, fmt.Errorf("cannot serve request for L2 block %d before genesis %d: %w", req, srv.cfg.Genesis.L2.Number, invalidRequestErr)
 	}
-	max, err := srv.cfg.TargetBlockNumber(uint64(time.Now().Unix()))
+	max, err := srv.cfg.TargetBlockNumber(uint64(time.Now().UnixMilli()))
 	if err != nil {
 		return req, fmt.Errorf("cannot determine max target block number to verify request: %w", invalidRequestErr)
 	}

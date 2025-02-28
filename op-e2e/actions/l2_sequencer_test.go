@@ -98,7 +98,7 @@ func TestL2Sequencer_SequencerDrift(gt *testing.T) {
 	origin := miner.l1Chain.CurrentBlock()
 
 	// L2 makes blocks to catch up
-	for sequencer.SyncStatus().UnsafeL2.Time+sd.RollupCfg.BlockTime < origin.Time {
+	for sequencer.SyncStatus().UnsafeL2.Time+sd.RollupCfg.BlockTime/1000 < origin.Time {
 		makeL2BlockWithAliceTx()
 		require.Equal(t, uint64(0), sequencer.SyncStatus().UnsafeL2.L1Origin.Number, "no L1 origin change before time matches")
 	}
@@ -111,7 +111,7 @@ func TestL2Sequencer_SequencerDrift(gt *testing.T) {
 	sequencer.ActL1HeadSignal(t)
 
 	// Make blocks up till the sequencer drift is about to surpass, but keep the old L1 origin
-	for sequencer.SyncStatus().UnsafeL2.Time+sd.RollupCfg.BlockTime <= origin.Time+sd.ChainSpec.MaxSequencerDrift(origin.Time) {
+	for sequencer.SyncStatus().UnsafeL2.Time+sd.RollupCfg.BlockTime/1000 <= origin.Time+sd.ChainSpec.MaxSequencerDrift(origin.Time) {
 		sequencer.ActL2KeepL1Origin(t)
 		makeL2BlockWithAliceTx()
 		require.Equal(t, uint64(1), sequencer.SyncStatus().UnsafeL2.L1Origin.Number, "expected to keep old L1 origin")

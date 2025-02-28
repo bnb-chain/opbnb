@@ -73,7 +73,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 		return BatchFuture
 	}
 	if batch.Timestamp < nextMilliTimestamp {
-		log.Warn("dropping batch with old timestamp", "min_timestamp", nextMilliTimestamp)
+		log.Warn("dropping batch with old timestamp", "batch_timestamp", batch.Timestamp, "min_timestamp", nextMilliTimestamp)
 		return BatchDrop
 	}
 
