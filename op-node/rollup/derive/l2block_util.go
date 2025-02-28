@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/holiman/uint256"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -18,6 +19,7 @@ import (
 type L2BlockRefSource interface {
 	Hash() common.Hash
 	ParentHash() common.Hash
+	MixDigest() common.Hash // millisecond part
 	NumberU64() uint64
 	Time() uint64
 	Transactions() types.Transactions
@@ -59,6 +61,7 @@ func L2BlockToBlockRef(rollupCfg *rollup.Config, block L2BlockRefSource) (eth.L2
 		Number:         number,
 		ParentHash:     block.ParentHash(),
 		Time:           block.Time(),
+		MilliPartTime:  uint256.NewInt(0).SetBytes32(block.MixDigest().Bytes()[:]).Uint64(),
 		L1Origin:       l1Origin,
 		SequenceNumber: sequenceNumber,
 	}, nil

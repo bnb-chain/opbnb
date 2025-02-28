@@ -337,7 +337,7 @@ func TestSpanBatchDerive(t *testing.T) {
 	rng := rand.New(rand.NewSource(0xbab0bab0))
 
 	chainID := new(big.Int).SetUint64(rng.Uint64())
-	l2BlockTime := uint64(2)
+	l2BlockTime := uint64(2000)
 
 	for originChangedBit := 0; originChangedBit < 2; originChangedBit++ {
 		singularBatches := RandomValidConsecutiveSingularBatches(rng, chainID)

@@ -242,7 +242,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -251,12 +251,12 @@ func BatchQueueEager(t *testing.T, batchType int) {
 
 	// expected output of BatchQueue.NextBatch()
 	expectedOutputBatches := []*SingularBatch{
-		b(cfg.L2ChainID, 12, l1[0]),
-		b(cfg.L2ChainID, 14, l1[0]),
-		b(cfg.L2ChainID, 16, l1[0]),
-		b(cfg.L2ChainID, 18, l1[0]),
-		b(cfg.L2ChainID, 20, l1[0]),
-		b(cfg.L2ChainID, 22, l1[0]),
+		b(cfg.L2ChainID, 12000, l1[0]),
+		b(cfg.L2ChainID, 14000, l1[0]),
+		b(cfg.L2ChainID, 16000, l1[0]),
+		b(cfg.L2ChainID, 18000, l1[0]),
+		b(cfg.L2ChainID, 20000, l1[0]),
+		b(cfg.L2ChainID, 22000, l1[0]),
 		nil,
 	}
 	// expected error of BatchQueue.NextBatch()
@@ -295,7 +295,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
+			safeHead.Time += cfg.BlockTime / 1000
 			safeHead.Hash = mockHash(b.Timestamp, 2)
 			safeHead.L1Origin = b.Epoch()
 		}

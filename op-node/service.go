@@ -43,6 +43,17 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 		rollupConfig.ProtocolVersionsAddress = common.Address{}
 	}
 
+	{
+		if rollupConfig.BlockTime >= 1 && rollupConfig.BlockTime <= 3 {
+			// Convert legacy second-level timestamp to millisecond timestamp,
+			// This is a compatibility behavior.
+			rollupConfig.BlockTime = rollupConfig.BlockTime * 1000
+		} else if rollupConfig.BlockTime%50 != 0 && rollupConfig.BlockTime > 750 {
+			return nil, fmt.Errorf("block time is invalid, block_time: %v", rollupConfig.BlockTime)
+		}
+		// rollupConfig.BlockTime is millisecond block interval
+	}
+
 	configPersistence := NewConfigPersistence(ctx)
 
 	driverConfig := NewDriverConfig(ctx)

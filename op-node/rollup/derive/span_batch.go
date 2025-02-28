@@ -32,7 +32,7 @@ var ErrTooBigSpanBatchSize = errors.New("span batch size limit reached")
 var ErrEmptySpanBatch = errors.New("span-batch must not be empty")
 
 type spanBatchPrefix struct {
-	relTimestamp  uint64   // Relative timestamp of the first block
+	relTimestamp  uint64   // Relative timestamp of the first block, millisecond
 	l1OriginNum   uint64   // L1 origin number
 	parentCheck   [20]byte // First 20 bytes of the first block's parent hash
 	l1OriginCheck [20]byte // First 20 bytes of the last block's L1 origin hash
@@ -340,7 +340,7 @@ func (b *RawSpanBatch) encode(w io.Writer) error {
 
 // derive converts RawSpanBatch into SpanBatch, which has a list of SpanBatchElement.
 // We need chain config constants to derive values for making payload attributes.
-func (b *RawSpanBatch) derive(blockTime, genesisTimestamp uint64, chainID *big.Int) (*SpanBatch, error) {
+func (b *RawSpanBatch) derive(milliBlockInterval, genesisTimestamp uint64, chainID *big.Int) (*SpanBatch, error) {
 	if b.blockCount == 0 {
 		return nil, ErrEmptySpanBatch
 	}
@@ -368,7 +368,7 @@ func (b *RawSpanBatch) derive(blockTime, genesisTimestamp uint64, chainID *big.I
 	txIdx := 0
 	for i := 0; i < int(b.blockCount); i++ {
 		batch := SpanBatchElement{}
-		batch.Timestamp = genesisTimestamp + b.relTimestamp + blockTime*uint64(i)
+		batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + milliBlockInterval*uint64(i)
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
@@ -402,7 +402,7 @@ type SpanBatchElement struct {
 func singularBatchToElement(singularBatch *SingularBatch) *SpanBatchElement {
 	return &SpanBatchElement{
 		EpochNum:     singularBatch.EpochNum,
-		Timestamp:    singularBatch.Timestamp,
+		Timestamp:    singularBatch.Timestamp, // ms
 		Transactions: singularBatch.Transactions,
 	}
 }

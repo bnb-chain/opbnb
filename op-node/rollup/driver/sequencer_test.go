@@ -184,7 +184,7 @@ func TestSequencerChaosMonkey(t *testing.T) {
 			L2Time:       l1Time + 300, // L2 may start with a relative old L1 origin and will have to catch it up
 			SystemConfig: eth.SystemConfig{},
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 30,
 	}
 	// keep track of the L1 timestamps we mock because sometimes we only have the L1 hash/num handy
