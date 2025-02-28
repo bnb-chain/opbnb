@@ -428,8 +428,8 @@ func (c *Config) IsFjord(timestamp uint64) bool {
 // Fjord upgrade.
 func (c *Config) IsFjordActivationBlock(l2BlockTime uint64) bool {
 	return c.IsFjord(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsFjord(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsFjord(l2BlockTime-c.BlockTime/1000)
 }
 
 // IsInterop returns true if the Interop hardfork is active at or past the given timestamp.
@@ -439,34 +439,34 @@ func (c *Config) IsInterop(timestamp uint64) bool {
 
 func (c *Config) IsRegolithActivationBlock(l2BlockTime uint64) bool {
 	return c.IsRegolith(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsRegolith(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsRegolith(l2BlockTime-c.BlockTime/1000)
 }
 
 func (c *Config) IsCanyonActivationBlock(l2BlockTime uint64) bool {
 	return c.IsCanyon(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsCanyon(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsCanyon(l2BlockTime-c.BlockTime/1000)
 }
 
 func (c *Config) IsDeltaActivationBlock(l2BlockTime uint64) bool {
 	return c.IsDelta(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsDelta(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsDelta(l2BlockTime-c.BlockTime/1000)
 }
 
 // IsEcotoneActivationBlock returns whether the specified block is the first block subject to the
 // Ecotone upgrade. Ecotone activation at genesis does not count.
 func (c *Config) IsEcotoneActivationBlock(l2BlockTime uint64) bool {
 	return c.IsEcotone(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsEcotone(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsEcotone(l2BlockTime-c.BlockTime/1000)
 }
 
 func (c *Config) IsInteropActivationBlock(l2BlockTime uint64) bool {
 	return c.IsInterop(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime &&
-		!c.IsInterop(l2BlockTime-c.BlockTime)
+		l2BlockTime >= c.BlockTime/1000 &&
+		!c.IsInterop(l2BlockTime-c.BlockTime/1000)
 }
 
 // ForkchoiceUpdatedVersion returns the EngineAPIMethod suitable for the chain hard fork version.

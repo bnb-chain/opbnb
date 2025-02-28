@@ -337,13 +337,13 @@ func TestSpanBatchDerive(t *testing.T) {
 	rng := rand.New(rand.NewSource(0xbab0bab0))
 
 	chainID := new(big.Int).SetUint64(rng.Uint64())
-	l2BlockTime := uint64(2000)
+	l2BlockTime := uint64(2) * 1000 //ms
 
 	for originChangedBit := 0; originChangedBit < 2; originChangedBit++ {
 		singularBatches := RandomValidConsecutiveSingularBatches(rng, chainID)
 		safeL2Head := testutils.RandomL2BlockRef(rng)
 		safeL2Head.Hash = common.BytesToHash(singularBatches[0].ParentHash[:])
-		genesisTimeStamp := 1 + singularBatches[0].Timestamp - 128
+		genesisTimeStamp := 1 + singularBatches[0].Timestamp/1000 - 128 // second
 
 		spanBatch := initializedSpanBatch(singularBatches, genesisTimeStamp, chainID)
 		// set originChangedBit to match the original test implementation
@@ -408,7 +408,7 @@ func TestSpanBatchMerge(t *testing.T) {
 		require.NoError(t, err)
 
 		// check span batch prefix
-		require.Equal(t, rawSpanBatch.relTimestamp, singularBatches[0].Timestamp-genesisTimeStamp, "invalid relative timestamp")
+		require.Equal(t, rawSpanBatch.relTimestamp, singularBatches[0].Timestamp-genesisTimeStamp*1000, "invalid relative timestamp")
 		require.Equal(t, rollup.Epoch(rawSpanBatch.l1OriginNum), singularBatches[blockCount-1].EpochNum)
 		require.Equal(t, rawSpanBatch.parentCheck[:], singularBatches[0].ParentHash.Bytes()[:20], "invalid parent check")
 		require.Equal(t, rawSpanBatch.l1OriginCheck[:], singularBatches[blockCount-1].EpochHash.Bytes()[:20], "invalid l1 origin check")
@@ -444,8 +444,8 @@ func TestSpanBatchToSingularBatch(t *testing.T) {
 		singularBatches := RandomValidConsecutiveSingularBatches(rng, chainID)
 		safeL2Head := testutils.RandomL2BlockRef(rng)
 		safeL2Head.Hash = common.BytesToHash(singularBatches[0].ParentHash[:])
-		safeL2Head.Time = singularBatches[0].Timestamp - 2
-		genesisTimeStamp := 1 + singularBatches[0].Timestamp - 128
+		safeL2Head.Time = singularBatches[0].Timestamp/1000 - 2
+		genesisTimeStamp := 1 + singularBatches[0].Timestamp/1000 - 128 // second
 
 		spanBatch := initializedSpanBatch(singularBatches, genesisTimeStamp, chainID)
 		// set originChangedBit to match the original test implementation

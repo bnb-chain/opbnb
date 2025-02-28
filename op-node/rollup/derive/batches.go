@@ -125,7 +125,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 
 	spec := rollup.NewChainSpec(cfg)
 	// Check if we ran out of sequencer time drift
-	if max := batchOrigin.Time + spec.MaxSequencerDrift(batchOrigin.Time); batch.Timestamp > max {
+	if max := (batchOrigin.Time + spec.MaxSequencerDrift(batchOrigin.Time)) * 1000; batch.Timestamp > max {
 		if len(batch.Transactions) == 0 {
 			// If the sequencer is co-operating by producing an empty batch,
 			// then allow the batch if it was the right thing to do to maintain the L2 time >= L1 time invariant.
@@ -136,7 +136,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 					return BatchUndecided
 				}
 				nextOrigin := l1Blocks[1]
-				if batch.Timestamp >= nextOrigin.Time { // check if the next L1 origin could have been adopted
+				if batch.Timestamp >= nextOrigin.MilliTimestamp() { // check if the next L1 origin could have been adopted
 					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 					return BatchDrop
 				} else {
@@ -272,7 +272,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	originAdvanced := startEpochNum == parentBlock.L1Origin.Number+1
 
 	for i := 0; i < batch.GetBlockCount(); i++ {
-		if batch.GetBlockTimestamp(i) <= l2SafeHead.Time {
+		if batch.GetBlockTimestamp(i) <= l2SafeHead.MillisecondTimestamp() {
 			continue
 		}
 		var l1Origin eth.L1BlockRef
@@ -297,7 +297,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 
 		spec := rollup.NewChainSpec(cfg)
 		// Check if we ran out of sequencer time drift
-		if max := l1Origin.Time + spec.MaxSequencerDrift(l1Origin.Time); blockTimestamp > max {
+		if max := (l1Origin.Time + spec.MaxSequencerDrift(l1Origin.Time)) * 1000; blockTimestamp > max {
 			if len(batch.GetBlockTransactions(i)) == 0 {
 				// If the sequencer is co-operating by producing an empty batch,
 				// then allow the batch if it was the right thing to do to maintain the L2 time >= L1 time invariant.
