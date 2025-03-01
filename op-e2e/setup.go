@@ -547,6 +547,10 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		return nil, err
 	}
 	sys.RollupConfig = &defaultConfig
+	if sys.RollupConfig.BlockTime <= 3 {
+		// covert ms timestamp
+		sys.RollupConfig.BlockTime = sys.RollupConfig.BlockTime * 1000
+	}
 
 	// Create a fake Beacon node to hold on to blobs created by the L1 miner, and to serve them to L2
 	bcn := fakebeacon.NewBeacon(testlog.Logger(t, log.LevelInfo).New("role", "l1_cl"),

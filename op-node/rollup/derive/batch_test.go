@@ -78,7 +78,7 @@ func RandomRawSpanBatch(rng *rand.Rand, chainId *big.Int) *RawSpanBatch {
 
 func RandomValidConsecutiveSingularBatches(rng *rand.Rand, chainID *big.Int) []*SingularBatch {
 	blockCount := 2 + rng.Intn(128)
-	l2BlockTime := uint64(2)
+	l2BlockTime := uint64(2) * 1000 // ms
 
 	var singularBatches []*SingularBatch
 	for i := 0; i < blockCount; i++ {
@@ -87,7 +87,7 @@ func RandomValidConsecutiveSingularBatches(rng *rand.Rand, chainID *big.Int) []*
 	}
 	l1BlockNum := rng.Uint64()
 	// make sure oldest timestamp is large enough
-	singularBatches[0].Timestamp += 256
+	singularBatches[0].Timestamp += 256 * 1000 // ms
 	for i := 0; i < blockCount; i++ {
 		originChangedBit := rng.Intn(2)
 		if originChangedBit == 1 {

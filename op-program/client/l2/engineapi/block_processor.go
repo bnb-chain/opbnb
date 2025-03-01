@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -70,6 +71,7 @@ func NewBlockProcessorFromHeader(provider BlockDataProvider, h *types.Header) (*
 	}
 	parentHeader := provider.GetHeaderByHash(header.ParentHash)
 	if header.Time <= parentHeader.Time {
+		log.Error("invalid timestamp", "header", header, "parent_header", parentHeader)
 		return nil, errors.New("invalid timestamp")
 	}
 	statedb, err := provider.StateAt(parentHeader.Root)

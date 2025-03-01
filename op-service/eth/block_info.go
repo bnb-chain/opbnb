@@ -16,6 +16,7 @@ type BlockInfo interface {
 	Root() common.Hash // state-root
 	NumberU64() uint64
 	Time() uint64
+	MilliTime() uint64
 	// MixDigest field, reused for randomness after The Merge (Bellatrix hardfork)
 	MixDigest() common.Hash
 	BaseFee() *big.Int
@@ -72,6 +73,11 @@ func (b blockInfo) ParentBeaconRoot() *common.Hash {
 	return b.Block.BeaconRoot()
 }
 
+func (b blockInfo) MilliTime() uint64 {
+	// TODO: adapt L1 timestamp
+	return b.Block.Time() * 1000
+}
+
 func BlockToInfo(b *types.Block) BlockInfo {
 	return blockInfo{b}
 }
@@ -100,6 +106,11 @@ func (h headerBlockInfo) NumberU64() uint64 {
 
 func (h headerBlockInfo) Time() uint64 {
 	return h.Header.Time
+}
+
+func (h headerBlockInfo) MilliTime() uint64 {
+	// TODO: adapt L1 timestamp
+	return h.Header.Time * 1000
 }
 
 func (h headerBlockInfo) MixDigest() common.Hash {

@@ -284,9 +284,9 @@ func (eq *EngineQueue) Reset(ctx context.Context, _ eth.L1BlockRef, _ eth.System
 	if err != nil {
 		return NewTemporaryError(fmt.Errorf("failed to fetch the new L1 progress: origin: %v; err: %w", safe.L1Origin, err))
 	}
-	if safe.Time < l1Origin.Time {
+	if safe.MillisecondTimestamp() < l1Origin.MilliTimestamp() {
 		return NewResetError(fmt.Errorf("cannot reset block derivation to start at L2 block %s with time %d older than its L1 origin %s with time %d, time invariant is broken",
-			safe, safe.Time, l1Origin, l1Origin.Time))
+			safe, safe.MillisecondTimestamp(), l1Origin, l1Origin.MilliTimestamp()))
 	}
 
 	// Walk back L2 chain to find the L1 origin that is old enough to start buffering channel data from.
