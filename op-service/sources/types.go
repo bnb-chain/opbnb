@@ -63,9 +63,15 @@ func (h headerInfo) Time() uint64 {
 	return h.Header.Time
 }
 
-func (h headerInfo) MilliTime() uint64 {
-	// TODO: adapt L1 timestamp
-	return h.Header.Time * 1000
+func (h headerInfo) MillTimestamp() uint64 {
+	return h.Header.Time*1000 + h.MillSeconds()
+}
+
+func (h headerInfo) MillSeconds() uint64 {
+	if h.MixDigest() == (common.Hash{}) {
+		return 0
+	}
+	return uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
 }
 
 func (h headerInfo) MixDigest() common.Hash {
