@@ -30,6 +30,7 @@ func HeaderBlockID(h *types.Header) BlockID {
 	return BlockID{Number: h.Number.Uint64(), Hash: h.Hash()}
 }
 
+// maybe add MixDigest/PrevRandao field
 type L2BlockRef struct {
 	Hash           common.Hash `json:"hash"`
 	Number         uint64      `json:"number"`

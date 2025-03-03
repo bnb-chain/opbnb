@@ -157,6 +157,8 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 		return time.Second * time.Duration(d.rollupCfg.BlockTime)
 	}
 
+	// all time compute change to ms
+
 	head := d.engine.UnsafeL2Head()
 	now := d.timeNow()
 
@@ -167,6 +169,7 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 	}
 
 	blockTime := time.Duration(d.rollupCfg.BlockTime) * time.Second
+	// need method get ms time
 	payloadTime := time.Unix(int64(head.Time+d.rollupCfg.BlockTime), 0)
 	remainingTime := payloadTime.Sub(now)
 
@@ -265,13 +268,16 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			} else if errors.Is(err, derive.ErrReset) {
 				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
 				d.metrics.RecordSequencerReset()
+				// change to ms 500ms
 				d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime)) // hold off from sequencing for a full block
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer temporarily failed to start building new block", "err", err)
+				// may be change to ms 500ms
 				d.nextAction = d.timeNow().Add(time.Second)
 			} else {
 				d.log.Error("sequencer failed to start building new block with unclassified error", "err", err)
+				// may be change to ms 500ms
 				d.nextAction = d.timeNow().Add(time.Second)
 			}
 		} else {

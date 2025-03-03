@@ -209,6 +209,7 @@ func (s *Driver) eventLoop() {
 	var delayedStepReq <-chan time.Time
 
 	// keep track of consecutive failed attempts, to adjust the backoff time accordingly
+	// maybe to change teh Exponential config
 	bOffStrategy := retry.Exponential()
 	stepAttempts := 0
 
@@ -269,6 +270,7 @@ func (s *Driver) eventLoop() {
 
 	// Create a ticker to check if there is a gap in the engine queue. Whenever
 	// there is, we send requests to sync source to retrieve the missing payloads.
+	// change to ms
 	syncCheckInterval := time.Duration(s.config.BlockTime) * time.Second * 2
 	altSyncTicker := time.NewTicker(syncCheckInterval)
 	defer altSyncTicker.Stop()

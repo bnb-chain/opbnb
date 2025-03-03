@@ -129,6 +129,7 @@ type L1EndpointConfig struct {
 	// when the RPC is detected to be an HTTP type.
 	// It is recommended to use websockets or IPC for efficient following of the changing block.
 	// Setting this to 0 disables polling.
+	// Default 3s -> 1.5s -> 750ms
 	HttpPollInterval time.Duration
 }
 

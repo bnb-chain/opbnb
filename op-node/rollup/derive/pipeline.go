@@ -70,19 +70,19 @@ func NewDerivationPipeline(log log.Logger, rollupCfg *rollup.Config, l1Fetcher L
 	syncCfg *sync.Config, safeHeadListener SafeHeadListener, finalizer FinalizerHooks, attributesHandler AttributesHandler) *DerivationPipeline {
 
 	// Pull stages
-	l1Traversal := NewL1Traversal(log, rollupCfg, l1Fetcher)
-	dataSrc := NewDataSourceFactory(log, rollupCfg, l1Fetcher, l1Blobs, plasma) // auxiliary stage for L1Retrieval
-	l1Src := NewL1Retrieval(log, dataSrc, l1Traversal)
-	frameQueue := NewFrameQueue(log, l1Src)
-	bank := NewChannelBank(log, rollupCfg, frameQueue, l1Fetcher, metrics)
-	chInReader := NewChannelInReader(rollupCfg, log, bank, metrics)
-	batchQueue := NewBatchQueue(log, rollupCfg, chInReader, l2Source)
-	attrBuilder := NewFetchingAttributesBuilder(rollupCfg, l1Fetcher, l2Source)
-	attributesQueue := NewAttributesQueue(log, rollupCfg, attrBuilder, batchQueue)
+	l1Traversal := NewL1Traversal(log, rollupCfg, l1Fetcher)                       // no change
+	dataSrc := NewDataSourceFactory(log, rollupCfg, l1Fetcher, l1Blobs, plasma)    // auxiliary stage for L1Retrieval, no change
+	l1Src := NewL1Retrieval(log, dataSrc, l1Traversal)                             // no change
+	frameQueue := NewFrameQueue(log, l1Src)                                        // no change
+	bank := NewChannelBank(log, rollupCfg, frameQueue, l1Fetcher, metrics)         // no change
+	chInReader := NewChannelInReader(rollupCfg, log, bank, metrics)                // no change
+	batchQueue := NewBatchQueue(log, rollupCfg, chInReader, l2Source)              // AddBatch.CheckBatch.checkSingularBatch/checkSpanBatch need change
+	attrBuilder := NewFetchingAttributesBuilder(rollupCfg, l1Fetcher, l2Source)    // need change
+	attributesQueue := NewAttributesQueue(log, rollupCfg, attrBuilder, batchQueue) // need change
 
 	// Step stages
 	eng := NewEngineQueue(log, rollupCfg, l2Source, engine, metrics, attributesQueue,
-		l1Fetcher, syncCfg, safeHeadListener, finalizer, attributesHandler)
+		l1Fetcher, syncCfg, safeHeadListener, finalizer, attributesHandler) // no change
 
 	// Reset from engine queue then up from L1 Traversal. The stages do not talk to each other during
 	// the reset, but after the engine queue, this is the order in which the stages could talk to each other.

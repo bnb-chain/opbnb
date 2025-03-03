@@ -41,6 +41,7 @@ type Config struct {
 	Pprof oppprof.CLIConfig
 
 	// Used to poll the L1 for new finalized or safe blocks
+	// 3s -> 1.5s -> 750ms
 	L1EpochPollInterval time.Duration
 
 	ConfigPersistence ConfigPersistence

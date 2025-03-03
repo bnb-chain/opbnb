@@ -71,5 +71,6 @@ type Config struct {
 	// snap sync with a genesis finalization data.
 	SkipSyncStartCheck bool `json:"skip_sync_start_check"`
 	// gap for trigger el-sync
+	// default 86400 , maybe change to 86400 * 2
 	ELTriggerGap int `json:"el_trigger_gap"`
 }

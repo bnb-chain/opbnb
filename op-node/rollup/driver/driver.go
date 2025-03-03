@@ -152,26 +152,26 @@ func NewDriver(
 	sequencerConductor conductor.SequencerConductor,
 	plasma PlasmaIface,
 ) *Driver {
-	l1 = NewMeteredL1Fetcher(l1, metrics)
-	l1State := NewL1State(log, metrics)
-	sequencerConfDepth := NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Head, l1)
-	findL1Origin := NewL1OriginSelector(log, cfg, sequencerConfDepth)
-	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)
-	engine := derive.NewEngineController(l2, log, metrics, cfg, syncCfg, driverCfg.SequencerCombinedEngine)
-	clSync := clsync.NewCLSync(log, cfg, metrics, engine)
+	l1 = NewMeteredL1Fetcher(l1, metrics)                                                                   // no change
+	l1State := NewL1State(log, metrics)                                                                     // no change
+	sequencerConfDepth := NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Head, l1)                    // no change
+	findL1Origin := NewL1OriginSelector(log, cfg, sequencerConfDepth)                                       // need change
+	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)                         // no change
+	engine := derive.NewEngineController(l2, log, metrics, cfg, syncCfg, driverCfg.SequencerCombinedEngine) // no change
+	clSync := clsync.NewCLSync(log, cfg, metrics, engine)                                                   // no change
 
 	var finalizer Finalizer
 	if cfg.PlasmaEnabled() {
 		finalizer = finality.NewPlasmaFinalizer(log, cfg, l1, engine, plasma)
 	} else {
-		finalizer = finality.NewFinalizer(log, cfg, l1, engine)
+		finalizer = finality.NewFinalizer(log, cfg, l1, engine) // no change
 	}
 
-	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2)
+	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2) // change in AttributesMatchBlock
 	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, engine,
 		metrics, syncCfg, safeHeadListener, finalizer, attributesHandler)
-	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2)
-	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log) // Only use the metered engine in the sequencer b/c it records sequencing metrics.
+	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2) // need change
+	meteredEngine := NewMeteredEngine(cfg, engine, metrics, log)    // Only use the metered engine in the sequencer b/c it records sequencing metrics.
 	sequencer := NewSequencer(log, cfg, meteredEngine, attrBuilder, findL1Origin, metrics)
 	driverCtx, driverCancel := context.WithCancel(context.Background())
 	asyncGossiper := async.NewAsyncGossiper(driverCtx, network, log, metrics)

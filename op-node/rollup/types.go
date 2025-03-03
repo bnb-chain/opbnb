@@ -73,6 +73,7 @@ type Config struct {
 	// Genesis anchor point of the rollup
 	Genesis Genesis `json:"genesis"`
 	// Seconds per L2 block
+	// 1s -> 500ms
 	BlockTime uint64 `json:"block_time"`
 	// Sequencer batches may not be more than MaxSequencerDrift seconds after
 	// the L1 timestamp of the sequencing window end.
@@ -86,8 +87,10 @@ type Config struct {
 	// Chains that activate Fjord at genesis may leave this field empty.
 	MaxSequencerDrift uint64 `json:"max_sequencer_drift,omitempty"`
 	// Number of epochs (L1 blocks) per sequencing window, including the epoch L1 origin block itself
+	// stands for L1Blocks Number, 14400 -> 14400 * 2 -> 14400 * 4 for BSC change
 	SeqWindowSize uint64 `json:"seq_window_size"`
 	// Number of L1 blocks between when a channel can be opened and when it must be closed by.
+	// stands for L1Blocks Number, 1200 -> 1200 * 2 -> 1200 * 4 for BSC change
 	ChannelTimeout uint64 `json:"channel_timeout"`
 	// Required to verify L1 signatures
 	L1ChainID *big.Int `json:"l1_chain_id"`
