@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 type BlockInfo interface {
@@ -16,7 +17,8 @@ type BlockInfo interface {
 	Root() common.Hash // state-root
 	NumberU64() uint64
 	Time() uint64
-	MilliTime() uint64
+	MillTimestamp() uint64
+	MillSeconds() uint64
 	// MixDigest field, reused for randomness after The Merge (Bellatrix hardfork)
 	MixDigest() common.Hash
 	BaseFee() *big.Int
@@ -39,6 +41,7 @@ func InfoToL1BlockRef(info BlockInfo) L1BlockRef {
 		Number:     info.NumberU64(),
 		ParentHash: info.ParentHash(),
 		Time:       info.Time(),
+		MsTime:     info.MillSeconds(),
 	}
 }
 
@@ -73,9 +76,15 @@ func (b blockInfo) ParentBeaconRoot() *common.Hash {
 	return b.Block.BeaconRoot()
 }
 
-func (b blockInfo) MilliTime() uint64 {
-	// TODO: adapt L1 timestamp
-	return b.Block.Time() * 1000
+func (b blockInfo) MillTimestamp() uint64 {
+	return b.Block.Time()*1000 + b.MillSeconds()
+}
+
+func (b blockInfo) MillSeconds() uint64 {
+	if b.MixDigest() == (common.Hash{}) {
+		return 0
+	}
+	return uint256.NewInt(0).SetBytes32(b.MixDigest().Bytes()).Uint64()
 }
 
 func BlockToInfo(b *types.Block) BlockInfo {
@@ -108,9 +117,15 @@ func (h headerBlockInfo) Time() uint64 {
 	return h.Header.Time
 }
 
-func (h headerBlockInfo) MilliTime() uint64 {
-	// TODO: adapt L1 timestamp
-	return h.Header.Time * 1000
+func (h headerBlockInfo) MillTimestamp() uint64 {
+	return h.Header.Time*1000 + h.MillSeconds()
+}
+
+func (h headerBlockInfo) MillSeconds() uint64 {
+	if h.MixDigest() == (common.Hash{}) {
+		return 0
+	}
+	return uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
 }
 
 func (h headerBlockInfo) MixDigest() common.Hash {
