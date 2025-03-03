@@ -392,6 +392,7 @@ func (b *RawSpanBatch) ToSpanBatch(blockTime, genesisTimestamp uint64, chainID *
 // SpanBatchElement is a derived form of input to build a L2 block.
 // similar to SingularBatch, but does not have ParentHash and EpochHash
 // because Span batch spec does not contain parent hash and epoch hash of every block in the span.
+// maybe add ms field
 type SpanBatchElement struct {
 	EpochNum     rollup.Epoch // aka l1 num
 	Timestamp    uint64

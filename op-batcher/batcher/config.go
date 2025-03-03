@@ -46,6 +46,7 @@ type CLIConfig struct {
 
 	// PollInterval is the delay between querying L2 for more transaction
 	// and creating a new batch.
+	// 10s -> 5s
 	PollInterval time.Duration
 
 	// MaxPendingTransactions is the maximum number of concurrent pending

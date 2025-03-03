@@ -19,6 +19,7 @@ import (
 // singularBatch := SingularBatchType ++ RLP([parent_hash, epoch_number, epoch_hash, timestamp, transaction_list])
 
 // SingularBatch is an implementation of Batch interface, containing the input to build one L2 block.
+// maybe add ms time
 type SingularBatch struct {
 	ParentHash   common.Hash  // parent L2 block hash
 	EpochNum     rollup.Epoch // aka l1 num
