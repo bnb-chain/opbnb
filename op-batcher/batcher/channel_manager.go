@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/holiman/uint256"
 )
 
 var ErrReorg = errors.New("block does not extend existing chain")
@@ -367,6 +368,7 @@ func l2BlockRefFromBlockAndL1Info(block *types.Block, l1info *derive.L1BlockInfo
 		Number:         block.NumberU64(),
 		ParentHash:     block.ParentHash(),
 		Time:           block.Time(),
+		MilliPartTime:  uint256.NewInt(0).SetBytes32(block.MixDigest().Bytes()[:]).Uint64(), // adapts millisecond part
 		L1Origin:       eth.BlockID{Hash: l1info.BlockHash, Number: l1info.Number},
 		SequenceNumber: l1info.SequenceNumber,
 	}

@@ -34,9 +34,14 @@ type L2BlockRef struct {
 	Hash           common.Hash `json:"hash"`
 	Number         uint64      `json:"number"`
 	ParentHash     common.Hash `json:"parentHash"`
-	Time           uint64      `json:"timestamp"`
+	Time           uint64      `json:"timestamp"`     // second timestamp
+	MilliPartTime  uint64      `json:"milliparttime"` // support millisecond
 	L1Origin       BlockID     `json:"l1origin"`
 	SequenceNumber uint64      `json:"sequenceNumber"` // distance to first block of epoch
+}
+
+func (id L2BlockRef) MillisecondTimestamp() uint64 {
+	return id.Time*1000 + id.MilliPartTime
 }
 
 func (id L2BlockRef) String() string {
@@ -53,7 +58,12 @@ type L1BlockRef struct {
 	Hash       common.Hash `json:"hash"`
 	Number     uint64      `json:"number"`
 	ParentHash common.Hash `json:"parentHash"`
-	Time       uint64      `json:"timestamp"`
+	Time       uint64      `json:"timestamp"`   // second timestamp
+	MsTime     uint64      `json:"msTimestamp"` // support millisecond
+}
+
+func (id L1BlockRef) MilliTimestamp() uint64 {
+	return id.Time*1000 + id.MsTime
 }
 
 func (id L1BlockRef) String() string {

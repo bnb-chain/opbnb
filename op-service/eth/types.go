@@ -328,6 +328,11 @@ type PayloadAttributes struct {
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
 }
 
+func (pa *PayloadAttributes) MilliTimestamp() uint64 {
+	// TODO:
+	return uint64(pa.Timestamp) * 1000
+}
+
 type ExecutePayloadStatus string
 
 const (
