@@ -557,7 +557,7 @@ func (b *SpanBatch) ToRawSpanBatch() (*RawSpanBatch, error) {
 
 	return &RawSpanBatch{
 		spanBatchPrefix: spanBatchPrefix{
-			relTimestamp:  span_start.Timestamp - b.GenesisTimestamp*1000,
+			relTimestamp:  span_start.Timestamp - b.MillisecondGenesisTimestamp(),
 			l1OriginNum:   uint64(span_end.EpochNum),
 			parentCheck:   b.ParentCheck,
 			l1OriginCheck: b.L1OriginCheck,
@@ -569,6 +569,9 @@ func (b *SpanBatch) ToRawSpanBatch() (*RawSpanBatch, error) {
 			txs:           b.sbtxs,
 		},
 	}, nil
+}
+func (b *SpanBatch) MillisecondGenesisTimestamp() uint64 {
+	return b.GenesisTimestamp * 1000
 }
 
 // GetSingularBatches converts SpanBatchElements after L2 safe head to SingularBatches.

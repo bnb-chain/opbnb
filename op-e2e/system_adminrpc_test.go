@@ -56,7 +56,7 @@ func TestStopStartSequencer(t *testing.T) {
 	require.False(t, active, "sequencer should be inactive")
 
 	blockBefore := latestBlock(t, l2Seq)
-	time.Sleep(time.Duration(cfg.DeployConfig.L2BlockTime/1000+1) * time.Second)
+	time.Sleep(time.Duration(cfg.DeployConfig.L2SecondBlockInterval()+1) * time.Second)
 	blockAfter := latestBlock(t, l2Seq)
 	require.Equal(t, blockAfter, blockBefore, "Chain advanced after stopping sequencer")
 

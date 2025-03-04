@@ -298,7 +298,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime / 1000
+			safeHead.Time += cfg.SecondBlockInterval()
 			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
@@ -435,7 +435,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 		Number:         0,
 		ParentHash:     common.Hash{},
 		Time:           10,
-		MilliPartTime:  0,
+		MilliTime:      0,
 		L1Origin:       l1[0].ID(),
 		SequenceNumber: 0,
 	}
@@ -623,7 +623,7 @@ func BatchQueueAdvancedEpoch(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime / 1000
+			safeHead.Time += cfg.SecondBlockInterval()
 			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
@@ -722,7 +722,7 @@ func BatchQueueShuffle(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime / 1000
+			safeHead.Time += cfg.SecondBlockInterval()
 			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
@@ -825,7 +825,7 @@ func TestBatchQueueOverlappingSpanBatch(t *testing.T) {
 		} else {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime / 1000
+			safeHead.Time += cfg.SecondBlockInterval()
 			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
@@ -943,7 +943,7 @@ func TestBatchQueueComplex(t *testing.T) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime / 1000
+			safeHead.Time += cfg.SecondBlockInterval()
 			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
@@ -1001,7 +1001,7 @@ func TestBatchQueueResetSpan(t *testing.T) {
 
 	// This NextBatch() will return the second singular batch.
 	safeHead.Number += 1
-	safeHead.Time += cfg.BlockTime / 1000
+	safeHead.Time += cfg.SecondBlockInterval()
 	safeHead.Hash = mockHash(nextBatch.Timestamp/1000, 2)
 	safeHead.L1Origin = nextBatch.Epoch()
 	nextBatch, _, err = bq.NextBatch(context.Background(), safeHead)

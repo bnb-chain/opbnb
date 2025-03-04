@@ -159,6 +159,24 @@ type Config struct {
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
 }
 
+// MillisecondBlockInterval returns millisecond block interval, which has compatible conversions.
+// Mainly used to support milli block interval.
+func (cfg *Config) MillisecondBlockInterval() uint64 {
+	if cfg.BlockTime > 3 {
+		return cfg.BlockTime
+	}
+	return cfg.BlockTime * 1000
+}
+
+// SecondBlockInterval returns second block interval, which has compatible conversions.
+// Mainly used to compatible to history fork time.
+func (cfg *Config) SecondBlockInterval() uint64 {
+	if cfg.BlockTime <= 3 {
+		return cfg.BlockTime
+	}
+	return cfg.BlockTime / 1000
+}
+
 // ValidateL1Config checks L1 config variables for errors.
 func (cfg *Config) ValidateL1Config(ctx context.Context, client L1Client) error {
 	// Validate the L1 Client Chain ID
@@ -193,7 +211,7 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 }
 
 func (cfg *Config) TimestampForBlock(blockNumber uint64) uint64 {
-	return cfg.Genesis.L2Time + ((blockNumber - cfg.Genesis.L2.Number) * cfg.BlockTime / 1000)
+	return cfg.Genesis.L2Time + ((blockNumber - cfg.Genesis.L2.Number) * cfg.SecondBlockInterval())
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
@@ -206,7 +224,7 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 	}
 	wallClockGenesisDiff := milliTimestamp - genesisMilliTimestamp
 	// Note: round down, we should not request blocks into the future.
-	blocksSinceGenesis := wallClockGenesisDiff / cfg.BlockTime
+	blocksSinceGenesis := wallClockGenesisDiff / cfg.MillisecondBlockInterval()
 	return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 }
 
@@ -428,8 +446,8 @@ func (c *Config) IsFjord(timestamp uint64) bool {
 // Fjord upgrade.
 func (c *Config) IsFjordActivationBlock(l2BlockTime uint64) bool {
 	return c.IsFjord(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsFjord(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsFjord(l2BlockTime-c.SecondBlockInterval())
 }
 
 // IsInterop returns true if the Interop hardfork is active at or past the given timestamp.
@@ -439,34 +457,34 @@ func (c *Config) IsInterop(timestamp uint64) bool {
 
 func (c *Config) IsRegolithActivationBlock(l2BlockTime uint64) bool {
 	return c.IsRegolith(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsRegolith(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsRegolith(l2BlockTime-c.SecondBlockInterval())
 }
 
 func (c *Config) IsCanyonActivationBlock(l2BlockTime uint64) bool {
 	return c.IsCanyon(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsCanyon(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsCanyon(l2BlockTime-c.SecondBlockInterval())
 }
 
 func (c *Config) IsDeltaActivationBlock(l2BlockTime uint64) bool {
 	return c.IsDelta(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsDelta(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsDelta(l2BlockTime-c.SecondBlockInterval())
 }
 
 // IsEcotoneActivationBlock returns whether the specified block is the first block subject to the
 // Ecotone upgrade. Ecotone activation at genesis does not count.
 func (c *Config) IsEcotoneActivationBlock(l2BlockTime uint64) bool {
 	return c.IsEcotone(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsEcotone(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsEcotone(l2BlockTime-c.SecondBlockInterval())
 }
 
 func (c *Config) IsInteropActivationBlock(l2BlockTime uint64) bool {
 	return c.IsInterop(l2BlockTime) &&
-		l2BlockTime >= c.BlockTime/1000 &&
-		!c.IsInterop(l2BlockTime-c.BlockTime/1000)
+		l2BlockTime >= c.SecondBlockInterval() &&
+		!c.IsInterop(l2BlockTime-c.SecondBlockInterval())
 }
 
 // ForkchoiceUpdatedVersion returns the EngineAPIMethod suitable for the chain hard fork version.

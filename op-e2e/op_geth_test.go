@@ -435,9 +435,6 @@ func TestRegolith(t *testing.T) {
 			// We also need to setup a L1 Genesis to create the rollup genesis.
 			cfg := DefaultSystemConfig(t)
 			cfg.DeployConfig.L2GenesisRegolithTimeOffset = &test.regolithTime
-			if cfg.DeployConfig.L2BlockTime <= 3 {
-				cfg.DeployConfig.L2BlockTime = cfg.DeployConfig.L2BlockTime * 1000 // ms
-			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
