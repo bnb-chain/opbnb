@@ -45,17 +45,15 @@ func WatchHeadChanges(ctx context.Context, src NewHeadSource, fn HeadSignalFn) (
 		for {
 			select {
 			case header := <-headChanges:
-				var mTime uint64
-				if header.MixDigest == (common.Hash{}) {
-					mTime = header.Time
-				} else {
+				mTime := uint64(0)
+				if header.MixDigest != (common.Hash{}) {
 					mTime = uint256.NewInt(0).SetBytes32(header.MixDigest[:]).Uint64()
 				}
 				fn(eventsCtx, L1BlockRef{
 					Hash:       header.Hash(),
 					Number:     header.Number.Uint64(),
 					ParentHash: header.ParentHash,
-					Time:       mTime,
+					Time:       header.Time,
 					MsTime:     mTime,
 				})
 			case <-eventsCtx.Done():

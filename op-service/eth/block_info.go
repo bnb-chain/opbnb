@@ -17,8 +17,7 @@ type BlockInfo interface {
 	Root() common.Hash // state-root
 	NumberU64() uint64
 	Time() uint64
-	MillTimestamp() uint64
-	MillSeconds() uint64
+	MilliTimestamp() uint64
 	// MixDigest field, reused for randomness after The Merge (Bellatrix hardfork)
 	MixDigest() common.Hash
 	BaseFee() *big.Int
@@ -36,12 +35,16 @@ type BlockInfo interface {
 }
 
 func InfoToL1BlockRef(info BlockInfo) L1BlockRef {
+	milliseconds := uint64(0)
+	if info.MixDigest() != (common.Hash{}) {
+		milliseconds = uint256.NewInt(0).SetBytes32(info.MixDigest().Bytes()).Uint64()
+	}
 	return L1BlockRef{
 		Hash:       info.Hash(),
 		Number:     info.NumberU64(),
 		ParentHash: info.ParentHash(),
 		Time:       info.Time(),
-		MsTime:     info.MillSeconds(),
+		MsTime:     milliseconds,
 	}
 }
 
@@ -76,15 +79,12 @@ func (b blockInfo) ParentBeaconRoot() *common.Hash {
 	return b.Block.BeaconRoot()
 }
 
-func (b blockInfo) MillTimestamp() uint64 {
-	return b.Block.Time()*1000 + b.MillSeconds()
-}
-
-func (b blockInfo) MillSeconds() uint64 {
-	if b.MixDigest() == (common.Hash{}) {
-		return 0
+func (b blockInfo) MilliTimestamp() uint64 {
+	milliseconds := uint64(0)
+	if b.MixDigest() != (common.Hash{}) {
+		milliseconds = uint256.NewInt(0).SetBytes32(b.MixDigest().Bytes()).Uint64()
 	}
-	return uint256.NewInt(0).SetBytes32(b.MixDigest().Bytes()).Uint64()
+	return b.Block.Time()*1000 + milliseconds
 }
 
 func BlockToInfo(b *types.Block) BlockInfo {
@@ -117,15 +117,13 @@ func (h headerBlockInfo) Time() uint64 {
 	return h.Header.Time
 }
 
-func (h headerBlockInfo) MillTimestamp() uint64 {
-	return h.Header.Time*1000 + h.MillSeconds()
-}
-
-func (h headerBlockInfo) MillSeconds() uint64 {
-	if h.MixDigest() == (common.Hash{}) {
-		return 0
+func (h headerBlockInfo) MilliTimestamp() uint64 {
+	milliseconds := uint64(0)
+	if h.MixDigest() != (common.Hash{}) {
+		milliseconds = uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
 	}
-	return uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
+
+	return h.Header.Time*1000 + milliseconds
 }
 
 func (h headerBlockInfo) MixDigest() common.Hash {

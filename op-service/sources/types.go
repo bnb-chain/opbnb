@@ -63,15 +63,12 @@ func (h headerInfo) Time() uint64 {
 	return h.Header.Time
 }
 
-func (h headerInfo) MillTimestamp() uint64 {
-	return h.Header.Time*1000 + h.MillSeconds()
-}
-
-func (h headerInfo) MillSeconds() uint64 {
-	if h.MixDigest() == (common.Hash{}) {
-		return 0
+func (h headerInfo) MilliTimestamp() uint64 {
+	milliseconds := uint64(0)
+	if h.MixDigest() != (common.Hash{}) {
+		milliseconds = uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
 	}
-	return uint256.NewInt(0).SetBytes32(h.MixDigest().Bytes()).Uint64()
+	return h.Header.Time*1000 + milliseconds
 }
 
 func (h headerInfo) MixDigest() common.Hash {

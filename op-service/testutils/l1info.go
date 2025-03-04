@@ -57,12 +57,8 @@ func (l *MockBlockInfo) Time() uint64 {
 	return l.InfoTime
 }
 
-func (l *MockBlockInfo) MillTimestamp() uint64 {
-	return l.InfoTime * 1000
-}
-
-func (l *MockBlockInfo) MillSeconds() uint64 {
-	return l.InfoMTime
+func (l *MockBlockInfo) MilliTimestamp() uint64 {
+	return l.InfoTime*1000 + l.InfoMTime
 }
 
 func (l *MockBlockInfo) MixDigest() common.Hash {
