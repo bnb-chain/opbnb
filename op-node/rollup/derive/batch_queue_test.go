@@ -55,7 +55,7 @@ func b(chainId *big.Int, timestamp uint64, epoch eth.L1BlockRef) *SingularBatch 
 	txData, _ := tx.MarshalBinary()
 	return &SingularBatch{
 		ParentHash:   mockHash(timestamp-2, 2),
-		Timestamp:    timestamp,
+		Timestamp:    timestamp * 1000,
 		EpochNum:     rollup.Epoch(epoch.Number),
 		EpochHash:    epoch.Hash,
 		Transactions: []hexutil.Bytes{txData},
@@ -101,10 +101,10 @@ func singularBatchToPayload(t *testing.T, batch *SingularBatch, blockNumber uint
 	txs = append(txs, batch.Transactions...)
 	return eth.ExecutionPayloadEnvelope{
 		ExecutionPayload: &eth.ExecutionPayload{
-			BlockHash:    mockHash(batch.Timestamp, 2),
+			BlockHash:    mockHash(batch.Timestamp/1000, 2),
 			ParentHash:   batch.ParentHash,
 			BlockNumber:  hexutil.Uint64(blockNumber),
-			Timestamp:    hexutil.Uint64(batch.Timestamp),
+			Timestamp:    hexutil.Uint64(batch.Timestamp / 1000),
 			Transactions: txs,
 		},
 	}
@@ -112,7 +112,7 @@ func singularBatchToPayload(t *testing.T, batch *SingularBatch, blockNumber uint
 
 func singularBatchToBlockRef(t *testing.T, batch *SingularBatch, blockNumber uint64) eth.L2BlockRef {
 	return eth.L2BlockRef{
-		Hash:       mockHash(batch.Timestamp, 2),
+		Hash:       mockHash(batch.Timestamp/1000, 2),
 		Number:     blockNumber,
 		ParentHash: batch.ParentHash,
 		Time:       batch.Timestamp,
@@ -242,7 +242,7 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -295,8 +295,8 @@ func BatchQueueEager(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Time += cfg.SecondBlockInterval()
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -320,7 +320,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     2,
 		DeltaTime:         getDeltaTime(batchType),
@@ -373,7 +373,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
 			safeHead.Time += 2
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -396,7 +396,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 	b, _, e = bq.NextBatch(context.Background(), safeHead)
 	require.Nil(t, e)
 	require.NotNil(t, b)
-	require.Equal(t, safeHead.Time+2, b.Timestamp)
+	require.Equal(t, (safeHead.Time+2)*1000, b.Timestamp)
 	require.Equal(t, rollup.Epoch(1), b.EpochNum)
 	safeHead.Number += 1
 	safeHead.Time += 2
@@ -412,7 +412,7 @@ func BatchQueueInvalidInternalAdvance(t *testing.T, batchType int) {
 	require.Nil(t, e)
 	require.NotNil(t, b)
 	require.Equal(t, rollup.Epoch(2), b.EpochNum)
-	require.Equal(t, safeHead.Time+2, b.Timestamp)
+	require.Equal(t, (safeHead.Time+2)*1000, b.Timestamp)
 	safeHead.Number += 1
 	safeHead.Time += 2
 	safeHead.Hash = mockHash(b.Timestamp, 2)
@@ -432,6 +432,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 		Number:         0,
 		ParentHash:     common.Hash{},
 		Time:           10,
+		MilliTime:      0,
 		L1Origin:       l1[0].ID(),
 		SequenceNumber: 0,
 	}
@@ -439,7 +440,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     2,
 		DeltaTime:         getDeltaTime(batchType),
@@ -497,22 +498,22 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 	// Check for a generated batch at t = 12
 	b, _, e = bq.NextBatch(context.Background(), safeHead)
 	require.Nil(t, e)
-	require.Equal(t, b.Timestamp, uint64(12))
+	require.Equal(t, b.Timestamp, uint64(12000))
 	require.Empty(t, b.Transactions)
 	require.Equal(t, rollup.Epoch(0), b.EpochNum)
 	safeHead.Number += 1
 	safeHead.Time += 2
-	safeHead.Hash = mockHash(b.Timestamp, 2)
+	safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 
 	// Check for generated batch at t = 14
 	b, _, e = bq.NextBatch(context.Background(), safeHead)
 	require.Nil(t, e)
-	require.Equal(t, b.Timestamp, uint64(14))
+	require.Equal(t, b.Timestamp, uint64(14000))
 	require.Empty(t, b.Transactions)
 	require.Equal(t, rollup.Epoch(0), b.EpochNum)
 	safeHead.Number += 1
 	safeHead.Time += 2
-	safeHead.Hash = mockHash(b.Timestamp, 2)
+	safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 
 	// Check for the inputted batch at t = 16
 	b, _, e = bq.NextBatch(context.Background(), safeHead)
@@ -521,7 +522,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 	require.Equal(t, rollup.Epoch(0), b.EpochNum)
 	safeHead.Number += 1
 	safeHead.Time += 2
-	safeHead.Hash = mockHash(b.Timestamp, 2)
+	safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 
 	// Advance the origin. At this point the batch with timestamp 18 will be created
 	input.origin = l1[3]
@@ -533,7 +534,7 @@ func BatchQueueMissing(t *testing.T, batchType int) {
 	require.Equal(t, e, io.EOF)
 	b, _, e = bq.NextBatch(context.Background(), safeHead)
 	require.Nil(t, e)
-	require.Equal(t, b.Timestamp, uint64(18))
+	require.Equal(t, b.Timestamp, uint64(18000))
 	require.Empty(t, b.Transactions)
 	require.Equal(t, rollup.Epoch(1), b.EpochNum)
 }
@@ -556,7 +557,7 @@ func BatchQueueAdvancedEpoch(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -619,8 +620,8 @@ func BatchQueueAdvancedEpoch(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Time += cfg.SecondBlockInterval()
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -643,7 +644,7 @@ func BatchQueueShuffle(t *testing.T, batchType int) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(batchType),
@@ -718,8 +719,8 @@ func BatchQueueShuffle(t *testing.T, batchType int) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Time += cfg.SecondBlockInterval()
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -741,7 +742,7 @@ func TestBatchQueueOverlappingSpanBatch(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),
@@ -821,8 +822,8 @@ func TestBatchQueueOverlappingSpanBatch(t *testing.T) {
 		} else {
 			require.Equal(t, expectedOutputBatches[i], b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Time += cfg.SecondBlockInterval()
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -846,7 +847,7 @@ func TestBatchQueueComplex(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),
@@ -939,8 +940,8 @@ func TestBatchQueueComplex(t *testing.T) {
 		} else {
 			require.Equal(t, expectedOutput, b)
 			safeHead.Number += 1
-			safeHead.Time += cfg.BlockTime
-			safeHead.Hash = mockHash(b.Timestamp, 2)
+			safeHead.Time += cfg.SecondBlockInterval()
+			safeHead.Hash = mockHash(b.Timestamp/1000, 2)
 			safeHead.L1Origin = b.Epoch()
 		}
 	}
@@ -964,7 +965,7 @@ func TestBatchQueueResetSpan(t *testing.T) {
 		Genesis: rollup.Genesis{
 			L2Time: 10,
 		},
-		BlockTime:         2,
+		BlockTime:         2000,
 		MaxSequencerDrift: 600,
 		SeqWindowSize:     30,
 		DeltaTime:         getDeltaTime(SpanBatchType),
@@ -997,8 +998,8 @@ func TestBatchQueueResetSpan(t *testing.T) {
 
 	// This NextBatch() will return the second singular batch.
 	safeHead.Number += 1
-	safeHead.Time += cfg.BlockTime
-	safeHead.Hash = mockHash(nextBatch.Timestamp, 2)
+	safeHead.Time += cfg.SecondBlockInterval()
+	safeHead.Hash = mockHash(nextBatch.Timestamp/1000, 2)
 	safeHead.L1Origin = nextBatch.Epoch()
 	nextBatch, _, err = bq.NextBatch(context.Background(), safeHead)
 	require.NoError(t, err)

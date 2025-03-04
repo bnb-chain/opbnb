@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/bsc"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/predeploys"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 var (
@@ -107,7 +106,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.rollupCfg.IsSnow(l2Parent.Time + ba.rollupCfg.BlockTime) {
+	if ba.rollupCfg.IsSnow((l2Parent.MillisecondTimestamp() + ba.rollupCfg.MillisecondBlockInterval()) / 1000) {
 		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
 		if err != nil {
 			return nil, err
@@ -124,21 +123,21 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	l1Info = bsc.NewBlockInfoBSCWrapper(l1Info, l1BaseFee)
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
-	nextL2Time := l2Parent.Time + ba.rollupCfg.BlockTime
-	if nextL2Time < l1Info.Time() {
+	nextL2MilliTime := l2Parent.MillisecondTimestamp() + ba.rollupCfg.MillisecondBlockInterval()
+	if nextL2MilliTime < l1Info.MillisecondTimestamp() {
 		return nil, NewResetError(fmt.Errorf("cannot build L2 block on top %s for time %d before L1 origin %s at time %d",
-			l2Parent, nextL2Time, eth.ToBlockID(l1Info), l1Info.Time()))
+			l2Parent, nextL2MilliTime, eth.ToBlockID(l1Info), l1Info.MillisecondTimestamp()))
 	}
 
 	var upgradeTxs []hexutil.Bytes
-	if ba.rollupCfg.IsEcotoneActivationBlock(nextL2Time) {
+	if ba.rollupCfg.IsEcotoneActivationBlock(nextL2MilliTime / 1000) {
 		upgradeTxs, err = EcotoneNetworkUpgradeTransactions()
 		if err != nil {
 			return nil, NewCriticalError(fmt.Errorf("failed to build ecotone network upgrade txs: %w", err))
 		}
 	}
 
-	if ba.rollupCfg.IsFjordActivationBlock(nextL2Time) {
+	if ba.rollupCfg.IsFjordActivationBlock(nextL2MilliTime / 1000) {
 		fjord, err := FjordNetworkUpgradeTransactions()
 		if err != nil {
 			return nil, NewCriticalError(fmt.Errorf("failed to build fjord network upgrade txs: %w", err))
@@ -146,7 +145,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		upgradeTxs = append(upgradeTxs, fjord...)
 	}
 
-	l1InfoTx, err := L1InfoDepositBytes(ba.rollupCfg, sysConfig, seqNumber, l1Info, nextL2Time)
+	l1InfoTx, err := L1InfoDepositBytes(ba.rollupCfg, sysConfig, seqNumber, l1Info, nextL2MilliTime)
 	if err != nil {
 		return nil, NewCriticalError(fmt.Errorf("failed to create l1InfoTx: %w", err))
 	}
@@ -157,20 +156,19 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	txs = append(txs, upgradeTxs...)
 
 	var withdrawals *types.Withdrawals
-	if ba.rollupCfg.IsCanyon(nextL2Time) {
+	if ba.rollupCfg.IsCanyon(nextL2MilliTime / 1000) {
 		withdrawals = &types.Withdrawals{}
 	}
 
 	var parentBeaconRoot *common.Hash
-	if ba.rollupCfg.IsEcotone(nextL2Time) {
+	if ba.rollupCfg.IsEcotone(nextL2MilliTime / 1000) {
 		parentBeaconRoot = l1Info.ParentBeaconRoot()
 		if parentBeaconRoot == nil { // default to zero hash if there is no beacon-block-root available
 			parentBeaconRoot = new(common.Hash)
 		}
 	}
 
-	return &eth.PayloadAttributes{
-		Timestamp:             hexutil.Uint64(nextL2Time),
+	pa := &eth.PayloadAttributes{
 		PrevRandao:            eth.Bytes32(l1Info.MixDigest()),
 		SuggestedFeeRecipient: predeploys.SequencerFeeVaultAddr,
 		Transactions:          txs,
@@ -178,7 +176,9 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
-	}, nil
+	}
+	pa.SetMillisecondTimestamp(nextL2MilliTime)
+	return pa, nil
 }
 
 func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {
