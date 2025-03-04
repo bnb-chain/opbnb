@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
 	"math/rand"
@@ -290,8 +289,6 @@ func BatchQueueEager(t *testing.T, batchType int) {
 
 	for i := 0; i < len(expectedOutputBatches); i++ {
 		b, _, e := bq.NextBatch(context.Background(), safeHead)
-		log.Info("DEBUG: ", ", i=", i, ", b=", b, ", safe_head=", safeHead)
-		fmt.Printf("DEBUG: i=%v, b=%v, safehead=%v\n", i, b, safeHead)
 		require.ErrorIs(t, e, expectedOutputErrors[i])
 		if b == nil {
 			require.Nil(t, expectedOutputBatches[i])
