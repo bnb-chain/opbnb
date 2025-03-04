@@ -60,7 +60,7 @@ type DeployConfig struct {
 	L1ChainID uint64 `json:"l1ChainID"`
 	// L2ChainID is the chain ID of the L2 chain.
 	L2ChainID uint64 `json:"l2ChainID"`
-	// L2BlockTime is the number of seconds between each L2 block. // millisecond
+	// L2BlockTime is the number of seconds between each L2 block.
 	L2BlockTime uint64 `json:"l2BlockTime"`
 	// FinalizationPeriodSeconds represents the number of seconds before an output is considered
 	// finalized. This impacts the amount of time that withdrawals take to finalize and is
@@ -305,6 +305,29 @@ type DeployConfig struct {
 	UseInterop bool `json:"useInterop,omitempty"`
 }
 
+func (d *DeployConfig) L1MillisecondBlockInterval() uint64 {
+	// convert second to millisecond
+	return d.L1BlockTime * 1000
+}
+
+func (d *DeployConfig) L2MillisecondBlockInterval() uint64 {
+	if d.L2BlockTime > 3 {
+		// has been millisecond
+		return d.L2BlockTime
+	}
+	// convert second to millisecond
+	return d.L2BlockTime * 1000
+}
+
+func (d *DeployConfig) L2SecondBlockInterval() uint64 {
+	if d.L2BlockTime <= 3 {
+		// has been second
+		return d.L2BlockTime
+	}
+	// convert millisecond to second
+	return d.L2BlockTime / 1000
+}
+
 // Copy will deeply copy the DeployConfig. This does a JSON roundtrip to copy
 // which makes it easier to maintain, we do not need efficiency in this case.
 func (d *DeployConfig) Copy() *DeployConfig {
@@ -435,12 +458,14 @@ func (d *DeployConfig) Check() error {
 		}
 	}
 	if d.L2BlockTime <= 3 {
+		// TODO: too many tests depend it, tmp work around it
 		// convert ms l2 time interval
 		d.L2BlockTime = d.L2BlockTime * 1000
 	}
+
 	// L2 block time must always be smaller than L1 block time
-	if d.L1BlockTime*1000 < d.L2BlockTime { // TODO: tmp adjust, l1 interval is second timstamp and l2 interval is millisecond.
-		return fmt.Errorf("L2 block time (%d) is larger than L1 block time (%d)", d.L2BlockTime, d.L1BlockTime)
+	if d.L1MillisecondBlockInterval() < d.L2MillisecondBlockInterval() {
+		return fmt.Errorf("L2 block time (%d) is larger than L1 block time (%d)", d.L2MillisecondBlockInterval(), d.L1MillisecondBlockInterval())
 	}
 	if d.RequiredProtocolVersion == (params.ProtocolVersion{}) {
 		log.Warn("RequiredProtocolVersion is empty")

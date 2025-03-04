@@ -259,7 +259,7 @@ func TestSequencerChaosMonkey(t *testing.T) {
 
 		testGasLimit := eth.Uint64Quantity(10_000_000)
 		return &eth.PayloadAttributes{
-			Timestamp:             eth.Uint64Quantity(l2Parent.Time + cfg.BlockTime/1000),
+			Timestamp:             eth.Uint64Quantity(l2Parent.Time + cfg.SecondBlockInterval()),
 			PrevRandao:            eth.Bytes32{},
 			SuggestedFeeRecipient: common.Address{},
 			Transactions:          []eth.Data{infoDep},

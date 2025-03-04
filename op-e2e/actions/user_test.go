@@ -118,15 +118,11 @@ func runCrossLayerUserTest(gt *testing.T, test hardforkScheduledTest) {
 	dp.DeployConfig.L2GenesisEcotoneTimeOffset = test.ecotoneTime
 	dp.DeployConfig.L2GenesisFjordTimeOffset = test.fjordTime
 
-	if dp.DeployConfig.L2BlockTime <= 3 {
-		dp.DeployConfig.L2BlockTime = dp.DeployConfig.L2BlockTime * 1000
-	}
-
 	if test.canyonTime != nil {
-		require.Zero(t, uint64(*test.canyonTime)%uint64(dp.DeployConfig.L2BlockTime/1000), "canyon fork must be aligned")
+		require.Zero(t, uint64(*test.canyonTime)%uint64(dp.DeployConfig.L2SecondBlockInterval()), "canyon fork must be aligned")
 	}
 	if test.ecotoneTime != nil {
-		require.Zero(t, uint64(*test.ecotoneTime)%uint64(dp.DeployConfig.L2BlockTime/1000), "ecotone fork must be aligned")
+		require.Zero(t, uint64(*test.ecotoneTime)%uint64(dp.DeployConfig.L2SecondBlockInterval()), "ecotone fork must be aligned")
 	}
 
 	sd := e2eutils.Setup(t, dp, defaultAlloc)

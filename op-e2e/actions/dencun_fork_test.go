@@ -124,10 +124,7 @@ func TestDencunL2ForkAfterGenesis(gt *testing.T) {
 	cancunOffset := hexutil.Uint64(0)
 	dp.DeployConfig.L1CancunTimeOffset = &cancunOffset
 	// This test wil fork on the second block
-	if dp.DeployConfig.L2BlockTime <= 3 {
-		dp.DeployConfig.L2BlockTime = dp.DeployConfig.L2BlockTime * 1000 // millisecond
-	}
-	offset := hexutil.Uint64(dp.DeployConfig.L2BlockTime / 1000 * 2) // second
+	offset := hexutil.Uint64(dp.DeployConfig.L2SecondBlockInterval() * 2)
 	dp.DeployConfig.L2GenesisCanyonTimeOffset = &offset
 	dp.DeployConfig.L2GenesisDeltaTimeOffset = &offset
 	dp.DeployConfig.L2GenesisEcotoneTimeOffset = &offset

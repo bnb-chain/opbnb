@@ -67,7 +67,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 	}
 	epoch := l1Blocks[0]
 
-	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.BlockTime
+	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.MillisecondBlockInterval()
 	if batch.Timestamp > nextMilliTimestamp {
 		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextMilliTimestamp)
 		return BatchFuture
@@ -194,7 +194,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		return BatchDrop
 	}
 
-	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.BlockTime
+	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.MillisecondBlockInterval()
 
 	if batch.GetTimestamp() > nextMilliTimestamp {
 		log.Trace("received out-of-order batch for future processing after next batch", "next_ms_timestamp", nextMilliTimestamp)
@@ -215,11 +215,11 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			log.Warn("batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
-		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%cfg.BlockTime != 0 {
+		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%cfg.MillisecondBlockInterval() != 0 {
 			log.Warn("batch has misaligned timestamp, not overlapped exactly")
 			return BatchDrop
 		}
-		parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/cfg.BlockTime - 1
+		parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/cfg.MillisecondBlockInterval() - 1
 		var err error
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {

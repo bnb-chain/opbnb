@@ -548,6 +548,7 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 	}
 	sys.RollupConfig = &defaultConfig
 	if sys.RollupConfig.BlockTime <= 3 {
+		// TODO: too many tests depend it, tmp work around it
 		// covert ms timestamp
 		sys.RollupConfig.BlockTime = sys.RollupConfig.BlockTime * 1000
 	}

@@ -133,7 +133,6 @@ func TestParseL1InfoDepositTxData(t *testing.T) {
 		require.Equal(t, L1InfoEcotoneLen, len(depTx.Data))
 	})
 	t.Run("first-block ecotone", func(t *testing.T) {
-		// TODO:
 		rng := rand.New(rand.NewSource(1234))
 		info := testutils.MakeBlockInfo(nil)(rng)
 		zero := uint64(2)
