@@ -46,6 +46,7 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	if err != nil {
 		return eth.L1BlockRef{}, err
 	}
+	// TODO: may need to pass l1origin milli-timestamp later if IsFjord() use the milli-timestamp
 	msd := los.spec.MaxSequencerDrift(currentOrigin.Time) * 1000 // ms
 	log := los.log.New("current", currentOrigin, "current_time", currentOrigin.Time,
 		"l2_head", l2Head, "l2_head_time_ms", l2Head.MillisecondTimestamp(), "max_seq_drift_ms", msd)

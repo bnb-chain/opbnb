@@ -231,23 +231,22 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 		}
 		envelope, err := d.CompleteBuildingBlock(ctx, agossip, sequencerConductor)
 		if err != nil {
-			backoffTime := time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err // bubble up critical errors.
 			} else if errors.Is(err, derive.ErrReset) {
 				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
 				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(backoffTime) // hold off from sequencing for a full block
+				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())) // hold off from sequencing for a full block
 				d.CancelBuildingBlock(ctx)
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer failed temporarily to seal new block", "err", err)
-				d.nextAction = d.timeNow().Add(backoffTime)
+				d.nextAction = d.timeNow().Add(time.Second)
 				// We don't explicitly cancel block building jobs upon temporary errors: we may still finish the block.
 				// Any unfinished block building work eventually times out, and will be cleaned up that way.
 			} else {
 				d.log.Error("sequencer failed to seal block with unclassified error", "err", err)
-				d.nextAction = d.timeNow().Add(backoffTime)
+				d.nextAction = d.timeNow().Add(time.Second)
 				d.CancelBuildingBlock(ctx)
 			}
 			return nil, nil

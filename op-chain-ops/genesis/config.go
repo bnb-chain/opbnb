@@ -616,6 +616,7 @@ func (d *DeployConfig) DeltaTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+// TODO judge if it is need to use milliseconds timestamp with the fork information
 func (d *DeployConfig) EcotoneTime(genesisTime uint64) *uint64 {
 	if d.L2GenesisEcotoneTimeOffset == nil {
 		return nil

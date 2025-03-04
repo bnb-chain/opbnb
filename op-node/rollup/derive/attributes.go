@@ -84,6 +84,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 			return nil, NewCriticalError(fmt.Errorf("failed to derive some deposits: %w", err))
 		}
 		// apply sysCfg changes
+		// TODO: may need to pass l1origin milli-timestamp later if IsEcotone() use the milli-timestamp
 		if err := UpdateSystemConfigWithL1Receipts(&sysConfig, receipts, ba.rollupCfg, info.Time()); err != nil {
 			return nil, NewCriticalError(fmt.Errorf("failed to apply derived L1 sysCfg updates: %w", err))
 		}
