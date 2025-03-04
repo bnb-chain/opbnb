@@ -21,7 +21,7 @@ type MockBlockInfo struct {
 	InfoRoot        common.Hash
 	InfoNum         uint64
 	InfoTime        uint64
-	InfoMTime       uint64
+	InfoMilliTime   uint64
 	InfoMixDigest   [32]byte
 	InfoBaseFee     *big.Int
 	InfoBlobBaseFee *big.Int
@@ -57,8 +57,8 @@ func (l *MockBlockInfo) Time() uint64 {
 	return l.InfoTime
 }
 
-func (l *MockBlockInfo) MilliTimestamp() uint64 {
-	return l.InfoTime*1000 + l.InfoMTime
+func (l *MockBlockInfo) MillisecondTimestamp() uint64 {
+	return l.InfoTime*1000 + l.InfoMilliTime
 }
 
 func (l *MockBlockInfo) MixDigest() common.Hash {

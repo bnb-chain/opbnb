@@ -118,8 +118,8 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 		return BatchDrop
 	}
 
-	if batch.Timestamp < batchOrigin.MilliTimestamp() {
-		log.Warn("batch timestamp is less than L1 origin timestamp", "l2_ms_timestamp", batch.Timestamp, "l1_ms_timestamp", batchOrigin.MilliTimestamp(), "origin", batchOrigin.ID())
+	if batch.Timestamp < batchOrigin.MillisecondTimestamp() {
+		log.Warn("batch timestamp is less than L1 origin timestamp", "l2_ms_timestamp", batch.Timestamp, "l1_ms_timestamp", batchOrigin.MillisecondTimestamp(), "origin", batchOrigin.ID())
 		return BatchDrop
 	}
 
@@ -136,7 +136,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 					return BatchUndecided
 				}
 				nextOrigin := l1Blocks[1]
-				if batch.Timestamp >= nextOrigin.MilliTimestamp() { // check if the next L1 origin could have been adopted
+				if batch.Timestamp >= nextOrigin.MillisecondTimestamp() { // check if the next L1 origin could have been adopted
 					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 					return BatchDrop
 				} else {
@@ -290,7 +290,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			}
 		}
 		blockTimestamp := batch.GetBlockTimestamp(i)
-		if blockTimestamp < l1Origin.MilliTimestamp() {
+		if blockTimestamp < l1Origin.MillisecondTimestamp() {
 			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.Time, "origin", l1Origin.ID())
 			return BatchDrop
 		}
@@ -307,7 +307,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 						log.Info("without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid")
 						return BatchUndecided
 					}
-					if blockTimestamp >= l1Blocks[originIdx+1].MilliTimestamp() { // check if the next L1 origin could have been adopted
+					if blockTimestamp >= l1Blocks[originIdx+1].MillisecondTimestamp() { // check if the next L1 origin could have been adopted
 						log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 						return BatchDrop
 					} else {

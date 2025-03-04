@@ -58,12 +58,12 @@ type L1BlockRef struct {
 	Hash       common.Hash `json:"hash"`
 	Number     uint64      `json:"number"`
 	ParentHash common.Hash `json:"parentHash"`
-	Time       uint64      `json:"timestamp"`   // second timestamp
-	MsTime     uint64      `json:"msTimestamp"` // support millisecond
+	Time       uint64      `json:"timestamp"`            // second timestamp
+	MilliTime  uint64      `json:"millisecondTimestamp"` // support millisecond
 }
 
-func (id L1BlockRef) MilliTimestamp() uint64 {
-	return id.Time*1000 + id.MsTime
+func (id L1BlockRef) MillisecondTimestamp() uint64 {
+	return id.Time*1000 + id.MilliTime
 }
 
 func (id L1BlockRef) String() string {

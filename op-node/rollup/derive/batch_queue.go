@@ -321,7 +321,7 @@ batchLoop:
 	// Fill with empty L2 blocks of the same epoch until we meet the time of the next L1 origin,
 	// to preserve that L2 time >= L1 time. If this is the first block of the epoch, always generate a
 	// batch to ensure that we at least have one batch per epoch.
-	if nextMilliTimestamp < nextEpoch.MilliTimestamp() || firstOfEpoch {
+	if nextMilliTimestamp < nextEpoch.MillisecondTimestamp() || firstOfEpoch {
 		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextMilliTimestamp)
 		return &SingularBatch{
 			ParentHash:   parent.Hash,
@@ -334,7 +334,7 @@ batchLoop:
 
 	// At this point we have auto generated every batch for the current epoch
 	// that we can, so we can advance to the next epoch.
-	bq.log.Trace("Advancing internal L1 blocks", "next_ms_timestamp", nextMilliTimestamp, "next_epoch_ms_time", nextEpoch.MilliTimestamp())
+	bq.log.Trace("Advancing internal L1 blocks", "next_ms_timestamp", nextMilliTimestamp, "next_epoch_ms_time", nextEpoch.MillisecondTimestamp())
 	bq.l1Blocks = bq.l1Blocks[1:]
 	return nil, io.EOF
 }

@@ -283,10 +283,10 @@ func TestSequencerChaosMonkey(t *testing.T) {
 		}
 		// randomly make a L1 origin appear, if we can even select it
 		nextL2MilliTime := l2Head.MillisecondTimestamp() + cfg.BlockTime
-		if nextL2MilliTime <= origin.MilliTimestamp() {
+		if nextL2MilliTime <= origin.MillisecondTimestamp() {
 			return origin, nil
 		}
-		maxTimeIncrement := nextL2MilliTime - origin.MilliTimestamp()
+		maxTimeIncrement := nextL2MilliTime - origin.MillisecondTimestamp()
 		if maxTimeIncrement > maxL1BlockTimeGap {
 			maxTimeIncrement = maxL1BlockTimeGap
 		}

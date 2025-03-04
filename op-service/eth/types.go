@@ -196,6 +196,10 @@ type ExecutionPayload struct {
 	ExcessBlobGas *Uint64Quantity `json:"excessBlobGas,omitempty"`
 }
 
+func (payload *ExecutionPayload) MillisecondTimestamp() uint64 {
+	return uint64(payload.Timestamp) * 1000
+}
+
 func (payload *ExecutionPayload) ID() BlockID {
 	return BlockID{Hash: payload.BlockHash, Number: uint64(payload.BlockNumber)}
 }

@@ -99,7 +99,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
 	// setting NoTxPool to true, which will cause the Sequencer to not include any transactions
 	// from the transaction pool.
-	attrs.NoTxPool = attrs.MilliTimestamp() > l1Origin.MilliTimestamp()+d.spec.MaxSequencerDrift(l1Origin.Time)*1000
+	attrs.NoTxPool = attrs.MilliTimestamp() > l1Origin.MillisecondTimestamp()+d.spec.MaxSequencerDrift(l1Origin.Time)*1000
 
 	// For the Ecotone activation block we shouldn't include any sequencer transactions.
 	if d.rollupCfg.IsEcotoneActivationBlock(uint64(attrs.Timestamp)) {

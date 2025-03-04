@@ -126,9 +126,9 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
 	nextL2MilliTime := l2Parent.MillisecondTimestamp() + ba.rollupCfg.MillisecondBlockInterval()
-	if nextL2MilliTime < l1Info.MilliTimestamp() {
+	if nextL2MilliTime < l1Info.MillisecondTimestamp() {
 		return nil, NewResetError(fmt.Errorf("cannot build L2 block on top %s for time %d before L1 origin %s at time %d",
-			l2Parent, nextL2MilliTime, eth.ToBlockID(l1Info), l1Info.MilliTimestamp()))
+			l2Parent, nextL2MilliTime, eth.ToBlockID(l1Info), l1Info.MillisecondTimestamp()))
 	}
 
 	var upgradeTxs []hexutil.Bytes
