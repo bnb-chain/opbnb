@@ -99,7 +99,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	// empty blocks (other than the L1 info deposit and any user deposits). We handle this by
 	// setting NoTxPool to true, which will cause the Sequencer to not include any transactions
 	// from the transaction pool.
-	attrs.NoTxPool = uint64(attrs.Timestamp) > l1Origin.Time+d.spec.MaxSequencerDrift(l1Origin.Time)
+	attrs.NoTxPool = attrs.MilliTimestamp() > l1Origin.MillisecondTimestamp()+d.spec.MaxSequencerDrift(l1Origin.Time)*1000
 
 	// For the Ecotone activation block we shouldn't include any sequencer transactions.
 	if d.rollupCfg.IsEcotoneActivationBlock(uint64(attrs.Timestamp)) {
@@ -154,7 +154,7 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 	if safe {
 		d.log.Warn("delaying sequencing to not interrupt safe-head changes", "onto", buildingOnto, "onto_time", buildingOnto.Time)
 		// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-		return time.Second * time.Duration(d.rollupCfg.BlockTime)
+		return time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())
 	}
 
 	head := d.engine.UnsafeL2Head()
@@ -166,8 +166,8 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 		return delay
 	}
 
-	blockTime := time.Duration(d.rollupCfg.BlockTime) * time.Second
-	payloadTime := time.Unix(int64(head.Time+d.rollupCfg.BlockTime), 0)
+	blockTime := time.Duration(d.rollupCfg.MillisecondBlockInterval()) * time.Millisecond
+	payloadTime := time.UnixMilli(int64(head.MillisecondTimestamp() + d.rollupCfg.MillisecondBlockInterval()))
 	remainingTime := payloadTime.Sub(now)
 
 	// If we started building a block already, and if that work is still consistent,
@@ -226,27 +226,28 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 		if safe {
 			d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
 			// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-			d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime))
+			d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval()))
 			return nil, nil
 		}
 		envelope, err := d.CompleteBuildingBlock(ctx, agossip, sequencerConductor)
 		if err != nil {
+			backoffTime := time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err // bubble up critical errors.
 			} else if errors.Is(err, derive.ErrReset) {
 				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
 				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime)) // hold off from sequencing for a full block
+				d.nextAction = d.timeNow().Add(backoffTime) // hold off from sequencing for a full block
 				d.CancelBuildingBlock(ctx)
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer failed temporarily to seal new block", "err", err)
-				d.nextAction = d.timeNow().Add(time.Second)
+				d.nextAction = d.timeNow().Add(backoffTime)
 				// We don't explicitly cancel block building jobs upon temporary errors: we may still finish the block.
 				// Any unfinished block building work eventually times out, and will be cleaned up that way.
 			} else {
 				d.log.Error("sequencer failed to seal block with unclassified error", "err", err)
-				d.nextAction = d.timeNow().Add(time.Second)
+				d.nextAction = d.timeNow().Add(backoffTime)
 				d.CancelBuildingBlock(ctx)
 			}
 			return nil, nil
@@ -265,7 +266,7 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			} else if errors.Is(err, derive.ErrReset) {
 				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
 				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(time.Second * time.Duration(d.rollupCfg.BlockTime)) // hold off from sequencing for a full block
+				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())) // hold off from sequencing for a full block
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer temporarily failed to start building new block", "err", err)

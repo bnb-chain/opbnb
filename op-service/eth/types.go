@@ -196,6 +196,10 @@ type ExecutionPayload struct {
 	ExcessBlobGas *Uint64Quantity `json:"excessBlobGas,omitempty"`
 }
 
+func (payload *ExecutionPayload) MillisecondTimestamp() uint64 {
+	return uint64(payload.Timestamp) * 1000
+}
+
 func (payload *ExecutionPayload) ID() BlockID {
 	return BlockID{Hash: payload.BlockHash, Number: uint64(payload.BlockNumber)}
 }
@@ -326,6 +330,11 @@ type PayloadAttributes struct {
 	NoTxPool bool `json:"noTxPool,omitempty"`
 	// GasLimit override
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
+}
+
+func (pa *PayloadAttributes) MilliTimestamp() uint64 {
+	// TODO:
+	return uint64(pa.Timestamp) * 1000
 }
 
 type ExecutePayloadStatus string
