@@ -368,7 +368,7 @@ func l2BlockRefFromBlockAndL1Info(block *types.Block, l1info *derive.L1BlockInfo
 		Number:         block.NumberU64(),
 		ParentHash:     block.ParentHash(),
 		Time:           block.Time(),
-		MilliTime:      uint256.NewInt(0).SetBytes32(block.MixDigest().Bytes()[:]).Uint64(), // adapts millisecond part
+		MilliTime:      uint256.NewInt(0).SetBytes32(block.MixDigest().Bytes()[:]).Uint64(), // adapts l1 millisecond part
 		L1Origin:       eth.BlockID{Hash: l1info.BlockHash, Number: l1info.Number},
 		SequenceNumber: l1info.SequenceNumber,
 	}

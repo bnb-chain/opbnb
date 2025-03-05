@@ -319,6 +319,8 @@ func (d *DeployConfig) L2MillisecondBlockInterval() uint64 {
 	return d.L2BlockTime * 1000
 }
 
+// L2SecondBlockInterval is just used by ut&e2e test.
+// TODO: ut&e2e need to be refined later.
 func (d *DeployConfig) L2SecondBlockInterval() uint64 {
 	if d.L2BlockTime <= 3 {
 		// has been second
@@ -465,7 +467,7 @@ func (d *DeployConfig) Check() error {
 
 	// L2 block time must always be smaller than L1 block time
 	if d.L1MillisecondBlockInterval() < d.L2MillisecondBlockInterval() {
-		return fmt.Errorf("L2 block time (%d) is larger than L1 block time (%d)", d.L2MillisecondBlockInterval(), d.L1MillisecondBlockInterval())
+		return fmt.Errorf("L2 block interval ms (%d) is larger than L1 block interval ms (%d)", d.L2MillisecondBlockInterval(), d.L1MillisecondBlockInterval())
 	}
 	if d.RequiredProtocolVersion == (params.ProtocolVersion{}) {
 		log.Warn("RequiredProtocolVersion is empty")
