@@ -8,11 +8,11 @@ import (
 	"io"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/holiman/uint256"
 )
 
 var (
@@ -243,7 +243,7 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 
 	milliPart := uint64(0)
 	if block.MixDigest() != (common.Hash{}) {
-		milliPart = uint256.NewInt(0).SetBytes32(block.MixDigest().Bytes()[:]).Uint64()
+		milliPart = uint64(eth.Bytes32(block.MixDigest())[0])*256 + uint64(eth.Bytes32(block.MixDigest())[1])
 	}
 
 	milliTimestamp := block.Time()*1000 + milliPart

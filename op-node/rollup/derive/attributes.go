@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/holiman/uint256"
-
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/bsc"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/predeploys"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 var (
@@ -170,16 +168,17 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		}
 	}
 
-	return &eth.PayloadAttributes{
-		Timestamp:             hexutil.Uint64(nextL2MilliTime / 1000),           // second part
-		PrevRandao:            uint256.NewInt(nextL2MilliTime % 1000).Bytes32(), // millisecond part
+	pa := &eth.PayloadAttributes{
+		PrevRandao:            eth.Bytes32(l1Info.MixDigest()),
 		SuggestedFeeRecipient: predeploys.SequencerFeeVaultAddr,
 		Transactions:          txs,
 		NoTxPool:              true,
 		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
-	}, nil
+	}
+	pa.SetMillisecondTimestamp(nextL2MilliTime)
+	return pa, nil
 }
 
 func (ba *FetchingAttributesBuilder) CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool {

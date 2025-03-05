@@ -261,7 +261,6 @@ func TestP2PFull(t *testing.T) {
 
 	require.NoError(t, p2pClientA.ProtectPeer(ctx, hostB.ID()))
 	require.NoError(t, p2pClientA.UnprotectPeer(ctx, hostB.ID()))
-	// TODO:
 }
 
 func TestDiscovery(t *testing.T) {
