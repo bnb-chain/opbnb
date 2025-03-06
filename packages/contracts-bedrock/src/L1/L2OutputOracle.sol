@@ -15,6 +15,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice The number of the first L2 block recorded in this contract.
     uint256 public startingBlockNumber;
 
+    // maybe need upgrade ms, how to handle Compatibility with pre
     /// @notice The timestamp of the first L2 block recorded in this contract.
     uint256 public startingTimestamp;
 
@@ -23,10 +24,12 @@ contract L2OutputOracle is Initializable, ISemver {
 
     /// @notice The interval in L2 blocks at which checkpoints must be submitted.
     /// @custom:network-specific
+    // maybe change to 7200 from 3600, no impact to users
     uint256 public submissionInterval;
 
     /// @notice The time between L2 blocks in seconds. Once set, this value MUST NOT be modified.
     /// @custom:network-specific
+    // need to change to 500ms
     uint256 public l2BlockTime;
 
     /// @notice The address of the challenger. Can be updated via upgrade.
@@ -39,6 +42,7 @@ contract L2OutputOracle is Initializable, ISemver {
 
     /// @notice The minimum time (in seconds) that must elapse before a withdrawal can be finalized.
     /// @custom:network-specific
+    // maybe change to millseconds level
     uint256 public finalizationPeriodSeconds;
 
     /// @notice Emitted when an output is proposed.
@@ -114,6 +118,7 @@ contract L2OutputOracle is Initializable, ISemver {
     ///         Public getter is legacy and will be removed in the future. Use `submissionInterval` instead.
     /// @return Submission interval.
     /// @custom:legacy
+    // who calls? how impacts?
     function SUBMISSION_INTERVAL() external view returns (uint256) {
         return submissionInterval;
     }
@@ -122,6 +127,7 @@ contract L2OutputOracle is Initializable, ISemver {
     ///         Public getter is legacy and will be removed in the future. Use `l2BlockTime` instead.
     /// @return L2 block time.
     /// @custom:legacy
+    // who calls? how impacts?
     function L2_BLOCK_TIME() external view returns (uint256) {
         return l2BlockTime;
     }
@@ -146,6 +152,7 @@ contract L2OutputOracle is Initializable, ISemver {
     ///         Public getter is legacy and will be removed in the future. Use `finalizationPeriodSeconds` instead.
     /// @return Finalization period in seconds.
     /// @custom:legacy
+    // who calls? how impacts?
     function FINALIZATION_PERIOD_SECONDS() external view returns (uint256) {
         return finalizationPeriodSeconds;
     }
@@ -303,6 +310,7 @@ contract L2OutputOracle is Initializable, ISemver {
 
     /// @notice Computes the block number of the next L2 block that needs to be checkpointed.
     /// @return Next L2 block number.
+    // who calls? how impacts? if submissionInterval changed
     function nextBlockNumber() public view returns (uint256) {
         return latestBlockNumber() + submissionInterval;
     }
@@ -310,6 +318,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice Returns the L2 timestamp corresponding to a given L2 block number.
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return L2 timestamp of the given block.
+    // who calls? how impacts? the return value maybe change to millseconds
     function computeL2Timestamp(uint256 _l2BlockNumber) public view returns (uint256) {
         return startingTimestamp + ((_l2BlockNumber - startingBlockNumber) * l2BlockTime);
     }
