@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/holiman/uint256"
 )
 
 // HeadSignalFn is used as callback function to accept head-signals
@@ -43,11 +45,16 @@ func WatchHeadChanges(ctx context.Context, src NewHeadSource, fn HeadSignalFn) (
 		for {
 			select {
 			case header := <-headChanges:
+				mTime := uint64(0)
+				if header.MixDigest != (common.Hash{}) {
+					mTime = uint256.NewInt(0).SetBytes32(header.MixDigest[:]).Uint64()
+				}
 				fn(eventsCtx, L1BlockRef{
 					Hash:       header.Hash(),
 					Number:     header.Number.Uint64(),
 					ParentHash: header.ParentHash,
 					Time:       header.Time,
+					MilliTime:  mTime,
 				})
 			case <-eventsCtx.Done():
 				return nil

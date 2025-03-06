@@ -3,11 +3,10 @@ package derive
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // L2BlockRefSource is a source for the generation of a L2BlockRef. E.g. a
@@ -18,6 +17,7 @@ import (
 type L2BlockRefSource interface {
 	Hash() common.Hash
 	ParentHash() common.Hash
+	MixDigest() common.Hash // millisecond part
 	NumberU64() uint64
 	Time() uint64
 	Transactions() types.Transactions
@@ -54,11 +54,18 @@ func L2BlockToBlockRef(rollupCfg *rollup.Config, block L2BlockRefSource) (eth.L2
 		sequenceNumber = info.SequenceNumber
 	}
 
+	milliPart := uint64(0)
+	if block.MixDigest() != (common.Hash{}) {
+		// adapts l2 millisecond, highest 2 bytes as milli-part.
+		milliPart = uint64(eth.Bytes32(block.MixDigest())[0])*256 + uint64(eth.Bytes32(block.MixDigest())[1])
+	}
+
 	return eth.L2BlockRef{
 		Hash:           hash,
 		Number:         number,
 		ParentHash:     block.ParentHash(),
 		Time:           block.Time(),
+		MilliTime:      milliPart,
 		L1Origin:       l1Origin,
 		SequenceNumber: sequenceNumber,
 	}, nil
