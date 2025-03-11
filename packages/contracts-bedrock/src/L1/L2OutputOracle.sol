@@ -25,7 +25,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @custom:network-specific
     uint256 public submissionInterval;
 
-    /// @notice The time between L2 blocks in seconds. Once set, this value MUST NOT be modified.
+    /// @notice The time between L2 blocks in milliseconds. Once set, this value MUST NOT be modified.
     /// @custom:network-specific
     uint256 public l2BlockTime;
 
@@ -202,7 +202,7 @@ contract L2OutputOracle is Initializable, ISemver {
         );
 
         require(
-            computeL2Timestamp(_l2BlockNumber) < block.timestamp,
+            computeL2Timestamp(_l2BlockNumber) < (block.timestamp * 1000),
             "L2OutputOracle: cannot propose L2 output in the future"
         );
 
@@ -311,6 +311,6 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return L2 timestamp of the given block.
     function computeL2Timestamp(uint256 _l2BlockNumber) public view returns (uint256) {
-        return startingTimestamp + ((_l2BlockNumber - startingBlockNumber) * l2BlockTime);
+        return startingTimestamp*1000 + ((_l2BlockNumber - startingBlockNumber) * l2BlockTime);
     }
 }
