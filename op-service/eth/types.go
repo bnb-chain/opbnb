@@ -346,6 +346,10 @@ func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64) {
 	milliPartBytes := uint256.NewInt(ts % 1000).Bytes32()
 	pa.PrevRandao[0] = milliPartBytes[30]
 	pa.PrevRandao[1] = milliPartBytes[31]
+
+	// It is just a marker byte to ensure that the whole is not empty;
+	// op-geth relies on non-empty to determine that the passed in millisecond timestamp.
+	pa.PrevRandao[2] = 1
 }
 
 type ExecutePayloadStatus string
