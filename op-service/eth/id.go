@@ -45,7 +45,7 @@ func (id L2BlockRef) MillisecondTimestamp() uint64 {
 }
 
 func (id L2BlockRef) String() string {
-	return fmt.Sprintf("%s:%d", id.Hash.String(), id.Number)
+	return fmt.Sprintf("%s:%d:%d", id.Hash.String(), id.Number, id.MillisecondTimestamp())
 }
 
 // TerminalString implements log.TerminalStringer, formatting a string for console
