@@ -128,6 +128,10 @@ type Config struct {
 	// Active if SnowTime != nil && L2 block timestamp >= *SnowTime, inactive otherwise.
 	SnowTime *uint64 `json:"snow_time,omitempty"`
 
+	// VoltaTime sets the activation time of the VoltaTime network upgrade.
+	// Active if VoltaTime != nil && L2 block timestamp >= *VoltaTime, inactive otherwise.
+	VoltaTime *uint64 `json:"volta_time,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -157,6 +161,19 @@ type Config struct {
 
 	// LegacyUsePlasma is activated when the chain is in plasma mode.
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
+}
+
+const millisecondBlockIntervalVolta = 500
+
+func (cfg *Config) MillisecondBlockIntervalV2(secondTimeStamp uint64) uint64 {
+	if cfg.IsVolta(secondTimeStamp) {
+		return millisecondBlockIntervalVolta
+	}
+	return cfg.BlockTime * 1000
+}
+
+func (c *Config) IsVolta(timestamp uint64) bool {
+	return c.VoltaTime != nil && timestamp >= *c.VoltaTime
 }
 
 // MillisecondBlockInterval returns millisecond block interval, which has compatible conversions.
