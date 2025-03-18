@@ -24,7 +24,7 @@ type ApplicationScoreParams struct {
 }
 
 func LightApplicationScoreParams(cfg *rollup.Config) ApplicationScoreParams {
-	slot := time.Duration(cfg.BlockTime) * time.Second
+	slot := time.Duration(rollup.VoltBlockTime) * time.Millisecond
 	if slot == 0 {
 		slot = 2 * time.Second
 	}

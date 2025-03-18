@@ -74,7 +74,7 @@ func (m *MeteredEngine) ConfirmPayload(ctx context.Context, agossip async.AsyncG
 	sealTime := now.Sub(sealingStart)
 	buildTime := now.Sub(m.buildingStartTime)
 	m.metrics.RecordSequencerSealingTime(sealTime)
-	m.metrics.RecordSequencerBuildingDiffTime(buildTime - time.Duration(m.cfg.BlockTime)*time.Second)
+	m.metrics.RecordSequencerBuildingDiffTime(buildTime - time.Duration(rollup.VoltBlockTime)*time.Millisecond)
 
 	txnCount := len(payload.ExecutionPayload.Transactions)
 	m.metrics.CountSequencedTxs(txnCount)

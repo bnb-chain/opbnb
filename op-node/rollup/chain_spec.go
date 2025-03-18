@@ -30,7 +30,7 @@ const SafeMaxRLPBytesPerChannel = maxRLPBytesPerChannelBedrock
 // the rollup config.
 // From Fjord, the max sequencer drift for a given block timestamp should be learned via the
 // ChainSpec instead of reading the rollup configuration field directly.
-const maxSequencerDriftFjord = 1800
+const maxSequencerDriftFjord = 3600
 
 type ForkName string
 

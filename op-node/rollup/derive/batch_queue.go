@@ -96,7 +96,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	if len(bq.nextSpan) > 0 {
 		// There are cached singular batches derived from the span batch.
 		// Check if the next cached batch matches the given parent block.
-		if bq.nextSpan[0].Timestamp == parent.MillisecondTimestamp()+bq.config.MillisecondBlockInterval() {
+		if bq.nextSpan[0].Timestamp == bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp()) {
 			// Pop first one and return.
 			nextBatch := bq.popNextBatch(parent)
 			// len(bq.nextSpan) == 0 means it's the last batch of the span.
@@ -257,7 +257,7 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, paren
 	// Find the first-seen batch that matches all validity conditions.
 	// We may not have sufficient information to proceed filtering, and then we stop.
 	// There may be none: in that case we force-create an empty batch
-	nextMilliTimestamp := parent.MillisecondTimestamp() + bq.config.MillisecondBlockInterval()
+	nextMilliTimestamp := bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp())
 	var nextBatch *BatchWithL1InclusionBlock
 
 	// Go over all batches, in order of inclusion, and find the first batch we can accept.

@@ -105,7 +105,9 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 			// This is just for early dropping invalid batches as soon as possible.
 			return nil, NewTemporaryError(fmt.Errorf("cannot accept span batch in L1 block %s at time %d", origin, origin.Time))
 		}
-		batch.Batch, err = DeriveSpanBatch(batchData, cr.cfg.BlockTime, cr.cfg.Genesis.L2Time, cr.cfg.L2ChainID)
+		// double check
+		// temp VoltBlockTime
+		batch.Batch, err = DeriveSpanBatch(batchData, rollup.VoltBlockTime, cr.cfg.Genesis.L2Time, cr.cfg.L2ChainID)
 		if err != nil {
 			return nil, err
 		}

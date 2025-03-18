@@ -53,14 +53,14 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
-	pastSeqDrift := l2Head.MillisecondTimestamp()+los.cfg.BlockTime > currentOrigin.MillisecondTimestamp()+msd
+	pastSeqDrift := los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()) > currentOrigin.MillisecondTimestamp()+msd
 	// Limit the time to fetch next origin block by default
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()
 	if pastSeqDrift {
 		log.Warn("Next L2 block time is past the sequencer drift + current origin time",
 			"l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
-			"l2_block_ms_interval", los.cfg.BlockTime,
+			"l2_block_ms_interval", los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()),
 			"l1_origin_ms_timestamp", currentOrigin.MillisecondTimestamp(),
 			"max_ms_drift", msd)
 		// Must fetch next L1 block as long as it may take, cause we are pastSeqDrift
@@ -98,8 +98,15 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// of slack. For simplicity, we implement our Sequencer to always start building on the latest
 	// L1 block when we can.
 	// If not pastSeqDrift and next origin receipts not cached, fallback to current origin.
-	if l2Head.MillisecondTimestamp()+los.cfg.MillisecondBlockInterval() >= nextOrigin.MillisecondTimestamp() && (pastSeqDrift || receiptsCached) {
+	if los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()) >= nextOrigin.MillisecondTimestamp() && (pastSeqDrift || receiptsCached) {
 		return nextOrigin, nil
+	} else {
+		log.Warn("select l1 origin, give up next new origin",
+			"l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
+			"next_l2_head_ms_timestamp", los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()),
+			"next_l1_origin_ms_timestamp", nextOrigin.MillisecondTimestamp(),
+			"l2_past_seq_drift", pastSeqDrift,
+			"l1_receipts_cached", receiptsCached)
 	}
 
 	return currentOrigin, nil
