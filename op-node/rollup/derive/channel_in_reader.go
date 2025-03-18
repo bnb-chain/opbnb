@@ -107,7 +107,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 		}
 		// double check
 		// temp VoltBlockTime
-		batch.Batch, err = DeriveSpanBatch(batchData, rollup.VoltBlockTime, cr.cfg.Genesis.L2Time, cr.cfg.L2ChainID)
+		batch.Batch, err = DeriveSpanBatch(batchData, cr.cfg, cr.cfg.Genesis.L2Time, cr.cfg.L2ChainID)
 		if err != nil {
 			return nil, err
 		}

@@ -178,7 +178,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
 	}
-	pa.SetMillisecondTimestamp(nextL2MilliTime)
+	pa.SetMillisecondTimestamp(nextL2MilliTime, ba.rollupCfg.IsVolta(nextL2MilliTime/1000))
 	return pa, nil
 }
 
