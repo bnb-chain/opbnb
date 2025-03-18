@@ -683,7 +683,7 @@ func (s *SyncClient) doRequest(ctx context.Context, id peer.ID, expectedBlockNum
 	}
 
 	version := binary.LittleEndian.Uint32(versionData[:])
-	isCanyon := s.cfg.IsCanyon(s.cfg.TimestampForBlock(expectedBlockNum))
+	isCanyon := s.cfg.IsCanyon(s.cfg.MillisecondTimestampForBlock(expectedBlockNum) / 1000)
 	envelope, err := readExecutionPayload(version, data, isCanyon)
 	if err != nil {
 		return err
