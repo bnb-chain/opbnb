@@ -195,6 +195,9 @@ func (c *Config) IsVolta(timestamp uint64) bool {
 }
 
 func (c *Config) VoltaBlocNumber() uint64 {
+	if c.VoltaTime == nil || *c.VoltaTime == 0 {
+		return 0
+	}
 	return (*c.VoltaTime-c.Genesis.L2Time)/(BeforeVoltBlockTime/1000) + c.Genesis.L2.Number
 }
 
@@ -261,7 +264,7 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 
 func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	voltaBlockNumber := cfg.VoltaBlocNumber()
-	if blockNumber <= voltaBlockNumber {
+	if voltaBlockNumber == 0 || blockNumber <= voltaBlockNumber {
 		return cfg.Genesis.L2Time*1000 + ((blockNumber - cfg.Genesis.L2.Number) * BeforeVoltBlockTime)
 	} else {
 		return voltaBlockNumber + *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*VoltBlockTime
@@ -269,7 +272,8 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
-	if milliTimestamp <= *cfg.VoltaTime*1000 {
+	voltaBlockNumber := cfg.VoltaBlocNumber()
+	if voltaBlockNumber == 0 || milliTimestamp <= *cfg.VoltaTime*1000 {
 		// subtract genesis time from timestamp to get the time elapsed since genesis, and then divide that
 		// difference by the block time to get the expected L2 block number at the current time. If the
 		// unsafe head does not have this block number, then there is a gap in the queue.
@@ -282,7 +286,6 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 		blocksSinceGenesis := wallClockGenesisDiff / BeforeVoltBlockTime
 		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 	} else {
-		voltaBlockNumber := cfg.VoltaBlocNumber()
 		voltaMilliTimestamp := *cfg.VoltaTime * 1000
 		wallClockGenesisDiff := milliTimestamp - voltaMilliTimestamp
 		blocksSinceVolta := wallClockGenesisDiff / VoltBlockTime
