@@ -101,11 +101,13 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	if los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()) >= nextOrigin.MillisecondTimestamp() && (pastSeqDrift || receiptsCached) {
 		return nextOrigin, nil
 	} else {
-		log.Warn("select l1 origin, give up next new origin",
-			"l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
+		log.Warn("select l1 old origin, give up next origin",
+			"current_l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
 			"next_l2_head_ms_timestamp", los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()),
+			"current_l1_origin_ms_timestamp", currentOrigin.MillisecondTimestamp(),
 			"next_l1_origin_ms_timestamp", nextOrigin.MillisecondTimestamp(),
 			"l2_past_seq_drift", pastSeqDrift,
+			"max_ms_drift", msd,
 			"l1_receipts_cached", receiptsCached)
 	}
 
