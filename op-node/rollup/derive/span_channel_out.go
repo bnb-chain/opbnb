@@ -2,7 +2,6 @@ package derive
 
 import (
 	"bytes"
-
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -108,14 +107,14 @@ func (co *SpanChannelOut) AddBlock(rollupCfg *rollup.Config, block *types.Block)
 	if err != nil {
 		return err
 	}
-	return co.AddSingularBatch(batch, l1Info.SequenceNumber)
+	return co.AddSingularBatch(rollupCfg, batch, l1Info.SequenceNumber)
 }
 
 // AddSingularBatch adds a SingularBatch to the channel, compressing the data if necessary.
 // if the new batch would make the channel exceed the target size, the last batch is reverted,
 // and the compression happens on the previous RLP buffer instead
 // if the input is too small to need compression, data is accumulated but not compressed
-func (co *SpanChannelOut) AddSingularBatch(batch *SingularBatch, seqNum uint64) error {
+func (co *SpanChannelOut) AddSingularBatch(cfg *rollup.Config, batch *SingularBatch, seqNum uint64) error {
 	// sentinel error for closed or full channel
 	if co.closed {
 		return ErrChannelOutAlreadyClosed
@@ -129,7 +128,7 @@ func (co *SpanChannelOut) AddSingularBatch(batch *SingularBatch, seqNum uint64) 
 		return fmt.Errorf("failed to append SingularBatch to SpanBatch: %w", err)
 	}
 	// convert Span batch to RawSpanBatch
-	rawSpanBatch, err := co.spanBatch.ToRawSpanBatch()
+	rawSpanBatch, err := co.spanBatch.ToRawSpanBatch(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to convert SpanBatch into RawSpanBatch: %w", err)
 	}

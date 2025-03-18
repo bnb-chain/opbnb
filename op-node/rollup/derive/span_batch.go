@@ -440,6 +440,8 @@ type SpanBatch struct {
 	originBits    *big.Int
 	blockTxCounts []uint64
 	sbtxs         *spanBatchTxs
+
+	cfg *rollup.Config
 }
 
 func (b *SpanBatch) AsSingularBatch() (*SingularBatch, bool) { return nil, false }
@@ -568,16 +570,27 @@ func (b *SpanBatch) AppendSingularBatch(singularBatch *SingularBatch, seqNum uin
 }
 
 // ToRawSpanBatch merges SingularBatch List and initialize single RawSpanBatch
-func (b *SpanBatch) ToRawSpanBatch() (*RawSpanBatch, error) {
+func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 	if len(b.Batches) == 0 {
 		return nil, errors.New("cannot merge empty singularBatch list")
 	}
 	span_start := b.Batches[0]
 	span_end := b.Batches[len(b.Batches)-1]
 
+	relTs := uint64(0)
+	if cfg.IsVolta(span_start.Timestamp) {
+		relTs = span_start.Timestamp - b.MillisecondGenesisTimestamp()
+	} else {
+		relTs = span_start.Timestamp + b.GenesisTimestamp
+	}
+	log.Info("succeed to make raw span_batch",
+		"span_start_timestamp", span_start.Timestamp,
+		"rel_timestamp", relTs,
+		"genesis_timestamp", b.GenesisTimestamp)
+
 	return &RawSpanBatch{
 		spanBatchPrefix: spanBatchPrefix{
-			relTimestamp:  span_start.Timestamp - b.MillisecondGenesisTimestamp(),
+			relTimestamp:  relTs,
 			l1OriginNum:   uint64(span_end.EpochNum),
 			parentCheck:   b.ParentCheck,
 			l1OriginCheck: b.L1OriginCheck,

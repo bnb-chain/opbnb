@@ -48,6 +48,8 @@ type channelManager struct {
 
 	// if set to true, prevents production of any new channel frames
 	closed bool
+
+	isVolta bool
 }
 
 func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config) *channelManager {
@@ -261,6 +263,14 @@ func (s *channelManager) processBlocks() error {
 		latestL2ref eth.L2BlockRef
 	)
 	for i, block := range s.blocks {
+		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.HasTxData() {
+			// the current channel is before volta fork.
+			s.currentChannel.Close()
+			s.isVolta = true
+			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
+			break
+		}
+
 		l1info, err := s.currentChannel.AddBlock(block)
 		if errors.As(err, &_chFullErr) {
 			// current block didn't get added because channel is already full
@@ -298,6 +308,7 @@ func (s *channelManager) processBlocks() error {
 		"channel_full", s.currentChannel.IsFull(),
 		"input_bytes", s.currentChannel.InputBytes(),
 		"ready_bytes", s.currentChannel.ReadyBytes(),
+		"is_volta", s.isVolta,
 	)
 	return nil
 }
@@ -352,6 +363,12 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 	defer s.mu.Unlock()
 	if s.tip != (common.Hash{}) && s.tip != block.ParentHash() {
 		return ErrReorg
+	}
+
+	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
+		// set volta flag at startup
+		s.isVolta = true
+		log.Info("succeed to set is volta flag", "block_time", block.Time())
 	}
 
 	s.metr.RecordL2BlockInPendingQueue(block)
