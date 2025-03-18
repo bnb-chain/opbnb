@@ -363,12 +363,18 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 
 	var blockInterval uint64
 	var millisecondTimestamp bool
-	if rollupCfg.IsVolta(b.relTimestamp) {
-		blockInterval = rollup.VoltBlockTime
-		millisecondTimestamp = true
+	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime > genesisTimestamp {
+		secondSinceVolta := *rollupCfg.VoltaTime - genesisTimestamp
+		if b.relTimestamp >= secondSinceVolta {
+			blockInterval = rollup.VoltBlockTime
+			millisecondTimestamp = true
+		} else {
+			blockInterval = rollup.BeforeVoltBlockTime
+		}
 	} else {
 		blockInterval = rollup.BeforeVoltBlockTime
 	}
+
 	spanBatch := SpanBatch{
 		ParentCheck:   b.parentCheck,
 		L1OriginCheck: b.l1OriginCheck,
