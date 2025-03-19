@@ -61,6 +61,7 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 	if aq.batch == nil {
 		batch, isLastInSpan, err := aq.prev.NextBatch(ctx, parent)
 		if err != nil {
+			log.Info("try derive, failed to next batch", "parent", parent, "error", err)
 			return nil, err
 		}
 		aq.batch = batch
@@ -69,12 +70,14 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 
 	// Actually generate the next attributes
 	if attrs, err := aq.createNextAttributes(ctx, aq.batch, parent); err != nil {
+		log.Info("try derive, failed to create next attribute", "parent", parent, "batch", aq.batch, "error", err)
 		return nil, err
 	} else {
 		// Clear out the local state once we will succeed
 		attr := AttributesWithParent{attrs, parent, aq.isLastInSpan}
 		aq.batch = nil
 		aq.isLastInSpan = false
+		log.Info("try derive, succeed to next attribute", "parent", parent, "batch", aq.batch)
 		return &attr, nil
 	}
 

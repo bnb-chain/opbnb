@@ -69,30 +69,42 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 
 	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 	if batch.Timestamp > nextMilliTimestamp {
-		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextMilliTimestamp)
+		log.Info("received out-of-order batch for future processing after next batch",
+			"batch_timestamp", batch.Timestamp,
+			"next_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
 	if batch.Timestamp < nextMilliTimestamp {
-		log.Warn("dropping batch with old timestamp", "batch_timestamp", batch.Timestamp, "min_timestamp", nextMilliTimestamp)
+		log.Warn("dropping batch with old timestamp",
+			"batch_timestamp", batch.Timestamp,
+			"min_timestamp", nextMilliTimestamp)
 		return BatchDrop
 	}
 
 	// dependent on above timestamp check. If the timestamp is correct, then it must build on top of the safe head.
 	if batch.ParentHash != l2SafeHead.Hash {
-		log.Warn("ignoring batch with mismatching parent hash", "current_safe_head", l2SafeHead.Hash)
+		log.Warn("ignoring batch with mismatching parent hash",
+			"current_safe_head", l2SafeHead.Hash,
+			"parent_hash", batch.ParentHash)
 		return BatchDrop
 	}
 
 	// Filter out batches that were included too late.
 	if uint64(batch.EpochNum)+cfg.SeqWindowSize < l1InclusionBlock.Number {
-		log.Warn("batch was included too late, sequence window expired")
+		log.Warn("batch was included too late, sequence window expired",
+			"batch.EpochNum", batch.EpochNum,
+			"cfg.SeqWindowSize", cfg.SeqWindowSize,
+			"l1InclusionBlock.Number", l1InclusionBlock.Number)
 		return BatchDrop
 	}
 
 	// Check the L1 origin of the batch
 	batchOrigin := epoch
 	if uint64(batch.EpochNum) < epoch.Number {
-		log.Warn("dropped batch, epoch is too old", "minimum", epoch.ID())
+		log.Warn("dropped batch, epoch is too old",
+			"minimum", epoch.ID(),
+			"batch.EpochNum", batch.EpochNum,
+			"epoch.Number", epoch.Number)
 		// batch epoch too old
 		return BatchDrop
 	} else if uint64(batch.EpochNum) == epoch.Number {
@@ -114,12 +126,18 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 	}
 
 	if batch.EpochHash != batchOrigin.Hash {
-		log.Warn("batch is for different L1 chain, epoch hash does not match", "expected", batchOrigin.ID())
+		log.Warn("batch is for different L1 chain, epoch hash does not match",
+			"expected", batchOrigin.ID(),
+			"batch_epoch_hash", batch.EpochHash,
+			"batch_origin_hash", batchOrigin.Hash)
 		return BatchDrop
 	}
 
 	if batch.Timestamp < batchOrigin.MillisecondTimestamp() {
-		log.Warn("batch timestamp is less than L1 origin timestamp", "l2_ms_timestamp", batch.Timestamp, "l1_ms_timestamp", batchOrigin.MillisecondTimestamp(), "origin", batchOrigin.ID())
+		log.Warn("batch timestamp is less than L1 origin timestamp",
+			"l2_ms_timestamp", batch.Timestamp,
+			"l1_ms_timestamp", batchOrigin.MillisecondTimestamp(),
+			"origin", batchOrigin.ID())
 		return BatchDrop
 	}
 
@@ -137,7 +155,9 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 				}
 				nextOrigin := l1Blocks[1]
 				if batch.Timestamp >= nextOrigin.MillisecondTimestamp() { // check if the next L1 origin could have been adopted
-					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
+					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid",
+						"batch_timestamp", batch.Timestamp,
+						"next_origin_timestamp", nextOrigin.MillisecondTimestamp())
 					return BatchDrop
 				} else {
 					log.Info("continuing with empty batch before late L1 block to preserve L2 time invariant")

@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
@@ -119,12 +120,17 @@ func (co *SpanChannelOut) AddSingularBatch(cfg *rollup.Config, batch *SingularBa
 	if co.closed {
 		return ErrChannelOutAlreadyClosed
 	}
-	if err := co.FullErr(); err != nil {
+	var err error
+	if err = co.FullErr(); err != nil {
 		return err
 	}
 
+	defer func() {
+		log.Info("succeed to add singular batch to span batch", "batch", batch, "seq_num", seqNum, "error", err)
+	}()
+
 	// update the SpanBatch with the SingularBatch
-	if err := co.spanBatch.AppendSingularBatch(batch, seqNum); err != nil {
+	if err = co.spanBatch.AppendSingularBatch(batch, seqNum); err != nil {
 		return fmt.Errorf("failed to append SingularBatch to SpanBatch: %w", err)
 	}
 	// convert Span batch to RawSpanBatch
@@ -263,6 +269,9 @@ func (co *SpanChannelOut) OutputFrame(w *bytes.Buffer, maxSize uint64) (uint16, 
 	if _, err := io.ReadFull(co.compressor.GetCompressed(), f.Data); err != nil {
 		return 0, err
 	}
+
+	log.Info("succeed to output span channel output frame",
+		"channel_id", co.id, "frame_number", f.ID, "max_size", maxSize, "frame_data_len", len(f.Data))
 
 	if err := f.MarshalBinary(w); err != nil {
 		return 0, err

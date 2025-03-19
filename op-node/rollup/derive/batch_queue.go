@@ -100,12 +100,14 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 			// Pop first one and return.
 			nextBatch := bq.popNextBatch(parent)
 			// len(bq.nextSpan) == 0 means it's the last batch of the span.
+			log.Info("try derive, return cache batch", "batch", nextBatch)
 			return nextBatch, len(bq.nextSpan) == 0, nil
 		} else {
 			// Given parent block does not match the next batch. It means the previously returned batch is invalid.
 			// Drop cached batches and find another batch.
 			bq.log.Warn("parent block does not match the next batch. dropped cached batches", "parent", parent.ID(), "nextBatchTime", bq.nextSpan[0].GetTimestamp())
 			bq.nextSpan = bq.nextSpan[:0]
+			log.Info("try derive, not found in cache")
 		}
 	}
 
@@ -117,7 +119,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 		for i, l1Block := range bq.l1Blocks {
 			if parent.L1Origin.Number == l1Block.Number {
 				bq.l1Blocks = bq.l1Blocks[i:]
-				bq.log.Debug("Advancing internal L1 blocks", "next_epoch", bq.l1Blocks[0].ID(), "next_epoch_time", bq.l1Blocks[0].Time)
+				bq.log.Info("Advancing internal L1 blocks", "next_epoch", bq.l1Blocks[0].ID(), "next_epoch_time", bq.l1Blocks[0].Time)
 				break
 			}
 		}
@@ -129,6 +131,10 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	// We always update the origin of this stage if it is not the same so after the update code
 	// runs, this is consistent.
 	originBehind := bq.prev.Origin().Number < parent.L1Origin.Number
+	log.Info("try derive, check origin behind",
+		"prev_origin", bq.prev.Origin().Number,
+		"parent_origin", parent.L1Origin.Number,
+		"is_origin_behind", originBehind)
 
 	// Advance origin if needed
 	// Note: The entire pipeline has the same origin
@@ -149,10 +155,13 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	// Load more data into the batch queue
 	outOfData := false
 	if batch, err := bq.prev.NextBatch(ctx); err == io.EOF {
+		log.Info("try derive, next batch eof and set out of data true")
 		outOfData = true
 	} else if err != nil {
+		log.Info("try derive, failed to next batch eof", "error", err)
 		return nil, false, err
 	} else if !originBehind {
+		log.Info("try derive, add to batch queue", "batch", batch)
 		bq.AddBatch(ctx, batch, parent)
 	}
 
@@ -160,8 +169,10 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	// empty the previous stages
 	if originBehind {
 		if outOfData {
+			log.Info("try derive, origin behind and out of data, return eof")
 			return nil, false, io.EOF
 		} else {
+			log.Info("try derive, origin behind and not out of data, return not enough data")
 			return nil, false, NotEnoughData
 		}
 	}
@@ -230,9 +241,10 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2Bl
 	}
 	validity := CheckBatch(ctx, bq.config, bq.log, bq.l1Blocks, parent, &data, bq.l2)
 	if validity == BatchDrop {
+		log.Info("try derive, failed to add batch", "batch", batch, "parent", parent)
 		return // if we do drop the batch, CheckBatch will log the drop reason with WARN level.
 	}
-	batch.LogContext(bq.log).Debug("Adding batch")
+	batch.LogContext(bq.log).Info("Adding batch")
 	bq.batches = append(bq.batches, &data)
 }
 
@@ -242,10 +254,11 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2Bl
 // If no batch can be derived yet, then (nil, io.EOF) is returned.
 func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, parent eth.L2BlockRef) (Batch, error) {
 	if len(bq.l1Blocks) == 0 {
+		log.Info("try derive, l1 blocks is nil")
 		return nil, NewCriticalError(errors.New("cannot derive next batch, no origin was prepared"))
 	}
 	epoch := bq.l1Blocks[0]
-	bq.log.Trace("Deriving the next batch", "epoch", epoch, "parent", parent, "outOfData", outOfData)
+	bq.log.Info("Deriving the next batch", "epoch", epoch, "parent", parent, "outOfData", outOfData)
 
 	// Note: epoch origin can now be one block ahead of the L2 Safe Head
 	// This is in the case where we auto generate all batches in an epoch & advance the epoch
@@ -269,18 +282,21 @@ batchLoop:
 		switch validity {
 		case BatchFuture:
 			remaining = append(remaining, batch)
+			log.Info("try derive, skip future batch", "parent", parent, "batch", batch)
 			continue
 		case BatchDrop:
 			batch.Batch.LogContext(bq.log).Warn("Dropping batch",
 				"parent", parent.ID(),
 				"parent_time", parent.Time,
 			)
+			log.Info("try derive, dop batch", "parent", parent, "batch", batch)
 			continue
 		case BatchAccept:
 			nextBatch = batch
 			// don't keep the current batch in the remaining items since we are processing it now,
 			// but retain every batch we didn't get to yet.
 			remaining = append(remaining, bq.batches[i+1:]...)
+			log.Info("try derive, succeed get batch", "parent", parent, "batch", batch)
 			break batchLoop
 		case BatchUndecided:
 			remaining = append(remaining, bq.batches[i:]...)
@@ -303,17 +319,19 @@ batchLoop:
 	forceEmptyBatches := (expiryEpoch == bq.origin.Number && outOfData) || expiryEpoch < bq.origin.Number
 	firstOfEpoch := epoch.Number == parent.L1Origin.Number+1
 
-	bq.log.Trace("Potentially generating an empty batch",
+	bq.log.Info("Potentially generating an empty batch",
 		"expiryEpoch", expiryEpoch, "forceEmptyBatches", forceEmptyBatches, "next_ms_timestamp", nextMilliTimestamp,
 		"epoch_time", epoch.Time, "len_l1_blocks", len(bq.l1Blocks), "firstOfEpoch", firstOfEpoch)
 
 	if !forceEmptyBatches {
 		// sequence window did not expire yet, still room to receive batches for the current epoch,
 		// no need to force-create empty batch(es) towards the next epoch yet.
+		log.Info("try derive, not force empty batch, return eof")
 		return nil, io.EOF
 	}
 	if len(bq.l1Blocks) < 2 {
 		// need next L1 block to proceed towards
+		log.Info("try derive, l1 origin len < 2, return eof")
 		return nil, io.EOF
 	}
 
@@ -334,7 +352,7 @@ batchLoop:
 
 	// At this point we have auto generated every batch for the current epoch
 	// that we can, so we can advance to the next epoch.
-	bq.log.Trace("Advancing internal L1 blocks", "next_ms_timestamp", nextMilliTimestamp, "next_epoch_ms_time", nextEpoch.MillisecondTimestamp())
+	bq.log.Info("Advancing internal L1 blocks", "next_ms_timestamp", nextMilliTimestamp, "next_epoch_ms_time", nextEpoch.MillisecondTimestamp())
 	bq.l1Blocks = bq.l1Blocks[1:]
 	return nil, io.EOF
 }

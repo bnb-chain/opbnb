@@ -69,6 +69,7 @@ func (eq *AttributesHandler) SetAttributes(attributes *derive.AttributesWithPare
 // Proceed returns no error if the safe-head may have changed.
 func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 	if eq.attributes == nil {
+		log.Info("try derive, return eof due to eq.attributes is nil")
 		return io.EOF
 	}
 	// validate the safe attributes before processing them. The engine may have completed processing them through other means.
@@ -82,18 +83,30 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 			eq.attributes = nil
 			return nil
 		}
+		log.Info("try derive, pending_safe != attributes_parent",
+			"pend_safe", eq.ec.PendingSafeL2Head(), "attributes_parent", eq.attributes.Parent)
 		// If something other than a simple advance occurred, perform a full reset
 		return derive.NewResetError(fmt.Errorf("pending safe head changed to %s with parent %s, conflicting with queued safe attributes on top of %s",
 			eq.ec.PendingSafeL2Head(), eq.ec.PendingSafeL2Head().ParentID(), eq.attributes.Parent))
 	}
 	if eq.ec.PendingSafeL2Head().Number < eq.ec.UnsafeL2Head().Number {
 		if err := eq.consolidateNextSafeAttributes(ctx, eq.attributes); err != nil {
+			log.Info("try derive, failed to consolidate safe",
+				"attributes", eq.attributes,
+				"pending_safe", eq.ec.PendingSafeL2Head().Number,
+				"unsafe", eq.ec.UnsafeL2Head().Number,
+				"error", err)
 			return err
 		}
 		eq.attributes = nil
 		return nil
 	} else if eq.ec.PendingSafeL2Head().Number == eq.ec.UnsafeL2Head().Number {
 		if err := eq.forceNextSafeAttributes(ctx, eq.attributes); err != nil {
+			log.Info("try derive, failed to force next safe",
+				"attributes", eq.attributes,
+				"pending_safe", eq.ec.PendingSafeL2Head().Number,
+				"unsafe", eq.ec.UnsafeL2Head().Number,
+				"error", err)
 			return err
 		}
 		eq.attributes = nil
@@ -115,6 +128,7 @@ func (eq *AttributesHandler) consolidateNextSafeAttributes(ctx context.Context, 
 
 	envelope, err := eq.l2.PayloadByNumber(ctx, eq.ec.PendingSafeL2Head().Number+1)
 	if err != nil {
+		log.Info("try derive, failed to payload by number", "error", err, "next", eq.ec.PendingSafeL2Head().Number+1)
 		if errors.Is(err, ethereum.NotFound) {
 			// engine may have restarted, or inconsistent safe head. We need to reset
 			return derive.NewResetError(fmt.Errorf("expected engine was synced and had unsafe block to reconcile, but cannot find the block: %w", err))
@@ -122,18 +136,21 @@ func (eq *AttributesHandler) consolidateNextSafeAttributes(ctx context.Context, 
 		return derive.NewTemporaryError(fmt.Errorf("failed to get existing unsafe payload to compare against derived attributes from L1: %w", err))
 	}
 	if err := AttributesMatchBlock(eq.cfg, attributes.Attributes, eq.ec.PendingSafeL2Head().Hash, envelope, eq.log); err != nil {
-		eq.log.Warn("L2 reorg: existing unsafe block does not match derived attributes from L1", "err", err, "unsafe", eq.ec.UnsafeL2Head(), "pending_safe", eq.ec.PendingSafeL2Head(), "safe", eq.ec.SafeL2Head())
+		eq.log.Warn("L2 reorg: existing unsafe block does not match derived attributes from L1",
+			"err", err, "unsafe", eq.ec.UnsafeL2Head(), "pending_safe", eq.ec.PendingSafeL2Head(), "safe", eq.ec.SafeL2Head())
 		// geth cannot wind back a chain without reorging to a new, previously non-canonical, block
 		return eq.forceNextSafeAttributes(ctx, attributes)
 	}
 	ref, err := derive.PayloadToBlockRef(eq.cfg, envelope.ExecutionPayload)
 	if err != nil {
+		log.Info("try derive, failed to convert payload to block ref", "error", err)
 		return derive.NewResetError(fmt.Errorf("failed to decode L2 block ref from payload: %w", err))
 	}
 	eq.ec.SetPendingSafeL2Head(ref)
 	if attributes.IsLastInSpan {
 		eq.ec.SetSafeHead(ref)
 	}
+	log.Info("try derive, succeed to consolidate next safe attributes", "attributes", attributes)
 	// unsafe head stays the same, we did not reorg the chain.
 	return nil
 }

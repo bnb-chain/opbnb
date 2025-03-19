@@ -150,6 +150,7 @@ func (co *SingularChannelOut) AddSingularBatch(cfg *rollup.Config, batch *Singul
 
 	// avoid using io.Copy here, because we need all or nothing
 	_, err := co.compress.Write(buf.Bytes())
+	log.Info("succeed to write singular batch to singular channel out compressor", "batch", batch)
 	return err
 }
 
@@ -201,6 +202,9 @@ func (co *SingularChannelOut) OutputFrame(w *bytes.Buffer, maxSize uint64) (uint
 	if _, err := io.ReadFull(co.compress, f.Data); err != nil {
 		return 0, err
 	}
+
+	log.Info("succeed to generate a singular channel out frame",
+		"channel_id", co.id, "frame_number", f.ID, "frame_data_len", len(f.Data), "max_size", maxSize)
 
 	if err := f.MarshalBinary(w); err != nil {
 		return 0, err

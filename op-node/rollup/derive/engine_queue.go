@@ -181,22 +181,27 @@ func (eq *EngineQueue) isEngineSyncing() bool {
 }
 
 func (eq *EngineQueue) Step(ctx context.Context) error {
+	log.Info("try derive, engine queue step")
 	// If we don't need to call FCU to restore unsafeHead using backupUnsafe, keep going b/c
 	// this was a no-op(except correcting invalid state when backupUnsafe is empty but TryBackupUnsafeReorg called).
 	if fcuCalled, err := eq.ec.TryBackupUnsafeReorg(ctx); fcuCalled {
 		// If we needed to perform a network call, then we should yield even if we did not encounter an error.
+		log.Info("try derive, fcu called", "error", err)
 		return err
 	}
 	// If we don't need to call FCU, keep going b/c this was a no-op. If we needed to
 	// perform a network call, then we should yield even if we did not encounter an error.
 	if err := eq.ec.TryUpdateEngine(ctx); !errors.Is(err, ErrNoFCUNeeded) {
+		log.Info("try derive, failed to try update engine", "error", err)
 		return err
 	}
 	if eq.isEngineSyncing() {
 		// The pipeline cannot move forwards if doing EL sync.
+		log.Info("try derive, current is engine syncing")
 		return EngineELSyncing
 	}
 	if err := eq.attributesHandler.Proceed(ctx); err != io.EOF {
+		log.Info("try derive, failed to attribute hander proceed", "error", err)
 		return err // if nil, or not EOF, then the attribute processing has to be revisited later.
 	}
 	if eq.lastNotifiedSafeHead != eq.ec.SafeL2Head() {
@@ -206,6 +211,7 @@ func (eq *EngineQueue) Step(ctx context.Context) error {
 			// At this point our state is in a potentially inconsistent state as we've updated the safe head
 			// in the execution client but failed to post process it. Reset the pipeline so the safe head rolls back
 			// a little (it always rolls back at least 1 block) and then it will retry storing the entry
+			log.Info("try derive, failed to update safe head", "error", err)
 			return NewResetError(fmt.Errorf("safe head notifications failed: %w", err))
 		}
 	}
@@ -213,23 +219,27 @@ func (eq *EngineQueue) Step(ctx context.Context) error {
 
 	// try to finalize the L2 blocks we have synced so far (no-op if L1 finality is behind)
 	if err := eq.finalizer.OnDerivationL1End(ctx, eq.origin); err != nil {
+		log.Info("try derive, failed to on derive l1 end", "error", err, "eq_origin", eq.origin)
 		return fmt.Errorf("finalizer OnDerivationL1End error: %w", err)
 	}
 
 	newOrigin := eq.prev.Origin()
 	// Check if the L2 unsafe head origin is consistent with the new origin
 	if err := eq.verifyNewL1Origin(ctx, newOrigin); err != nil {
+		log.Info("try derive, failed to verify new l1 origin", "error", err, "new_origin", newOrigin)
 		return err
 	}
 	eq.origin = newOrigin
 
 	if next, err := eq.prev.NextAttributes(ctx, eq.ec.PendingSafeL2Head()); err == io.EOF {
+		log.Info("try derive, failed to next attribute, return eof", "error", err, "pending_safe", eq.ec.PendingSafeL2Head())
 		return io.EOF
 	} else if err != nil {
+		log.Info("try derive, failed to next attribute", "error", err, "pending_safe", eq.ec.PendingSafeL2Head())
 		return err
 	} else {
 		eq.attributesHandler.SetAttributes(next)
-		eq.log.Debug("Adding next safe attributes", "safe_head", eq.ec.SafeL2Head(),
+		eq.log.Info("Adding next safe attributes", "safe_head", eq.ec.SafeL2Head(),
 			"pending_safe_head", eq.ec.PendingSafeL2Head(), "next", next)
 		return NotEnoughData
 	}

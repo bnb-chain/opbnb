@@ -508,21 +508,25 @@ func (s *Driver) eventLoop() {
 }
 
 func (s *Driver) syncStep(ctx context.Context) error {
+	log.Info("try derive, sync step")
 	// If we don't need to call FCU to restore unsafeHead using backupUnsafe, keep going b/c
 	// this was a no-op(except correcting invalid state when backupUnsafe is empty but TryBackupUnsafeReorg called).
 	if fcuCalled, err := s.engineController.TryBackupUnsafeReorg(ctx); fcuCalled {
 		// If we needed to perform a network call, then we should yield even if we did not encounter an error.
+		log.Info("try derive, fcu called due to try backup unsafe reorg", "error", err)
 		return err
 	}
 	// If we don't need to call FCU, keep going b/c this was a no-op. If we needed to
 	// perform a network call, then we should yield even if we did not encounter an error.
 	if err := s.engineController.TryUpdateEngine(ctx); !errors.Is(err, derive.ErrNoFCUNeeded) {
+		log.Info("try derive, failed to try update engine", "error", err)
 		return err
 	}
 	// Trying unsafe payload should be done before safe attributes
 	// It allows the unsafe head to move forward while the long-range consolidation is in progress.
 	if err := s.clSync.Proceed(ctx); err != io.EOF {
 		// EOF error means we can't process the next unsafe payload. Then we should process next safe attributes.
+		log.Info("try derive, failed to cl sync proceed", "error", err)
 		return err
 	}
 	s.metrics.SetDerivationIdle(false)

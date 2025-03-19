@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -155,6 +156,8 @@ func (c *ChannelBuilder) AddBlock(block *types.Block) (*derive.L1BlockInfo, erro
 	if err != nil {
 		return l1info, fmt.Errorf("converting block to batch: %w", err)
 	}
+
+	log.Info("succeed to make singular batch from block", "batch", batch, "l1_info", l1info)
 
 	if err = c.co.AddSingularBatch(&c.rollupCfg, batch, l1info.SequenceNumber); errors.Is(err, derive.ErrTooManyRLPBytes) || errors.Is(err, derive.ErrCompressorFull) {
 		c.setFullErr(err)
@@ -351,6 +354,7 @@ func (c *ChannelBuilder) outputFrame() error {
 	c.frames = append(c.frames, frame)
 	c.numFrames++
 	c.outputBytes += len(frame.data)
+	log.Info("succeed to generate a frame", "channel_id", c.co.ID(), "frame_number", fn, "frame_data_len", len(buf.Bytes()))
 	return err // possibly io.EOF (last frame)
 }
 

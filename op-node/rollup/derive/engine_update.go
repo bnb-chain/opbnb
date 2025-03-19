@@ -86,6 +86,8 @@ const (
 // The severity of the error is distinguished to determine whether the same payload attributes may be re-attempted later.
 func startPayload(ctx context.Context, eng ExecEngine, fc eth.ForkchoiceState, attrs *eth.PayloadAttributes) (id eth.PayloadID, errType BlockInsertionErrType, err error) {
 	fcRes, err := eng.ForkchoiceUpdate(ctx, &fc, attrs)
+	log.Info("try derive, engine api fork choice update",
+		"fork_choice", fc, "attributes", attrs, "fork_choice_result", fcRes, "error", err)
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {
@@ -144,6 +146,9 @@ func confirmPayload(
 	} else {
 		start := time.Now()
 		envelope, err = eng.GetPayload(ctx, payloadInfo)
+		log.Info("try derive, engine api new payload",
+			"fork_choice", fc,
+			"payload", payloadInfo)
 		metrics.RecordSequencerStepTime("getPayload", time.Since(start))
 	}
 	if err != nil {
@@ -163,6 +168,12 @@ func confirmPayload(
 
 	start := time.Now()
 	status, err := eng.NewPayload(ctx, payload, envelope.ParentBeaconBlockRoot)
+	log.Info("try derive, engine api new payload",
+		"fork_choice", fc,
+		"payload", payload,
+		"status_result", status,
+		"parent_beacon_block_root", envelope.ParentBeaconBlockRoot,
+		"error", err)
 	if err != nil {
 		return nil, BlockInsertTemporaryErr, fmt.Errorf("failed to insert execution payload: %w", err)
 	}
@@ -181,6 +192,12 @@ func confirmPayload(
 	}
 	start = time.Now()
 	fcRes, err := eng.ForkchoiceUpdate(ctx, &fc, nil)
+	log.Info("try derive, engine api fork choice",
+		"fork_choice", fc,
+		"payload", payload,
+		"status_result", status,
+		"parent_beacon_block_root", envelope.ParentBeaconBlockRoot,
+		"error", err)
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {

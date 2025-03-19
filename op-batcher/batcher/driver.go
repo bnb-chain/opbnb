@@ -651,6 +651,8 @@ func (l *BatchSubmitter) sendTransaction(ctx context.Context, txdata txData, que
 	var err error
 	// Do the gas estimation offline. A value of 0 will cause the [txmgr] to estimate the gas limit.
 
+	log.Info("try send tx", "tx_id", txdata.ID(), "frame_len", len(txdata.Frames()))
+
 	var candidate *txmgr.TxCandidate
 	if l.Config.UseBlobs {
 		if candidate, err = l.blobTxCandidate(txdata); err != nil {

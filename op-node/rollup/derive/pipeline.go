@@ -127,13 +127,16 @@ func (dp *DerivationPipeline) Origin() eth.L1BlockRef {
 func (dp *DerivationPipeline) Step(ctx context.Context) error {
 	defer dp.metrics.RecordL1Ref("l1_derived", dp.Origin())
 
+	log.Info("try derive pipeline step")
+
 	// if any stages need to be reset, do that first.
 	if dp.resetting < len(dp.stages) {
 		if err := dp.stages[dp.resetting].Reset(ctx, dp.eng.Origin(), dp.eng.SystemConfig()); err == io.EOF {
-			dp.log.Debug("reset of stage completed", "stage", dp.resetting, "origin", dp.eng.Origin())
+			dp.log.Info("reset of stage completed", "stage", dp.resetting, "origin", dp.eng.Origin())
 			dp.resetting += 1
 			return nil
 		} else if err != nil {
+			dp.log.Info("try derive, failed to stage reset", "error", err, "stage", dp.resetting, "origin", dp.eng.Origin())
 			return fmt.Errorf("stage %d failed resetting: %w", dp.resetting, err)
 		} else {
 			return nil
@@ -143,6 +146,7 @@ func (dp *DerivationPipeline) Step(ctx context.Context) error {
 	// Now step the engine queue. It will pull earlier data as needed.
 	if err := dp.eng.Step(ctx); err == io.EOF {
 		// If every stage has returned io.EOF, try to advance the L1 Origin
+		log.Info("try derive, engine queue step return eof")
 		return dp.traversal.AdvanceL1Block(ctx)
 	} else if errors.Is(err, EngineELSyncing) {
 		return err
