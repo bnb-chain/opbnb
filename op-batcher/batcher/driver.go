@@ -550,6 +550,7 @@ func (l *BatchSubmitter) publishStateToL1(queue *txmgr.Queue[txID], receiptsCh c
 			if err != io.EOF {
 				l.Log.Error("error publishing tx to l1", "err", err)
 			}
+			l.Log.Error("op batcher publish tx to l1 error", "err", err)
 			return
 		}
 	}
@@ -616,8 +617,11 @@ func (l *BatchSubmitter) publishTxToL1(ctx context.Context, queue *txmgr.Queue[t
 	}
 
 	if err = l.sendTransaction(ctx, txdata, queue, receiptsCh); err != nil {
+		l.Log.Error("fail to send transaction ", err)
 		return fmt.Errorf("BatchSubmitter.sendTransaction failed: %w", err)
 	}
+
+	log.Info("succeed to send batcher txn", "l1 orign", l1tip.Number)
 	return nil
 }
 
