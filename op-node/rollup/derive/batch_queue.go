@@ -239,7 +239,9 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch Batch, parent eth.L2Bl
 		L1InclusionBlock: bq.origin,
 		Batch:            batch,
 	}
+	log.Info("try derive, BatchQueue AddBatch, first")
 	validity := CheckBatch(ctx, bq.config, bq.log, bq.l1Blocks, parent, &data, bq.l2)
+	log.Info("try derive, BatchQueue AddBatch, second", "validity", validity)
 	if validity == BatchDrop {
 		log.Info("try derive, failed to add batch", "batch", batch, "parent", parent)
 		return // if we do drop the batch, CheckBatch will log the drop reason with WARN level.
@@ -278,7 +280,9 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, paren
 	var remaining []*BatchWithL1InclusionBlock
 batchLoop:
 	for i, batch := range bq.batches {
+		log.Info("try derive, BatchQueue deriveNextBatch, first")
 		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), bq.l1Blocks, parent, batch, bq.l2)
+		log.Info("try derive, BatchQueue deriveNextBatch, second", "validity", validity)
 		switch validity {
 		case BatchFuture:
 			remaining = append(remaining, batch)

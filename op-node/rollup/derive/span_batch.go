@@ -361,6 +361,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		return nil, err
 	}
 
+	log.Info("span batch derive", "VoltaTime", *rollupCfg.VoltaTime, "genesisTimestamp", genesisTimestamp)
 	var blockInterval uint64
 	var millisecondTimestamp bool
 	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime > genesisTimestamp {
@@ -374,6 +375,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 	} else {
 		blockInterval = rollup.BeforeVoltBlockTime
 	}
+	log.Info("span batch derive", "VoltaTime", *rollupCfg.VoltaTime, "genesisTimestamp", genesisTimestamp, "blockInterval", blockInterval, "millisecondTimestamp", millisecondTimestamp)
 
 	spanBatch := SpanBatch{
 		ParentCheck:   b.parentCheck,
@@ -394,6 +396,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
 			txIdx++
 		}
+		log.Info("span batch derive", "batch", batch, "index", i)
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
 	if millisecondTimestamp {

@@ -516,12 +516,14 @@ func (s *Driver) syncStep(ctx context.Context) error {
 		log.Info("try derive, fcu called due to try backup unsafe reorg", "error", err)
 		return err
 	}
+	log.Info("try derive, sync step, TryBackupUnsafeReorg done")
 	// If we don't need to call FCU, keep going b/c this was a no-op. If we needed to
 	// perform a network call, then we should yield even if we did not encounter an error.
 	if err := s.engineController.TryUpdateEngine(ctx); !errors.Is(err, derive.ErrNoFCUNeeded) {
 		log.Info("try derive, failed to try update engine", "error", err)
 		return err
 	}
+	log.Info("try derive, sync step, TryUpdateEngine done")
 	// Trying unsafe payload should be done before safe attributes
 	// It allows the unsafe head to move forward while the long-range consolidation is in progress.
 	if err := s.clSync.Proceed(ctx); err != io.EOF {
@@ -529,8 +531,11 @@ func (s *Driver) syncStep(ctx context.Context) error {
 		log.Info("try derive, failed to cl sync proceed", "error", err)
 		return err
 	}
+	log.Info("try derive, sync step, clSync.Proceed done")
 	s.metrics.SetDerivationIdle(false)
-	return s.derivation.Step(s.driverCtx)
+	err := s.derivation.Step(s.driverCtx)
+	log.Info("try derive, sync step, derivation.Step done")
+	return err
 }
 
 // ResetDerivationPipeline forces a reset of the derivation pipeline.

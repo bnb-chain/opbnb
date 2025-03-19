@@ -41,6 +41,7 @@ func CheckBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1Block
 			log.Error("failed type assertion to SingularBatch")
 			return BatchDrop
 		}
+		log.Info("try derive, CheckBatch SingularBatchType")
 		return checkSingularBatch(cfg, log, l1Blocks, l2SafeHead, singularBatch, batch.L1InclusionBlock)
 	case SpanBatchType:
 		spanBatch, ok := batch.AsSpanBatch()
@@ -48,6 +49,7 @@ func CheckBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1Block
 			log.Error("failed type assertion to SpanBatch")
 			return BatchDrop
 		}
+		log.Info("try derive, CheckBatch SpanBatchType")
 		return checkSpanBatch(ctx, cfg, log, l1Blocks, l2SafeHead, spanBatch, batch.L1InclusionBlock, l2Fetcher)
 	default:
 		log.Warn("Unrecognized batch type: %d", typ)
@@ -193,6 +195,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	// add details to the log
 	log = batch.LogContext(log)
 
+	log.Warn("try derive, checkSpanBatch first", "l2SafeHead", l2SafeHead, "batch", batch)
 	// sanity check we have consistent inputs
 	if len(l1Blocks) == 0 {
 		log.Warn("missing L1 block input, cannot proceed with batch checking")
@@ -216,6 +219,8 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 
 	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 
+	log.Warn("try derive, checkSpanBatch second", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
+
 	if batch.GetTimestamp() > nextMilliTimestamp {
 		log.Trace("received out-of-order batch for future processing after next batch", "next_ms_timestamp", nextMilliTimestamp)
 		return BatchFuture
@@ -224,6 +229,8 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		log.Warn("span batch has no new blocks after safe head")
 		return BatchDrop
 	}
+
+	log.Warn("try derive, checkSpanBatch third", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
 
 	// finding parent block of the span batch.
 	// if the span batch does not overlap the current safe chain, parentBLock should be l2SafeHead.
@@ -254,6 +261,9 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			return BatchUndecided
 		}
 	}
+
+	log.Warn("try derive, checkSpanBatch fourth", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
+
 	if !batch.CheckParentHash(parentBlock.Hash) {
 		log.Warn("ignoring batch with mismatching parent hash", "parent_block", parentBlock.Hash)
 		return BatchDrop
@@ -264,6 +274,8 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		log.Warn("batch was included too late, sequence window expired")
 		return BatchDrop
 	}
+
+	log.Warn("try derive, checkSpanBatch five", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
 
 	// Check the L1 origin of the batch
 	if startEpochNum > parentBlock.L1Origin.Number+1 {
@@ -284,6 +296,9 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			break
 		}
 	}
+
+	log.Warn("try derive, checkSpanBatch six", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
+
 	if !originChecked {
 		log.Info("need more l1 blocks to check entire origins of span batch")
 		return BatchUndecided
@@ -296,6 +311,8 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 
 	originIdx := 0
 	originAdvanced := startEpochNum == parentBlock.L1Origin.Number+1
+
+	log.Warn("try derive, checkSpanBatch seven", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
 
 	for i := 0; i < batch.GetBlockCount(); i++ {
 		if batch.GetBlockTimestamp(i) <= l2SafeHead.MillisecondTimestamp() {
@@ -360,6 +377,8 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		}
 	}
 
+	log.Warn("try derive, checkSpanBatch eight", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
+
 	// Check overlapped blocks
 	if batch.GetTimestamp() < nextMilliTimestamp {
 		for i := uint64(0); i < l2SafeHead.Number-parentNum; i++ {
@@ -400,6 +419,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			}
 		}
 	}
+	log.Warn("try derive, checkSpanBatch nine", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
 
 	return BatchAccept
 }

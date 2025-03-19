@@ -58,6 +58,7 @@ func (aq *AttributesQueue) Origin() eth.L1BlockRef {
 
 func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2BlockRef) (*AttributesWithParent, error) {
 	// Get a batch if we need it
+	log.Info("try derive, sync step, derivation.Step, AttributesQueue.NextAttributes, first", "parent", parent)
 	if aq.batch == nil {
 		batch, isLastInSpan, err := aq.prev.NextBatch(ctx, parent)
 		if err != nil {
@@ -67,9 +68,11 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 		aq.batch = batch
 		aq.isLastInSpan = isLastInSpan
 	}
-
+	log.Info("try derive, sync step, derivation.Step, AttributesQueue.NextAttributes, second", "parent", parent)
 	// Actually generate the next attributes
-	if attrs, err := aq.createNextAttributes(ctx, aq.batch, parent); err != nil {
+	attrs, err := aq.createNextAttributes(ctx, aq.batch, parent)
+	log.Info("try derive, sync step, derivation.Step, AttributesQueue.NextAttributes, third", "parent", parent, "err", err)
+	if err != nil {
 		log.Info("try derive, failed to create next attribute", "parent", parent, "batch", aq.batch, "error", err)
 		return nil, err
 	} else {

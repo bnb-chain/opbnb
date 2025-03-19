@@ -391,9 +391,11 @@ func (e *EngineController) checkUpdateUnsafeHead(status eth.ExecutePayloadStatus
 // this is a no-op if the nodes already agree on the forkchoice state.
 func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 	if !e.needFCUCall {
+		log.Info("try derive, sync step, TryUpdateEngine first, not need update")
 		return ErrNoFCUNeeded
 	}
 	if e.IsEngineSyncing() {
+		log.Info("try derive, sync step, TryUpdateEngine second, el syncing not update")
 		e.log.Warn("Attempting to update forkchoice state while EL syncing")
 	}
 	fc := eth.ForkchoiceState{
@@ -404,6 +406,8 @@ func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 	logFn := e.logSyncProgressMaybe()
 	defer logFn()
 	_, err := e.engine.ForkchoiceUpdate(ctx, &fc, nil)
+	log.Info("try derive, sync step, TryUpdateEngine third, ForkchoiceUpdate", "unsafe", e.backupUnsafeHead,
+		"safe", e.safeHead, "finalizedHead", e.finalizedHead, "error", err)
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {
@@ -417,6 +421,8 @@ func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 			return NewTemporaryError(fmt.Errorf("failed to sync forkchoice with engine: %w", err))
 		}
 	}
+	log.Info("try derive, sync step, TryUpdateEngine four, ForkchoiceUpdate success", "unsafe", e.backupUnsafeHead,
+		"safe", e.safeHead, "finalizedHead", e.finalizedHead, "error", err)
 	e.needFCUCall = false
 	return nil
 }
@@ -582,6 +588,7 @@ func (e *EngineController) shouldTryBackupUnsafeReorg() bool {
 func (e *EngineController) TryBackupUnsafeReorg(ctx context.Context) (bool, error) {
 	if !e.shouldTryBackupUnsafeReorg() {
 		// Do not need to perform FCU.
+		log.Info("try derive, sync step, TryBackupUnsafeReorg first, not shouldTryBackupUnsafeReorg")
 		return false, nil
 	}
 	// Only try FCU once because execution engine may forgot backupUnsafeHead
@@ -598,6 +605,8 @@ func (e *EngineController) TryBackupUnsafeReorg(ctx context.Context) (bool, erro
 	logFn := e.logSyncProgressMaybe()
 	defer logFn()
 	fcRes, err := e.engine.ForkchoiceUpdate(ctx, &fc, nil)
+	log.Info("try derive, sync step, TryBackupUnsafeReorg second, ForkchoiceUpdate", "unsafe", e.backupUnsafeHead,
+		"safe", e.safeHead, "finalizedHead", e.finalizedHead, "fcRes", fcRes, "error", err)
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {
@@ -620,10 +629,15 @@ func (e *EngineController) TryBackupUnsafeReorg(ctx context.Context) (bool, erro
 		e.log.Info("successfully reorged unsafe head using backupUnsafe", "unsafe", e.backupUnsafeHead.ID())
 		e.SetUnsafeHead(e.BackupUnsafeL2Head())
 		e.SetBackupUnsafeL2Head(eth.L2BlockRef{}, false)
+
+		log.Info("try derive, sync step, TryBackupUnsafeReorg third, ForkchoiceUpdate return ExecutionValid", "unsafe", e.backupUnsafeHead,
+			"safe", e.safeHead, "finalizedHead", e.finalizedHead, "fcRes", fcRes, "error", err)
 		return true, nil
 	}
 	e.SetBackupUnsafeL2Head(eth.L2BlockRef{}, false)
 	// Execution engine could not reorg back to previous unsafe head.
+	log.Info("try derive, sync step, TryBackupUnsafeReorg four, ForkchoiceUpdate return not ExecutionValid", "unsafe", e.backupUnsafeHead,
+		"safe", e.safeHead, "finalizedHead", e.finalizedHead, "fcRes", fcRes, "error", err)
 	return true, NewTemporaryError(fmt.Errorf("cannot restore unsafe chain using backupUnsafe: err: %w",
 		eth.ForkchoiceUpdateErr(fcRes.PayloadStatus)))
 }

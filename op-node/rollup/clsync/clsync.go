@@ -82,6 +82,9 @@ func (eq *CLSync) Proceed(ctx context.Context) error {
 	firstEnvelope := eq.unsafePayloads.Peek()
 	first := firstEnvelope.ExecutionPayload
 
+	log.Info("try derive, sync step, clSync.Proceed first ", "firstEnvelope", first,
+		"safe", eq.ec.SafeL2Head(), "unsafe", eq.ec.UnsafeL2Head(), "finalized", eq.ec.Finalized())
+
 	if uint64(first.BlockNumber) <= eq.ec.SafeL2Head().Number {
 		eq.log.Info("skipping unsafe payload, since it is older than safe head", "safe", eq.ec.SafeL2Head().ID(), "unsafe", eq.ec.UnsafeL2Head().ID(), "unsafe_payload", first.ID())
 		eq.unsafePayloads.Pop()
@@ -92,6 +95,9 @@ func (eq *CLSync) Proceed(ctx context.Context) error {
 		eq.unsafePayloads.Pop()
 		return nil
 	}
+
+	log.Info("try derive, sync step, clSync.Proceed second ", "firstEnvelope", first,
+		"safe", eq.ec.SafeL2Head(), "unsafe", eq.ec.UnsafeL2Head(), "finalized", eq.ec.Finalized())
 
 	// Ensure that the unsafe payload builds upon the current unsafe head
 	if first.ParentHash != eq.ec.UnsafeL2Head().Hash {
@@ -109,14 +115,23 @@ func (eq *CLSync) Proceed(ctx context.Context) error {
 		return nil
 	}
 
+	log.Info("try derive, sync step, clSync.Proceed third ", "firstEnvelope", first,
+		"safe", eq.ec.SafeL2Head(), "unsafe", eq.ec.UnsafeL2Head(), "finalized", eq.ec.Finalized())
+
 	if err := eq.ec.InsertUnsafePayload(ctx, firstEnvelope, ref); errors.Is(err, derive.ErrTemporary) {
+		log.Info("try derive, sync step, clSync.Proceed InsertUnsafePayload four ", "firstEnvelope", first, "err", err)
+
 		eq.log.Debug("Temporary error while inserting unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 		return err
 	} else if err != nil {
+		log.Info("try derive, sync step, clSync.Proceed InsertUnsafePayload five ", "firstEnvelope", first, "err", err)
+
 		eq.log.Warn("Dropping invalid unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 		eq.unsafePayloads.Pop()
 		return err
 	}
+	log.Info("try derive, sync step, clSync.Proceed InsertUnsafePayload size ", "firstEnvelope", first, "err", err)
+
 	eq.unsafePayloads.Pop()
 	eq.log.Trace("Executed unsafe payload", "hash", ref.Hash, "number", ref.Number, "timestamp", ref.Time, "l1Origin", ref.L1Origin)
 	return nil

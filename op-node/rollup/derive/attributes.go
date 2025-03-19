@@ -60,6 +60,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	var depositTxs []hexutil.Bytes
 	var seqNumber uint64
 
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, first", "l2Parent", l2Parent, "epoch", epoch)
 	sysConfig, err := ba.l2.SystemConfigByL2Hash(ctx, l2Parent.Hash)
 	if err != nil {
 		return nil, NewTemporaryError(fmt.Errorf("failed to retrieve L2 parent block: %w", err))
@@ -69,6 +70,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	// case we need to fetch all transaction receipts from the L1 origin block so we can scan for
 	// user deposits.
 	if l2Parent.L1Origin.Number != epoch.Number {
+		log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, second", "l2Parent", l2Parent, "epoch", epoch)
 		info, receipts, err := ba.l1.FetchReceipts(ctx, epoch.Hash)
 		if err != nil {
 			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and receipts: %w", err))
@@ -90,10 +92,12 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 			return nil, NewCriticalError(fmt.Errorf("failed to apply derived L1 sysCfg updates: %w", err))
 		}
 
+		log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, third", "l2Parent", l2Parent, "epoch", epoch)
 		l1Info = info
 		depositTxs = deposits
 		seqNumber = 0
 	} else {
+		log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, four", "l2Parent", l2Parent, "epoch", epoch)
 		if l2Parent.L1Origin.Hash != epoch.Hash {
 			return nil, NewResetError(fmt.Errorf("cannot create new block with L1 origin %s in conflict with L1 origin %s", epoch, l2Parent.L1Origin))
 		}
@@ -105,6 +109,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		depositTxs = nil
 		seqNumber = l2Parent.SequenceNumber + 1
 	}
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, five", "l2Parent", l2Parent, "epoch", epoch)
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
@@ -126,6 +131,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
 	nextL2MilliTime := ba.rollupCfg.NextMillisecondBlockTime(l2Parent.MillisecondTimestamp())
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, six", "l2Parent", l2Parent, "epoch", epoch, "nextL2MilliTime", nextL2MilliTime, "l1Info.MillisecondTimestamp()", l1Info.MillisecondTimestamp())
 	if nextL2MilliTime < l1Info.MillisecondTimestamp() {
 		return nil, NewResetError(fmt.Errorf("cannot build L2 block on top %s for time %d before L1 origin %s at time %d",
 			l2Parent, nextL2MilliTime, eth.ToBlockID(l1Info), l1Info.MillisecondTimestamp()))
@@ -151,6 +157,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	if err != nil {
 		return nil, NewCriticalError(fmt.Errorf("failed to create l1InfoTx: %w", err))
 	}
+
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, seven", "l2Parent", l2Parent, "epoch", epoch)
 
 	txs := make([]hexutil.Bytes, 0, 1+len(depositTxs)+len(upgradeTxs))
 	txs = append(txs, l1InfoTx)
@@ -180,6 +188,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		ParentBeaconBlockRoot: parentBeaconRoot,
 	}
 
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, eight", "l2Parent", l2Parent, "epoch", epoch, "IsVolta", ba.rollupCfg.IsVolta(nextL2MilliTime/1000))
+
 	isVoltaTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
 	pa.SetMillisecondTimestamp(nextL2MilliTime, isVoltaTime)
 	if isVoltaTime {
@@ -187,6 +197,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 	}
+	log.Info("try derive, sync step, derivation.Step, PreparePayloadAttributes, nine", "l2Parent", l2Parent, "epoch", epoch, "IsVolta", ba.rollupCfg.IsVolta(nextL2MilliTime/1000))
 	return pa, nil
 }
 

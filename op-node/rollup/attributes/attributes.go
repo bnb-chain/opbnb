@@ -72,6 +72,7 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 		log.Info("try derive, return eof due to eq.attributes is nil")
 		return io.EOF
 	}
+	log.Info("try derive, sync step, derivation.Step, AttributesHandler.Proceed, first")
 	// validate the safe attributes before processing them. The engine may have completed processing them through other means.
 	if eq.ec.PendingSafeL2Head() != eq.attributes.Parent {
 		// Previously the attribute's parent was the pending safe head. If the pending safe head advances so pending safe head's parent is the same as the
@@ -89,6 +90,7 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 		return derive.NewResetError(fmt.Errorf("pending safe head changed to %s with parent %s, conflicting with queued safe attributes on top of %s",
 			eq.ec.PendingSafeL2Head(), eq.ec.PendingSafeL2Head().ParentID(), eq.attributes.Parent))
 	}
+	log.Info("try derive, sync step, derivation.Step, AttributesHandler.Proceed, second")
 	if eq.ec.PendingSafeL2Head().Number < eq.ec.UnsafeL2Head().Number {
 		if err := eq.consolidateNextSafeAttributes(ctx, eq.attributes); err != nil {
 			log.Info("try derive, failed to consolidate safe",
@@ -98,6 +100,7 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 				"error", err)
 			return err
 		}
+		log.Info("try derive, sync step, derivation.Step, AttributesHandler.Proceed, thord")
 		eq.attributes = nil
 		return nil
 	} else if eq.ec.PendingSafeL2Head().Number == eq.ec.UnsafeL2Head().Number {
@@ -109,6 +112,7 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 				"error", err)
 			return err
 		}
+		log.Info("try derive, sync step, derivation.Step, AttributesHandler.Proceed, four")
 		eq.attributes = nil
 		return nil
 	} else {
