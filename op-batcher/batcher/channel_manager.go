@@ -368,7 +368,8 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
 		// set volta flag at startup
 		s.isVolta = true
-		log.Info("succeed to set is volta flag", "block_time", block.Time())
+		log.Info("succeed to set is volta flag", "block_time", block.Time(),
+			"l2 block num", block.Number())
 	}
 
 	s.metr.RecordL2BlockInPendingQueue(block)
@@ -385,6 +386,8 @@ func l2BlockRefFromBlockAndL1Info(block *types.Block, l1info *derive.L1BlockInfo
 		milliPart = uint64(eth.Bytes32(block.MixDigest())[0])*256 + uint64(eth.Bytes32(block.MixDigest())[1])
 	}
 
+	log.Debug("generate l2 block ref:", "milli-timestamp", milliPart,
+		"seconds-timestamp", block.Time(), "l2 block number", block.Number())
 	return eth.L2BlockRef{
 		Hash:           block.Hash(),
 		Number:         block.NumberU64(),

@@ -438,7 +438,7 @@ func (s *Driver) eventLoop() {
 				continue
 			} else if err != nil && errors.Is(err, derive.ErrReset) {
 				// If the pipeline corrupts, e.g. due to a reorg, simply reset it
-				s.log.Warn("Derivation pipeline is reset", "err", err)
+				s.log.Warn("Derivation pipeline is reset", "l1 origin", s.derivation.Origin().Number, "err", err)
 				s.derivation.Reset()
 				s.metrics.RecordPipelineReset()
 				continue

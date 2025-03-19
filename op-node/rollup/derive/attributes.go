@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -178,7 +179,14 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
 	}
-	pa.SetMillisecondTimestamp(nextL2MilliTime, ba.rollupCfg.IsVolta(nextL2MilliTime/1000))
+
+	isVoltaTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
+	pa.SetMillisecondTimestamp(nextL2MilliTime, isVoltaTime)
+	if isVoltaTime {
+		log.Debug("succeed to build payload attributes after fork",
+			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
+			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
+	}
 	return pa, nil
 }
 

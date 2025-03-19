@@ -396,6 +396,10 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		}
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
+	if millisecondTimestamp {
+		log.Debug("succeed to build span batch with milliseconds timestamp", "rel timestamp", b.relTimestamp,
+			"first l1 origin", spanBatch.GetStartEpochNum(), "block count", spanBatch.GetBlockCount())
+	}
 	return &spanBatch, nil
 }
 

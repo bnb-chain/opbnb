@@ -253,7 +253,9 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err // bubble up critical errors.
 			} else if errors.Is(err, derive.ErrReset) {
-				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
+				d.log.Error("sequencer failed to seal new block, requiring derivation reset",
+					"L2 block number", onto.Number, "L1 origin", onto.L1Origin.Number, "timestamp_ms",
+					onto.MilliTime, "timestamp_second", onto.Time, "err", err)
 				d.metrics.RecordSequencerReset()
 				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(blockInterval)) // hold off from sequencing for a full block
 				d.CancelBuildingBlock(ctx)
@@ -282,7 +284,8 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err
 			} else if errors.Is(err, derive.ErrReset) {
-				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
+				d.log.Error("sequencer failed to seal new block, requiring derivation reset",
+					"L2 block number", onto.Number, "timestamp_ms", onto.MilliTime, "timestamp_second", onto.Time, "err", err)
 				d.metrics.RecordSequencerReset()
 				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(blockInterval)) // hold off from sequencing for a full block
 				return nil, err
