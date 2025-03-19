@@ -429,25 +429,31 @@ func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 
 func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *eth.ExecutionPayloadEnvelope, ref eth.L2BlockRef) error {
 	// Check if there is a finalized head once when doing EL sync. If so, transition to CL sync
+	log.Info("try derive, InsertUnsafePayload 1", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 	if e.syncStatus == syncStatusWillStartEL {
+		log.Info("try derive, InsertUnsafePayload 2", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
 		currentUnsafe := e.GetCurrentUnsafeHead(ctx)
 		rollupGenesisIsFinalized := b.Hash == e.rollupCfg.Genesis.L2.Hash
 		isGapSyncNeeded := ref.Number-currentUnsafe.Number > uint64(e.elTriggerGap)
 		if errors.Is(err, ethereum.NotFound) || rollupGenesisIsFinalized || isGapSyncNeeded {
+			log.Info("try derive, InsertUnsafePayload 3", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")
 			e.elStart = e.clock.Now()
 		} else if err == nil {
+			log.Info("try derive, InsertUnsafePayload 4", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 			e.syncStatus = syncStatusFinishedEL
 			e.log.Info("Skipping EL sync and going straight to CL sync because there is a finalized block", "id", b.ID())
 			return nil
 		} else {
+			log.Info("try derive, InsertUnsafePayload 5", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 			return NewTemporaryError(fmt.Errorf("failed to fetch finalized head: %w", err))
 		}
 	}
 	// Insert the payload & then call FCU
 	status, err := e.engine.NewPayload(ctx, envelope.ExecutionPayload, envelope.ParentBeaconBlockRoot)
+	log.Info("try derive, InsertUnsafePayload 6", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead, "err", err)
 	if err != nil {
 		if strings.Contains(err.Error(), ErrELSyncTriggerUnexpected.Error()) {
 			log.Info("el sync triggered as unexpected")
@@ -463,6 +469,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 
 	//process inconsistent state
 	if status.Status == eth.ExecutionInconsistent || e.checkELSyncTriggered(status.Status, err) {
+		log.Info("try derive, InsertUnsafePayload 7", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		currentL2Info, err := e.getCurrentL2Info(ctx)
 		if err != nil {
 			return NewTemporaryError(fmt.Errorf("failed to process inconsistent state: %w", err))
@@ -476,13 +483,17 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 			FinalizedBlockHash: e.finalizedHead.Hash,
 		}
 
+		log.Info("try derive, InsertUnsafePayload 8", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		needSyncWithEngine, err = e.trySyncingWithEngine(ctx, fcuReq)
+		log.Info("try derive, InsertUnsafePayload 9", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		if err != nil {
 			return NewTemporaryError(err)
 		}
 	}
 
+	log.Info("try derive, InsertUnsafePayload 10", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 	if !e.checkNewPayloadStatus(status.Status) {
+		log.Info("try derive, InsertUnsafePayload 11", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		payload := envelope.ExecutionPayload
 		return NewTemporaryError(fmt.Errorf("cannot process unsafe payload: new - %v; parent: %v; err: %w",
 			payload.ID(), payload.ParentID(), eth.NewPayloadErr(payload, status)))
@@ -495,8 +506,10 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		FinalizedBlockHash: e.finalizedHead.Hash,
 	}
 
+	log.Info("try derive, InsertUnsafePayload 12", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 	//update unsafe,safe,finalize and send fcu for sync
 	if needSyncWithEngine {
+		log.Info("try derive, InsertUnsafePayload 13", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		log.Info("engine meet inconsistent, sync status")
 		currentUnsafe, _ := e.engine.L2BlockRefByLabel(ctx, eth.Unsafe)
 		//reset unsafe
@@ -522,6 +535,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	_ = needResetFinalizedHead
 
 	if e.syncStatus == syncStatusFinishedELButNotFinalized {
+		log.Info("try derive, InsertUnsafePayload 14", "unsafe", e.unsafeHead, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		fc.SafeBlockHash = envelope.ExecutionPayload.BlockHash
 		fc.FinalizedBlockHash = envelope.ExecutionPayload.BlockHash
 		e.SetSafeHead(ref)
@@ -530,6 +544,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	logFn := e.logSyncProgressMaybe()
 	defer logFn()
 	fcRes, err := e.engine.ForkchoiceUpdate(ctx, &fc, nil)
+	log.Info("try derive, InsertUnsafePayload 15", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead, "err", err, "fcRes", fcRes)
 	if err != nil {
 		var inputErr eth.InputError
 		if errors.As(err, &inputErr) {
@@ -544,6 +559,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		}
 	}
 	if !e.checkForkchoiceUpdatedStatus(fcRes.PayloadStatus.Status) {
+		log.Info("try derive, InsertUnsafePayload 16", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead)
 		payload := envelope.ExecutionPayload
 		return NewTemporaryError(fmt.Errorf("cannot prepare unsafe chain for new payload: new - %v; parent: %v; err: %w",
 			payload.ID(), payload.ParentID(), eth.ForkchoiceUpdateErr(fcRes.PayloadStatus)))
@@ -552,14 +568,17 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 	e.needFCUCall = false
 	// unsafe will update to the latest broadcast block anyway, this will trigger an el sync in geth when meet an inconsistent state and accelerate recover progress.
 	if e.checkUpdateUnsafeHead(fcRes.PayloadStatus.Status) {
+		log.Info("try derive, InsertUnsafePayload 17", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead, "err", err, "fcRes", fcRes)
 		e.SetUnsafeHead(ref)
 	}
 
 	if e.syncStatus == syncStatusFinishedELButNotFinalized {
+		log.Info("try derive, InsertUnsafePayload 18", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead, "err", err, "fcRes", fcRes)
 		e.log.Info("Finished EL sync", "sync_duration", e.clock.Since(e.elStart), "finalized_block", ref.ID().String())
 		e.syncStatus = syncStatusFinishedEL
 		e.SetUnsafeHead(ref)
 	}
+	log.Info("try derive, InsertUnsafePayload 19", "unsafe", envelope.ExecutionPayload, "safe", e.safeAttrs, "finalizedHead", e.finalizedHead, "err", err, "fcRes", fcRes)
 
 	return nil
 }

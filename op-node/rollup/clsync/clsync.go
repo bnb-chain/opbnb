@@ -82,6 +82,8 @@ func (eq *CLSync) Proceed(ctx context.Context) error {
 	firstEnvelope := eq.unsafePayloads.Peek()
 	first := firstEnvelope.ExecutionPayload
 
+	log.Info("try derive, sync step, clSync.Proceed first 111", "eq.unsafePayloads.Len()", eq.unsafePayloads.Len())
+
 	log.Info("try derive, sync step, clSync.Proceed first ", "firstEnvelope", first,
 		"safe", eq.ec.SafeL2Head(), "unsafe", eq.ec.UnsafeL2Head(), "finalized", eq.ec.Finalized())
 

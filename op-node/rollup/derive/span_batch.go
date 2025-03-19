@@ -375,7 +375,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 	} else {
 		blockInterval = rollup.BeforeVoltBlockTime
 	}
-	log.Info("span batch derive", "VoltaTime", *rollupCfg.VoltaTime, "genesisTimestamp", genesisTimestamp, "blockInterval", blockInterval, "millisecondTimestamp", millisecondTimestamp)
+	log.Info("span batch derive", "VoltaTime", *rollupCfg.VoltaTime, "genesisTimestamp", genesisTimestamp, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp, "millisecondTimestamp", millisecondTimestamp)
 
 	spanBatch := SpanBatch{
 		ParentCheck:   b.parentCheck,
@@ -387,9 +387,11 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		if millisecondTimestamp {
 			// relTimestamp and blockInterval has changed to millisecond
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + blockInterval*uint64(i)
+			log.Info("span batch derive", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp)
 		} else {
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)
+			log.Info("span batch derive, millisecondTimestamp", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp*1000)
 		}
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {
@@ -588,7 +590,7 @@ func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 	if cfg.IsVolta(span_start.Timestamp) {
 		relTs = span_start.Timestamp - b.MillisecondGenesisTimestamp()
 	} else {
-		relTs = span_start.Timestamp + b.GenesisTimestamp
+		relTs = span_start.Timestamp - b.GenesisTimestamp
 	}
 	log.Info("succeed to make raw span_batch",
 		"span_start_timestamp", span_start.Timestamp,

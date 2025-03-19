@@ -64,13 +64,17 @@ func (cr *ChannelInReader) NextChannel() {
 // It returns io.EOF when it cannot make any more progress.
 // It will return a temporary error if it needs to be called again to advance some internal state.
 func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
+	log.Info("try derive, ChannelInReader first")
 	if cr.nextBatchFn == nil {
 		if data, err := cr.prev.NextData(ctx); err == io.EOF {
+			log.Info("try derive, ChannelInReader second")
 			return nil, io.EOF
 		} else if err != nil {
+			log.Info("try derive, ChannelInReader third", "err", err)
 			return nil, err
 		} else {
 			if err := cr.WriteChannel(data); err != nil {
+				log.Info("try derive, ChannelInReader four", "err", err)
 				return nil, NewTemporaryError(err)
 			}
 		}
@@ -79,6 +83,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 	// TODO: can batch be non nil while err == io.EOF
 	// This depends on the behavior of rlp.Stream
 	batchData, err := cr.nextBatchFn()
+	log.Info("try derive, ChannelInReader five", "err", err)
 	if err == io.EOF {
 		cr.NextChannel()
 		return nil, NotEnoughData
@@ -107,7 +112,9 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 		}
 		// double check
 		// temp VoltBlockTime
+		log.Info("try derive, DeriveSpanBatch before")
 		batch.Batch, err = DeriveSpanBatch(batchData, cr.cfg, cr.cfg.Genesis.L2Time, cr.cfg.L2ChainID)
+		log.Info("try derive, DeriveSpanBatch after", "batch", batch.Batch, "err", err)
 		if err != nil {
 			return nil, err
 		}

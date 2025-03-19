@@ -219,13 +219,21 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 
 	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 
-	log.Warn("try derive, checkSpanBatch second", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch", batch)
+	log.Warn("try derive, checkSpanBatch second", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch.GetTimestamp()", batch.GetTimestamp(), "batch", batch)
+
+	for i, b := range batch.Batches {
+		log.Info("try derive, checkSpanBatch info", "index", i, "Timestamp", b.Timestamp, "EpochNum", b.EpochNum)
+	}
 
 	if batch.GetTimestamp() > nextMilliTimestamp {
 		log.Trace("received out-of-order batch for future processing after next batch", "next_ms_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
 	if batch.GetBlockTimestamp(batch.GetBlockCount()-1) < nextMilliTimestamp {
+		for i, b := range batch.Batches {
+			log.Warn("try derive, checkSpanBatch second 2222222", "index", i, "EpochNum", b.EpochNum, "Timestamp", b.Timestamp)
+		}
+		log.Warn("try derive, checkSpanBatch second 2222222", "l2SafeHead", l2SafeHead, "nextMilliTimestamp", nextMilliTimestamp, "batch.GetBlockTimestamp(batch.GetBlockCount()-1)", batch.GetBlockTimestamp(batch.GetBlockCount()-1))
 		log.Warn("span batch has no new blocks after safe head")
 		return BatchDrop
 	}
