@@ -215,10 +215,11 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			log.Warn("batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
-		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%rollup.VoltBlockTime != 0 {
-			log.Warn("batch has misaligned timestamp, not overlapped exactly")
-			return BatchDrop
-		}
+		// TODO:
+		//if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%rollup.VoltBlockTime != 0 {
+		//	log.Warn("batch has misaligned timestamp, not overlapped exactly")
+		//	return BatchDrop
+		//}
 		//parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/cfg.MillisecondBlockInterval() - 1
 		var err error
 		parentNum, err = cfg.TargetBlockNumber(batch.GetTimestamp())
