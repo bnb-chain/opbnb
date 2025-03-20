@@ -254,15 +254,20 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			log.Warn("batch has misaligned timestamp, not overlapped exactly")
 			return BatchDrop
 		}
-		//parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/cfg.MillisecondBlockInterval() - 1
+		parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/rollup.BeforeVoltBlockTime - 1
+
 		var err error
-		parentNum, err = cfg.TargetBlockNumber(batch.GetTimestamp())
+		var parentNumNew uint64
+		parentNumNew, err = cfg.TargetBlockNumber(batch.GetTimestamp())
+		log.Info("try derive, compute parent", "old_parent", parentNum, "new_parent", parentNumNew-1, "err", err)
 		if err != nil {
 			log.Warn("failed to computer batch parent number", "batch_ms_time", batch.GetTimestamp(), "err", err)
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
-		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
+		parentNumNew = parentNumNew - 1
+
+		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNumNew)
 		if err != nil {
 			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
 			// unable to validate the batch for now. retry later.

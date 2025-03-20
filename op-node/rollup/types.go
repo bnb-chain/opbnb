@@ -267,7 +267,7 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	if voltaBlockNumber == 0 || blockNumber <= voltaBlockNumber {
 		return cfg.Genesis.L2Time*1000 + ((blockNumber - cfg.Genesis.L2.Number) * BeforeVoltBlockTime)
 	} else {
-		return voltaBlockNumber + *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*VoltBlockTime
+		return *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*VoltBlockTime
 	}
 }
 
