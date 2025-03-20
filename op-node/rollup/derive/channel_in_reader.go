@@ -91,7 +91,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 	batch := batchWithMetadata{comprAlgo: batchData.ComprAlgo}
 	switch batchData.GetBatchType() {
 	case SingularBatchType:
-		batch.Batch, err = GetSingularBatch(batchData)
+		batch.Batch, err = GetSingularBatch(batchData, cr.cfg)
 		if err != nil {
 			return nil, err
 		}
