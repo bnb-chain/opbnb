@@ -444,8 +444,6 @@ type SpanBatch struct {
 	originBits    *big.Int
 	blockTxCounts []uint64
 	sbtxs         *spanBatchTxs
-
-	cfg *rollup.Config
 }
 
 func (b *SpanBatch) AsSingularBatch() (*SingularBatch, bool) { return nil, false }
