@@ -227,6 +227,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
+		parentNum = parentNum - 1
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {
 			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
