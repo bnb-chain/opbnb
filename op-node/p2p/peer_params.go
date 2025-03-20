@@ -33,7 +33,8 @@ func ScoreDecay(duration time.Duration, slot time.Duration) float64 {
 //
 // [PeerScoreParams]: https://pkg.go.dev/github.com/libp2p/go-libp2p-pubsub@v0.8.1#PeerScoreParams
 func LightPeerScoreParams(cfg *rollup.Config) pubsub.PeerScoreParams {
-	slot := time.Duration(rollup.VoltBlockTime) * time.Millisecond
+	// TODO:
+	slot := time.Duration(0)
 	if slot == 0 {
 		slot = 2 * time.Second
 	}
