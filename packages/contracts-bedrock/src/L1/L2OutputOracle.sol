@@ -316,7 +316,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice Checks the given l2 block number is valid.
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return True that can submit output root, otherwise false.
-    function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (uint256) {
+    function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (bool) {
         uint256 l2Timestamp = block.number <= voltaBlockNumber
             ? computeL2Timestamp(_l2BlockNumber)
             : computeL2TimestampAfterVolta(_l2BlockNumber);
