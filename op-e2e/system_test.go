@@ -359,6 +359,7 @@ func TestConfirmationDepth(t *testing.T) {
 
 	cfg := DefaultSystemConfig(t)
 	cfg.DeployConfig.SequencerWindowSize = 4
+	// need check if it is right to use milliseconds time to compute
 	cfg.DeployConfig.MaxSequencerDrift = 10 * cfg.DeployConfig.L1BlockTime
 	seqConfDepth := uint64(2)
 	verConfDepth := uint64(5)
@@ -379,7 +380,7 @@ func TestConfirmationDepth(t *testing.T) {
 
 	// Wait enough time for the sequencer to submit a block with distance from L1 head, submit it,
 	// and for the slower verifier to read a full sequence window and cover confirmation depth for reading and some margin
-	<-time.After(time.Duration((cfg.DeployConfig.SequencerWindowSize+verConfDepth+3)*cfg.DeployConfig.L1BlockTime) * time.Second)
+	<-time.After(time.Duration((cfg.DeployConfig.SequencerWindowSize+verConfDepth+3)*cfg.DeployConfig.L1BlockTime) * time.Millisecond)
 
 	// within a second, get both L1 and L2 verifier and sequencer block heads
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -842,7 +843,7 @@ func TestSystemDenseTopology(t *testing.T) {
 	// slow down L1 blocks so we can see the L2 blocks arrive well before the L1 blocks do.
 	// Keep the seq window small so the L2 chain is started quick
 	cfg.DeployConfig.L1BlockTime = 10
-
+	cfg.DeployConfig.L1BlockTime = cfg.DeployConfig.L1MillisecondBlockInterval()
 	// Append additional nodes to the system to construct a dense p2p network
 	cfg.Nodes["verifier2"] = &rollupNode.Config{
 		Driver: driver.Config{
@@ -1452,7 +1453,7 @@ func StopStartBatcher(t *testing.T, deltaTimeOffset *hexutil.Uint64) {
 	receipt := sendTx()
 
 	// wait until the block the tx was first included in shows up in the safe chain on the verifier
-	safeBlockInclusionDuration := time.Duration(6*cfg.DeployConfig.L1BlockTime) * time.Second
+	safeBlockInclusionDuration := time.Duration(6*cfg.DeployConfig.L1BlockTime) * time.Millisecond
 	_, err = geth.WaitForBlock(receipt.BlockNumber, l2Verif, safeBlockInclusionDuration)
 	require.NoError(t, err, "Waiting for block on verifier")
 	require.NoError(t, wait.ForProcessingFullBatch(context.Background(), rollupClient))

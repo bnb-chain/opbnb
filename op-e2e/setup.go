@@ -106,6 +106,12 @@ func DefaultSystemConfig(t testing.TB) SystemConfig {
 		premine[addr] = new(big.Int).Mul(big.NewInt(1000), big.NewInt(params.Ether))
 	}
 
+	log.Info("default system config123", " l2 block time", deployConfig.L2BlockTime,
+		"l1 block time", deployConfig.L1BlockTime)
+	fmt.Println("default system config123", " l2 block time", deployConfig.L2BlockTime,
+		"l1 block time", deployConfig.L1BlockTime)
+	//deployConfig.L2BlockTime = deployConfig.L2MillisecondBlockInterval()
+	//deployConfig.L1BlockTime = deployConfig.L1MillisecondBlockInterval()
 	return SystemConfig{
 		Secrets:                secrets,
 		Premine:                premine,
@@ -547,11 +553,6 @@ func (cfg SystemConfig) Start(t *testing.T, _opts ...SystemConfigOption) (*Syste
 		return nil, err
 	}
 	sys.RollupConfig = &defaultConfig
-	if sys.RollupConfig.BlockTime <= 3 {
-		// TODO: too many tests depend it, tmp work around it
-		// covert ms timestamp
-		sys.RollupConfig.BlockTime = sys.RollupConfig.BlockTime * 1000
-	}
 
 	// Create a fake Beacon node to hold on to blobs created by the L1 miner, and to serve them to L2
 	bcn := fakebeacon.NewBeacon(testlog.Logger(t, log.LevelInfo).New("role", "l1_cl"),
