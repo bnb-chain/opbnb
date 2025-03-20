@@ -29,7 +29,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @custom:network-specific
     uint256 public l2BlockTime;
 
-    /// @notice The time between L2 blocks in milliseconds) after Volta Hardfork.
+    /// @notice The time between L2 blocks in milliseconds after Volta Hardfork.
     /// @custom:network-specific
     uint256 public constant l2MillisecondsBlockTime = 500;
 
