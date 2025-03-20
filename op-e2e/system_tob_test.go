@@ -72,7 +72,6 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 
 	// Define our L1 transaction timeout duration.
 	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
-
 	// Update the gas config, wait for it to show up on L2, & verify that it was set as intended
 	opts.Context, cancel = context.WithTimeout(ctx, txTimeoutDuration)
 	tx, err := sysconfig.SetGasConfig(opts, overheadValue, scalarValue)
@@ -409,6 +408,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			cfg := DefaultSystemConfig(t)
 			cfg.Nodes["sequencer"].SafeDBPath = t.TempDir()
 			cfg.DeployConfig.L2BlockTime = 2
+
 			require.LessOrEqual(t, cfg.DeployConfig.FinalizationPeriodSeconds, uint64(6))
 			require.Equal(t, cfg.DeployConfig.FundDevAccounts, true)
 			sys, err := cfg.Start(t)

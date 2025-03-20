@@ -359,6 +359,7 @@ func TestConfirmationDepth(t *testing.T) {
 
 	cfg := DefaultSystemConfig(t)
 	cfg.DeployConfig.SequencerWindowSize = 4
+	// need check if it is right to use milliseconds time to compute
 	cfg.DeployConfig.MaxSequencerDrift = 10 * cfg.DeployConfig.L1BlockTime
 	seqConfDepth := uint64(2)
 	verConfDepth := uint64(5)
@@ -842,7 +843,6 @@ func TestSystemDenseTopology(t *testing.T) {
 	// slow down L1 blocks so we can see the L2 blocks arrive well before the L1 blocks do.
 	// Keep the seq window small so the L2 chain is started quick
 	cfg.DeployConfig.L1BlockTime = 10
-
 	// Append additional nodes to the system to construct a dense p2p network
 	cfg.Nodes["verifier2"] = &rollupNode.Config{
 		Driver: driver.Config{
