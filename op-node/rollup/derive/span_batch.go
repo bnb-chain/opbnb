@@ -387,11 +387,11 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		if millisecondTimestamp {
 			// relTimestamp and blockInterval has changed to millisecond
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + blockInterval*uint64(i)
-			log.Info("span batch derive", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp)
+			log.Info("span batch derive, millisecondTimestamp", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp, "batch.Timestamp ", batch.Timestamp)
 		} else {
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)
-			log.Info("span batch derive, millisecondTimestamp", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp*1000)
+			log.Info("span batch derive", "index", i, "genesisTimestamp", genesisTimestamp*1000, "blockInterval", blockInterval, "relTimestamp", b.relTimestamp*1000, "batch.Timestamp ", batch.Timestamp)
 		}
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {

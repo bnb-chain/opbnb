@@ -747,6 +747,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"ecotone_time", fmtForkTimeOrUnset(c.EcotoneTime),
 		"fjord_time", fmtForkTimeOrUnset(c.FjordTime),
 		"interop_time", fmtForkTimeOrUnset(c.InteropTime),
+		"volta_time", fmtForkTimeOrUnset(c.VoltaTime),
 		"fermat", c.Fermat,
 		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
 		"plasma_mode", c.PlasmaConfig != nil,
