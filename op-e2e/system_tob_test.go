@@ -71,8 +71,7 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 	require.Nil(t, err)
 
 	// Define our L1 transaction timeout duration.
-	//	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
-	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Millisecond
+	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
 	// Update the gas config, wait for it to show up on L2, & verify that it was set as intended
 	opts.Context, cancel = context.WithTimeout(ctx, txTimeoutDuration)
 	tx, err := sysconfig.SetGasConfig(opts, overheadValue, scalarValue)
@@ -251,8 +250,8 @@ func TestMixedDepositValidity(t *testing.T) {
 	require.NoError(t, err)
 
 	// Define our L1 transaction timeout duration.
-	// txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
-	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Millisecond
+	txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
+
 	// Create a struct used to track our transactors and their transactions sent.
 	type TestAccountState struct {
 		Account           *TestAccount
@@ -409,7 +408,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			cfg := DefaultSystemConfig(t)
 			cfg.Nodes["sequencer"].SafeDBPath = t.TempDir()
 			cfg.DeployConfig.L2BlockTime = 2
-			cfg.DeployConfig.L2BlockTime = cfg.DeployConfig.L2MillisecondBlockInterval()
+
 			require.LessOrEqual(t, cfg.DeployConfig.FinalizationPeriodSeconds, uint64(6))
 			require.Equal(t, cfg.DeployConfig.FundDevAccounts, true)
 			sys, err := cfg.Start(t)
@@ -439,8 +438,7 @@ func TestMixedWithdrawalValidity(t *testing.T) {
 			require.NotEqual(t, proposerBalance, big.NewInt(0))
 
 			// Define our L1 transaction timeout duration.
-			//txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
-			txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Millisecond
+			txTimeoutDuration := 10 * time.Duration(cfg.DeployConfig.L1BlockTime) * time.Second
 
 			// Bind to the deposit contract
 			depositContract, err := bindings.NewOptimismPortal(cfg.L1Deployments.OptimismPortalProxy, l1Client)
