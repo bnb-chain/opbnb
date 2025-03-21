@@ -223,6 +223,7 @@ func (s *L2Batcher) Buffer(t Testing) error {
 func (s *L2Batcher) ActL2ChannelClose(t Testing) {
 	// Don't run this action if there's no data to submit
 	if s.l2ChannelOut == nil {
+		log.Info(" ActL2ChannelClose")
 		t.InvalidAction("need to buffer data first, cannot batch submit with empty buffer")
 		return
 	}
@@ -233,6 +234,7 @@ func (s *L2Batcher) ActL2ChannelClose(t Testing) {
 func (s *L2Batcher) ActL2BatchSubmit(t Testing, txOpts ...func(tx *types.DynamicFeeTx)) {
 	// Don't run this action if there's no data to submit
 	if s.l2ChannelOut == nil {
+		log.Info("  ActL2BatchSubmit")
 		t.InvalidAction("need to buffer data first, cannot batch submit with empty buffer")
 		return
 	}
@@ -482,7 +484,9 @@ func (s *L2Batcher) ActL2BatchSubmitGarbage(t Testing, kind GarbageKind) {
 func (s *L2Batcher) ActBufferAll(t Testing) {
 	stat, err := s.syncStatusAPI.SyncStatus(t.Ctx())
 	require.NoError(t, err)
+	log.Info("act buffer all1")
 	for s.l2BufferedBlock.Number < stat.UnsafeL2.Number {
+		log.Info("act buffer all2")
 		s.ActL2BatchBuffer(t)
 	}
 }

@@ -95,15 +95,17 @@ func BatchInLastPossibleBlocks(gt *testing.T, deltaTimeOffset *hexutil.Uint64) {
 	makeL2BlockWithAliceTx()
 
 	for i := 0; i < 7; i++ {
+		log.Info("finish submit start", "index", i)
 		batcher.ActSubmitAll(t)
 		miner.ActL1StartBlock(4)(t)
-		log.Info("l1 batcher addr", sd.RollupCfg.Genesis.SystemConfig.BatcherAddr)
+		log.Info("l1 batcher addr", "addr", sd.RollupCfg.Genesis.SystemConfig.BatcherAddr)
 		miner.ActL1IncludeTx(sd.RollupCfg.Genesis.SystemConfig.BatcherAddr)(t)
 		miner.ActL1EndBlock(t)
 		sequencer.ActL1HeadSignal(t)
 		sequencer.ActL2PipelineFull(t)
 		makeL2BlockWithAliceTx()
 		makeL2BlockWithAliceTx()
+		log.Info("finish submit end", "index", i)
 	}
 
 	// 8 L1 blocks with 17 L2 blocks is the unsafe state.
