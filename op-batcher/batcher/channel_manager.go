@@ -263,7 +263,7 @@ func (s *channelManager) processBlocks() error {
 		latestL2ref eth.L2BlockRef
 	)
 	for i, block := range s.blocks {
-		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.HasTxData() {
+		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.InputBytes() != 0 {
 			// the current channel is before volta fork.
 			s.currentChannel.Close()
 			s.isVolta = true
