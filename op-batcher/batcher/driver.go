@@ -36,7 +36,11 @@ const LimitLoadBlocksOneTime uint64 = 30
 // Auto DA params
 const DATypeSwitchThrehold int = 5
 const CallDataMaxTxSize uint64 = 120000
-const ApproximateGasPerCallDataTx int64 = 1934892
+
+// Compatible with EIP-7623 multiplied by a factor.
+// detail: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7623.md
+const factor = 2.5
+const ApproximateGasPerCallDataTx = int64(1934892 * factor)
 const MaxBlobsNumberPerTx int64 = 6
 
 var ErrBatcherNotRunning = errors.New("batcher is not running")
