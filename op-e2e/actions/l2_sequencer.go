@@ -48,6 +48,7 @@ func NewL2Sequencer(t Testing, log log.Logger, l1 derive.L1Fetcher, blobSrc deri
 	ver := NewL2Verifier(t, log, l1, blobSrc, plasmaSrc, eng, cfg, &sync.Config{}, safedb.Disabled)
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, eng)
 	seqConfDepthL1 := driver.NewConfDepth(seqConfDepth, ver.l1State.L1Head, l1)
+	log.Info("l1 origin selector", "cfg time", cfg.BlockTime)
 	l1OriginSelector := &MockL1OriginSelector{
 		actual: driver.NewL1OriginSelector(log, cfg, seqConfDepthL1),
 	}
