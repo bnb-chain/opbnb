@@ -263,12 +263,13 @@ func (s *channelManager) processBlocks() error {
 		latestL2ref eth.L2BlockRef
 	)
 	for i, block := range s.blocks {
-		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.InputBytes() != 0 {
-			// the current channel is before volta fork.
-			s.currentChannel.Close()
+		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) {
 			s.isVolta = true
-			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
-			break
+			log.Info("occur volta hard fork", "channel_id", s.currentChannel.ID(), "block_time", block.Time(), "channel_input_bytes", s.currentChannel.InputBytes())
+			if s.currentChannel.InputBytes() != 0 {
+				s.currentChannel.Close()
+				break
+			}
 		}
 
 		l1info, err := s.currentChannel.AddBlock(block)
