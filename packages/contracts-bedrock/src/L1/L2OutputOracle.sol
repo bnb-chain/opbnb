@@ -30,7 +30,6 @@ contract L2OutputOracle is Initializable, ISemver {
     uint256 public l2BlockTime;
 
     /// @notice The time between L2 blocks in milliseconds after Volta Hardfork.
-    /// @custom:network-specific
     uint256 public constant l2MillisecondsBlockTime = 500;
 
     /// @notice The address of the challenger. Can be updated via upgrade.
@@ -46,9 +45,9 @@ contract L2OutputOracle is Initializable, ISemver {
     uint256 public finalizationPeriodSeconds;
 
     // TODO: compute accurate hardfork block number
-    /// @notice The block number of Volta Hardfork.
+    /// @notice The L2 block number of Volta Hardfork.
     /// @custom:network-specific
-    uint256 public constant voltaBlockNumber = 1000;
+    uint256 public constant voltaBlockNumber = 138901;
 
     /// @notice Emitted when an output is proposed.
     /// @param outputRoot    The output root.
@@ -317,11 +316,11 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return True that can submit output root, otherwise false.
     function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (bool) {
-        uint256 l2Timestamp = block.number <= voltaBlockNumber
+        uint256 l2Timestamp = _l2BlockNumber <= voltaBlockNumber
             ? computeL2Timestamp(_l2BlockNumber)
             : computeL2TimestampAfterVolta(_l2BlockNumber);
 
-        uint256 currentTimestamp = block.number <= voltaBlockNumber ? block.timestamp : block.timestamp * 1000;
+        uint256 currentTimestamp = _l2BlockNumber <= voltaBlockNumber ? block.timestamp : block.timestamp * 1000;
 
         return l2Timestamp < currentTimestamp;
     }
@@ -330,6 +329,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return L2 timestamp of the given block in seconds.
     function computeL2Timestamp(uint256 _l2BlockNumber) public view returns (uint256) {
+        // _l2BlockNumber： 480, startingBlockNumber: 0, l2BlockTime: 1
         return startingTimestamp + ((_l2BlockNumber - startingBlockNumber) * l2BlockTime);
     }
 
