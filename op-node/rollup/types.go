@@ -174,6 +174,9 @@ func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 
 	if cfg.IsVolta(millisecondTimestamp / 1000) {
 		return MillisecondBlockIntervalVolta
 	}
+	if cfg.BlockTime > 3 {
+		return cfg.BlockTime
+	}
 	return cfg.BlockTime * 1000
 }
 
