@@ -78,7 +78,7 @@ func RandomRawSpanBatch(rng *rand.Rand, chainId *big.Int) *RawSpanBatch {
 
 func RandomValidConsecutiveSingularBatches(rng *rand.Rand, chainID *big.Int) []*SingularBatch {
 	blockCount := 2 + rng.Intn(128)
-	l2BlockTime := uint64(2) * 1000 // ms
+	l2BlockTime := uint64(2)
 
 	var singularBatches []*SingularBatch
 	for i := 0; i < blockCount; i++ {
@@ -87,7 +87,7 @@ func RandomValidConsecutiveSingularBatches(rng *rand.Rand, chainID *big.Int) []*
 	}
 	l1BlockNum := rng.Uint64()
 	// make sure oldest timestamp is large enough
-	singularBatches[0].Timestamp += 256 * 1000 // ms
+	singularBatches[0].Timestamp += 256
 	for i := 0; i < blockCount; i++ {
 		originChangedBit := rng.Intn(2)
 		if originChangedBit == 1 {
@@ -160,7 +160,9 @@ func TestBatchRoundTrip(t *testing.T) {
 		err = dec.UnmarshalBinary(enc)
 		require.NoError(t, err)
 		if dec.GetBatchType() == SpanBatchType {
-			_, err := DeriveSpanBatch(&dec, blockTime, genesisTimestamp, chainID)
+			var cfg rollup.Config
+			cfg.BlockTime = blockTime
+			_, err := DeriveSpanBatch(&dec, &cfg, genesisTimestamp, chainID)
 			require.NoError(t, err)
 		}
 		require.Equal(t, batch, &dec, "Batch not equal test case %v", i)
@@ -208,7 +210,9 @@ func TestBatchRoundTripRLP(t *testing.T) {
 		err = dec.DecodeRLP(s)
 		require.NoError(t, err)
 		if dec.GetBatchType() == SpanBatchType {
-			_, err = DeriveSpanBatch(&dec, blockTime, genesisTimestamp, chainID)
+			var cfg rollup.Config
+			cfg.BlockTime = blockTime
+			_, err = DeriveSpanBatch(&dec, &cfg, genesisTimestamp, chainID)
 			require.NoError(t, err)
 		}
 		require.Equal(t, batch, &dec, "Batch not equal test case %v", i)

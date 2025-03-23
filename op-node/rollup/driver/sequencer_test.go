@@ -184,7 +184,7 @@ func TestSequencerChaosMonkey(t *testing.T) {
 			L2Time:       l1Time + 300, // L2 may start with a relative old L1 origin and will have to catch it up
 			SystemConfig: eth.SystemConfig{},
 		},
-		BlockTime:         2000,
+		BlockTime:         2,
 		MaxSequencerDrift: 30,
 	}
 	// keep track of the L1 timestamps we mock because sometimes we only have the L1 hash/num handy
@@ -259,7 +259,7 @@ func TestSequencerChaosMonkey(t *testing.T) {
 
 		testGasLimit := eth.Uint64Quantity(10_000_000)
 		return &eth.PayloadAttributes{
-			Timestamp:             eth.Uint64Quantity(l2Parent.Time + cfg.SecondBlockInterval()),
+			Timestamp:             eth.Uint64Quantity(l2Parent.Time + cfg.BlockTime),
 			PrevRandao:            eth.Bytes32{},
 			SuggestedFeeRecipient: common.Address{},
 			Transactions:          []eth.Data{infoDep},
@@ -375,7 +375,7 @@ func TestSequencerChaosMonkey(t *testing.T) {
 	l2Head := engControl.UnsafeL2Head()
 	t.Logf("avg build time: %s, clock timestamp: %d, L2 head time: %d, L1 origin time: %d, avg txs per block: %f", engControl.avgBuildingTime(), clockFn().Unix(), l2Head.Time, l1Times[l2Head.L1Origin], engControl.avgTxsPerBlock())
 	require.Equal(t, engControl.totalBuiltBlocks, desiredBlocks, "persist through random errors and build the desired blocks")
-	require.Equal(t, l2Head.MillisecondTimestamp(), cfg.Genesis.L2Time*1000+uint64(desiredBlocks)*cfg.BlockTime, "reached desired L2 block timestamp")
+	require.Equal(t, l2Head.MillisecondTimestamp(), (cfg.Genesis.L2Time+uint64(desiredBlocks)*cfg.BlockTime)*1000, "reached desired L2 block timestamp")
 	require.GreaterOrEqual(t, l2Head.Time, l1Times[l2Head.L1Origin], "the L2 time >= the L1 time")
 	require.Less(t, l2Head.Time-l1Times[l2Head.L1Origin], uint64(100), "The L1 origin time is close to the L2 time")
 	require.Less(t, clockTime.Sub(time.Unix(int64(l2Head.Time), 0)).Abs(), 2*time.Second, "L2 time is accurate, within 2 seconds of wallclock")

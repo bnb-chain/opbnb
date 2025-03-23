@@ -534,7 +534,7 @@ func TestTimestampForBlock(t *testing.T) {
 			name:              "FirstBlock",
 			genesisTime:       100,
 			genesisBlock:      0,
-			blockTime:         2000,
+			blockTime:         2,
 			blockNum:          0,
 			expectedBlockTime: 100,
 		},
@@ -542,7 +542,7 @@ func TestTimestampForBlock(t *testing.T) {
 			name:              "SecondBlock",
 			genesisTime:       100,
 			genesisBlock:      0,
-			blockTime:         2000,
+			blockTime:         2,
 			blockNum:          1,
 			expectedBlockTime: 102,
 		},
@@ -550,7 +550,7 @@ func TestTimestampForBlock(t *testing.T) {
 			name:              "NBlock",
 			genesisTime:       100,
 			genesisBlock:      0,
-			blockTime:         2000,
+			blockTime:         2,
 			blockNum:          25,
 			expectedBlockTime: 150,
 		},
@@ -563,7 +563,7 @@ func TestTimestampForBlock(t *testing.T) {
 			config.Genesis.L2.Number = test.genesisBlock
 			config.BlockTime = test.blockTime
 
-			timestamp := config.TimestampForBlock(test.blockNum)
+			timestamp := config.MillisecondTimestampForBlock(test.blockNum) / 1000
 			assert.Equal(t, timestamp, test.expectedBlockTime)
 		})
 	}

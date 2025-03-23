@@ -24,33 +24,38 @@ type ValidBatchTestCase struct {
 	L2SafeHead     eth.L2BlockRef
 	Batch          BatchWithL1InclusionBlock
 	Expected       BatchValidity
-	ExpectedLog    string               // log message that must be included
-	NotExpectedLog string               // log message that must not be included
-	ConfigMod      func(*rollup.Config) // optional rollup config mod
+	ExpectedLog    string                                    // log message that must be included
+	NotExpectedLog string                                    // log message that must not be included
+	ConfigMod      func(*rollup.Config, *ValidBatchTestCase) // optional rollup config mod
 }
 
 var zero64 = uint64(0)
 
-func deltaAtGenesis(c *rollup.Config) {
+func deltaAtGenesis(c *rollup.Config, t *ValidBatchTestCase) {
 	c.DeltaTime = &zero64
+	_ = t
 }
 
-func deltaAt(t *uint64) func(*rollup.Config) {
-	return func(c *rollup.Config) {
+func setDeltaAndL2Time(c *rollup.Config, t *ValidBatchTestCase) {
+	c.DeltaTime = &zero64
+	c.Genesis.L2Time = t.L2SafeHead.Time - t.L2SafeHead.Number*defaultBlockTime
+}
+
+func deltaAt(t *uint64) func(*rollup.Config, *ValidBatchTestCase) {
+	return func(c *rollup.Config, v *ValidBatchTestCase) {
 		c.DeltaTime = t
 	}
 }
-
-func fjordAt(t *uint64) func(*rollup.Config) {
-	return func(c *rollup.Config) {
+func fjordAt(t *uint64) func(*rollup.Config, *ValidBatchTestCase) {
+	return func(c *rollup.Config, v *ValidBatchTestCase) {
 		c.FjordTime = t
 	}
 }
 
-func multiMod[T any](mods ...func(T)) func(T) {
-	return func(x T) {
+func multiMod[T any, T1 any](mods ...func(T, T1)) func(T, T1) {
+	return func(x T, y T1) {
 		for _, mod := range mods {
-			mod(x)
+			mod(x, y)
 		}
 	}
 }
@@ -63,7 +68,7 @@ func TestValidBatch(t *testing.T) {
 			Genesis: rollup.Genesis{
 				L2Time: 31, // a genesis time that itself does not align to make it more interesting
 			},
-			BlockTime:         defaultBlockTime * 1000,
+			BlockTime:         defaultBlockTime,
 			SeqWindowSize:     4,
 			MaxSequencerDrift: 6,
 		}
@@ -77,6 +82,7 @@ func TestValidBatch(t *testing.T) {
 	randTxData, _ := randTx.MarshalBinary()
 
 	l1A := testutils.RandomBlockRef(rng)
+	l1A.Time = l1A.Time / 1000 // Avoid mock time too bigger
 	l1B := eth.L1BlockRef{
 		Hash:       testutils.RandomHash(rng),
 		Number:     l1A.Number + 1,
@@ -279,7 +285,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected: BatchDrop,
 		},
-		{ // TODO:
+		{
 			Name:       "misaligned timestamp",
 			L1Blocks:   []eth.L1BlockRef{l1A, l1B, l1C},
 			L2SafeHead: l2A0,
@@ -1215,7 +1221,7 @@ func TestValidBatch(t *testing.T) {
 				}, uint64(0), big.NewInt(0)),
 			},
 			Expected:  BatchAccept,
-			ConfigMod: deltaAtGenesis,
+			ConfigMod: setDeltaAndL2Time,
 		},
 		{
 			Name:       "longer overlapping batch",
@@ -1248,7 +1254,7 @@ func TestValidBatch(t *testing.T) {
 				}, uint64(0), big.NewInt(0)),
 			},
 			Expected:  BatchAccept,
-			ConfigMod: deltaAtGenesis,
+			ConfigMod: setDeltaAndL2Time,
 		},
 		{
 			Name:       "fully overlapping batch",
@@ -1302,7 +1308,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchDrop,
 			ExpectedLog: "ignoring batch with mismatching parent hash",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "overlapping batch with invalid origin number",
@@ -1329,7 +1335,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchDrop,
 			ExpectedLog: "overlapped block's L1 origin number does not match",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "overlapping batch with invalid tx",
@@ -1356,7 +1362,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchDrop,
 			ExpectedLog: "overlapped block's tx count does not match",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "overlapping batch l2 fetcher error",
@@ -1390,7 +1396,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchUndecided,
 			ExpectedLog: "failed to fetch L2 block",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "short block time",
@@ -1430,7 +1436,7 @@ func TestValidBatch(t *testing.T) {
 						ParentHash:   l2A0.Hash,
 						EpochNum:     rollup.Epoch(l2A1.L1Origin.Number),
 						EpochHash:    l2A1.L1Origin.Hash,
-						Timestamp:    (l2A0.Time - 1) * 1000,
+						Timestamp:    l2A0.MillisecondTimestamp() - 20,
 						Transactions: nil,
 					},
 					{
@@ -1444,7 +1450,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchDrop,
 			ExpectedLog: "batch has misaligned timestamp, not overlapped exactly",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "failed to fetch overlapping block payload",
@@ -1471,7 +1477,7 @@ func TestValidBatch(t *testing.T) {
 			},
 			Expected:    BatchUndecided,
 			ExpectedLog: "failed to fetch L2 block payload",
-			ConfigMod:   deltaAtGenesis,
+			ConfigMod:   setDeltaAndL2Time,
 		},
 		{
 			Name:       "singular batch before hard fork",
@@ -1580,9 +1586,8 @@ func TestValidBatch(t *testing.T) {
 		ctx := context.Background()
 		rcfg := defaultConf()
 		if mod := testCase.ConfigMod; mod != nil {
-			mod(rcfg)
+			mod(rcfg, &testCase)
 		}
-		// TODO
 		validity := CheckBatch(ctx, rcfg, logger, testCase.L1Blocks, testCase.L2SafeHead, &testCase.Batch, &l2Client)
 		require.Equal(t, testCase.Expected, validity, "batch check must return expected validity level")
 		if expLog := testCase.ExpectedLog; expLog != "" {
@@ -1659,7 +1664,7 @@ func TestValidBatch(t *testing.T) {
 		},
 		Expected:    BatchDrop,
 		ExpectedLog: "overlapped block's transaction does not match",
-		ConfigMod:   deltaAtGenesis,
+		ConfigMod:   setDeltaAndL2Time,
 	}
 
 	t.Run(differentTxtestCase.Name, func(t *testing.T) {
@@ -1704,7 +1709,7 @@ func TestValidBatch(t *testing.T) {
 		},
 		Expected:    BatchDrop,
 		ExpectedLog: "failed to extract L2BlockRef from execution payload",
-		ConfigMod:   deltaAtGenesis,
+		ConfigMod:   setDeltaAndL2Time,
 	}
 
 	t.Run(invalidTxTestCase.Name, func(t *testing.T) {
