@@ -20,9 +20,12 @@ import (
 
 // SingularBatch is an implementation of Batch interface, containing the input to build one L2 block.
 type SingularBatch struct {
-	ParentHash   common.Hash  // parent L2 block hash
-	EpochNum     rollup.Epoch // aka l1 num
-	EpochHash    common.Hash  // l1 block hash
+	ParentHash common.Hash  // parent L2 block hash
+	EpochNum   rollup.Epoch // aka l1 num
+	EpochHash  common.Hash  // l1 block hash
+	// before volta fork, Timestamp is second timestamp in op-batcher side,
+	// after volta fork, Timestamp is millisecond timestamp in op-batcher side,
+	// On the op-node side, this field is uniformly converted to millisecond timestamp to support millisecond schedule.
 	Timestamp    uint64
 	Transactions []hexutil.Bytes
 }

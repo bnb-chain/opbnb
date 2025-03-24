@@ -332,6 +332,8 @@ func (cfg *Config) Check() error {
 	if cfg.BlockTime == 0 {
 		return ErrBlockTimeZero
 	}
+	log.Warn("Note that before volta fork, opBNB use BlockTime as the second block interval; " +
+		"and after volta fork, opBNB use const 500ms as the millisecond block interval")
 	if cfg.ChannelTimeout == 0 {
 		return ErrMissingChannelTimeout
 	}
