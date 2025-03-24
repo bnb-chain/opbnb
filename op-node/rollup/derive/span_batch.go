@@ -32,7 +32,7 @@ var ErrTooBigSpanBatchSize = errors.New("span batch size limit reached")
 var ErrEmptySpanBatch = errors.New("span-batch must not be empty")
 
 type spanBatchPrefix struct {
-	relTimestamp  uint64   // Relative timestamp of the first block, millisecond
+	relTimestamp  uint64   // Relative timestamp of the first block
 	l1OriginNum   uint64   // L1 origin number
 	parentCheck   [20]byte // First 20 bytes of the first block's parent hash
 	l1OriginCheck [20]byte // First 20 bytes of the last block's L1 origin hash
@@ -366,13 +366,13 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime > genesisTimestamp {
 		secondSinceVolta := *rollupCfg.VoltaTime - genesisTimestamp
 		if b.relTimestamp >= secondSinceVolta {
-			blockInterval = rollup.VoltBlockTime
+			blockInterval = rollup.MillisecondBlockIntervalVolta
 			millisecondTimestamp = true
 		} else {
-			blockInterval = rollup.BeforeVoltBlockTime
+			blockInterval = rollupCfg.BlockTime * 1000
 		}
 	} else {
-		blockInterval = rollup.BeforeVoltBlockTime
+		blockInterval = rollupCfg.BlockTime * 1000
 	}
 
 	spanBatch := SpanBatch{
@@ -426,7 +426,7 @@ type SpanBatchElement struct {
 func singularBatchToElement(singularBatch *SingularBatch) *SpanBatchElement {
 	return &SpanBatchElement{
 		EpochNum:     singularBatch.EpochNum,
-		Timestamp:    singularBatch.Timestamp, // ms
+		Timestamp:    singularBatch.Timestamp,
 		Transactions: singularBatch.Transactions,
 	}
 }
@@ -581,7 +581,7 @@ func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 
 	relTs := uint64(0)
 	if cfg.IsVolta(span_start.Timestamp) {
-		relTs = span_start.Timestamp - b.MillisecondGenesisTimestamp()
+		relTs = span_start.Timestamp - b.GenesisTimestamp*1000
 	} else {
 		relTs = span_start.Timestamp - b.GenesisTimestamp
 	}
@@ -605,9 +605,6 @@ func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 			txs:           b.sbtxs,
 		},
 	}, nil
-}
-func (b *SpanBatch) MillisecondGenesisTimestamp() uint64 {
-	return b.GenesisTimestamp * 1000
 }
 
 // GetSingularBatches converts SpanBatchElements after L2 safe head to SingularBatches.

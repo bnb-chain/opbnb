@@ -368,7 +368,7 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
 		// set volta flag at startup
 		s.isVolta = true
-		log.Info("succeed to set is volta flag", "block_time", block.Time(),
+		log.Info("succeed to set is_volta flag", "block_time", block.Time(),
 			"l2 block num", block.Number())
 	}
 

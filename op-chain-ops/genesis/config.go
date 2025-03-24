@@ -459,11 +459,6 @@ func (d *DeployConfig) Check() error {
 			return fmt.Errorf("%w: GovernanceToken owner cannot be address(0)", ErrInvalidDeployConfig)
 		}
 	}
-	if d.L2BlockTime <= 3 {
-		// TODO: too many tests depend it, tmp work around it
-		// convert ms l2 time interval
-		d.L2BlockTime = d.L2BlockTime * 1000
-	}
 
 	// L2 block time must always be smaller than L1 block time
 	if d.L1MillisecondBlockInterval() < d.L2MillisecondBlockInterval() {
@@ -720,7 +715,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
 			},
 		},
-		//BlockTime:              d.L2BlockTime,
+		BlockTime:              d.L2BlockTime,
 		MaxSequencerDrift:      d.MaxSequencerDrift,
 		SeqWindowSize:          d.SequencerWindowSize,
 		ChannelTimeout:         d.ChannelTimeout,

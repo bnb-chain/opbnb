@@ -35,11 +35,6 @@ var (
 	ErrL2ChainIDNotPositive          = errors.New("L2 chain ID must be non-zero and positive")
 )
 
-var (
-	VoltBlockTime       uint64 = 500
-	BeforeVoltBlockTime uint64 = 1000
-)
-
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
 	"56":   "bscMainnet",
@@ -78,9 +73,8 @@ type Config struct {
 	// Genesis anchor point of the rollup
 	Genesis Genesis `json:"genesis"`
 	// BlockTime is the interval configuration of L2 block;
-	// which supports the new millisecond unit and is compatible with the legacy second unit.
-	// Temp delete, will reset after developing
-	//BlockTime uint64 `json:"block_time"`
+	// which will be abandoned after the Volta fork.
+	BlockTime uint64 `json:"block_time"`
 	// Sequencer batches may not be more than MaxSequencerDrift seconds after
 	// the L1 timestamp of the sequencing window end.
 	//
@@ -169,13 +163,13 @@ type Config struct {
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
 }
 
-//const millisecondBlockIntervalVolta = 500
+const MillisecondBlockIntervalVolta = 500
 
 func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
 	if cfg.IsVolta(millisecondTimestamp / 1000) {
-		return VoltBlockTime
+		return MillisecondBlockIntervalVolta
 	}
-	return BeforeVoltBlockTime
+	return cfg.BlockTime * 1000
 }
 
 func (cfg *Config) SecondBlockInterval(millisecondTimestamp uint64) uint64 {
@@ -194,11 +188,11 @@ func (c *Config) IsVolta(timestamp uint64) bool {
 	return c.VoltaTime != nil && timestamp >= *c.VoltaTime
 }
 
-func (c *Config) VoltaBlocNumber() uint64 {
+func (c *Config) VoltaBlockNumber() uint64 {
 	if c.VoltaTime == nil || *c.VoltaTime == 0 {
 		return 0
 	}
-	return (*c.VoltaTime-c.Genesis.L2Time)/(BeforeVoltBlockTime/1000) + c.Genesis.L2.Number
+	return (*c.VoltaTime-c.Genesis.L2Time)/c.BlockTime + c.Genesis.L2.Number
 }
 
 func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
@@ -207,27 +201,9 @@ func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
 	}
 	l2BlockTime := l2BlockMillisecondTime / 1000
 	return c.IsVolta(l2BlockTime) &&
-		l2BlockTime >= BeforeVoltBlockTime/1000 &&
-		!c.IsVolta(l2BlockTime-BeforeVoltBlockTime/1000)
+		l2BlockTime >= c.BlockTime &&
+		!c.IsVolta(l2BlockTime-c.BlockTime)
 }
-
-// MillisecondBlockInterval returns millisecond block interval, which has compatible conversions.
-// Mainly used to support milli block interval.
-//func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
-//	if cfg.BlockTime > 3 {
-//		return cfg.BlockTime
-//	}
-//	return cfg.BlockTime * 1000
-//}
-
-// SecondBlockInterval returns second block interval, which has compatible conversions.
-// Mainly used to compatible to history fork time.
-//func (cfg *Config) SecondBlockInterval() uint64 {
-//	if cfg.BlockTime <= 3 {
-//		return cfg.BlockTime
-//	}
-//	return cfg.BlockTime / 1000
-//}
 
 // ValidateL1Config checks L1 config variables for errors.
 func (cfg *Config) ValidateL1Config(ctx context.Context, client L1Client) error {
@@ -263,16 +239,16 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 }
 
 func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
-	voltaBlockNumber := cfg.VoltaBlocNumber()
+	voltaBlockNumber := cfg.VoltaBlockNumber()
 	if voltaBlockNumber == 0 || blockNumber <= voltaBlockNumber {
-		return cfg.Genesis.L2Time*1000 + ((blockNumber - cfg.Genesis.L2.Number) * BeforeVoltBlockTime)
+		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
 	} else {
-		return *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*VoltBlockTime
+		return *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*MillisecondBlockIntervalVolta
 	}
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
-	voltaBlockNumber := cfg.VoltaBlocNumber()
+	voltaBlockNumber := cfg.VoltaBlockNumber()
 	if voltaBlockNumber == 0 || milliTimestamp <= *cfg.VoltaTime*1000 {
 		// subtract genesis time from timestamp to get the time elapsed since genesis, and then divide that
 		// difference by the block time to get the expected L2 block number at the current time. If the
@@ -283,12 +259,12 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 		}
 		wallClockGenesisDiff := milliTimestamp - genesisMilliTimestamp
 		// Note: round down, we should not request blocks into the future.
-		blocksSinceGenesis := wallClockGenesisDiff / BeforeVoltBlockTime
+		blocksSinceGenesis := wallClockGenesisDiff / (cfg.BlockTime * 1000)
 		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 	} else {
 		voltaMilliTimestamp := *cfg.VoltaTime * 1000
 		wallClockGenesisDiff := milliTimestamp - voltaMilliTimestamp
-		blocksSinceVolta := wallClockGenesisDiff / VoltBlockTime
+		blocksSinceVolta := wallClockGenesisDiff / MillisecondBlockIntervalVolta
 		return voltaBlockNumber + blocksSinceVolta, nil
 	}
 }
@@ -353,9 +329,11 @@ func (cfg *Config) CheckL2GenesisBlockHash(ctx context.Context, client L2Client)
 
 // Check verifies that the given configuration makes sense
 func (cfg *Config) Check() error {
-	//if cfg.BlockTime == 0 {
-	//	return ErrBlockTimeZero
-	//}
+	if cfg.BlockTime == 0 {
+		return ErrBlockTimeZero
+	}
+	log.Warn("Note that before volta fork, opBNB use BlockTime as the second block interval; " +
+		"and after volta fork, opBNB use const 500ms as the millisecond block interval")
 	if cfg.ChannelTimeout == 0 {
 		return ErrMissingChannelTimeout
 	}
@@ -749,6 +727,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"interop_time", fmtForkTimeOrUnset(c.InteropTime),
 		"fermat", c.Fermat,
 		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
+		"volta_time", fmtForkTimeOrUnset(c.VoltaTime),
 		"plasma_mode", c.PlasmaConfig != nil,
 	)
 }
