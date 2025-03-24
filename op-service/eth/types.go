@@ -196,6 +196,11 @@ type ExecutionPayload struct {
 	ExcessBlobGas *Uint64Quantity `json:"excessBlobGas,omitempty"`
 }
 
+func (payload *ExecutionPayload) MillisecondTimestamp() uint64 {
+	milliPart := uint64(payload.PrevRandao[0])*256 + uint64(payload.PrevRandao[1])
+	return uint64(payload.Timestamp)*1000 + milliPart
+}
+
 func (payload *ExecutionPayload) ID() BlockID {
 	return BlockID{Hash: payload.BlockHash, Number: uint64(payload.BlockNumber)}
 }
@@ -326,6 +331,27 @@ type PayloadAttributes struct {
 	NoTxPool bool `json:"noTxPool,omitempty"`
 	// GasLimit override
 	GasLimit *Uint64Quantity `json:"gasLimit,omitempty"`
+}
+
+func (pa *PayloadAttributes) MillisecondTimestamp() uint64 {
+	milliPart := uint64(pa.PrevRandao[0])*256 + uint64(pa.PrevRandao[1])
+	return uint64(pa.Timestamp)*1000 + milliPart
+}
+
+// SetMillisecondTimestamp is used to set millisecond timestamp.
+// [32]byte PrevRandao
+// [0][1] represent l2 millisecond's mill part.
+func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecond bool) {
+	pa.Timestamp = hexutil.Uint64(ts / 1000)
+	if updateMilliSecond {
+		milliPartBytes := uint256.NewInt(ts % 1000).Bytes32()
+		pa.PrevRandao[0] = milliPartBytes[30]
+		pa.PrevRandao[1] = milliPartBytes[31]
+
+		// It is just a marker byte to ensure that the whole is not empty;
+		// op-geth relies on non-empty to determine that the passed in millisecond timestamp.
+		pa.PrevRandao[2] = 1
+	}
 }
 
 type ExecutePayloadStatus string

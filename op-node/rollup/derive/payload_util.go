@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // PayloadToBlockRef extracts the essential L2BlockRef information from an execution payload,
@@ -33,7 +33,7 @@ func PayloadToBlockRef(rollupCfg *rollup.Config, payload *eth.ExecutionPayload) 
 		if tx.Type() != types.DepositTxType {
 			return eth.L2BlockRef{}, fmt.Errorf("first payload tx has unexpected tx type: %d", tx.Type())
 		}
-		info, err := L1BlockInfoFromBytes(rollupCfg, uint64(payload.Timestamp), tx.Data())
+		info, err := L1BlockInfoFromBytes(rollupCfg, uint64(payload.Timestamp) /* second timestamp for fork*/, tx.Data())
 		if err != nil {
 			return eth.L2BlockRef{}, fmt.Errorf("failed to parse L1 info deposit tx from L2 block: %w", err)
 		}
@@ -41,11 +41,18 @@ func PayloadToBlockRef(rollupCfg *rollup.Config, payload *eth.ExecutionPayload) 
 		sequenceNumber = info.SequenceNumber
 	}
 
+	// adapts millisecond part
+	milliPart := uint64(0)
+	milliPart = uint64(payload.PrevRandao[0])*256 + uint64(payload.PrevRandao[1])
+	log.Debug("generate l2 block ref by payload", "timestamp_ms", milliPart,
+		"payload timestamp", payload.Timestamp, "block num", payload.BlockNumber)
+
 	return eth.L2BlockRef{
 		Hash:           payload.BlockHash,
 		Number:         uint64(payload.BlockNumber),
 		ParentHash:     payload.ParentHash,
 		Time:           uint64(payload.Timestamp),
+		MilliTime:      milliPart,
 		L1Origin:       l1Origin,
 		SequenceNumber: sequenceNumber,
 	}, nil

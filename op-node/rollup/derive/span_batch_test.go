@@ -343,15 +343,17 @@ func TestSpanBatchDerive(t *testing.T) {
 		singularBatches := RandomValidConsecutiveSingularBatches(rng, chainID)
 		safeL2Head := testutils.RandomL2BlockRef(rng)
 		safeL2Head.Hash = common.BytesToHash(singularBatches[0].ParentHash[:])
-		genesisTimeStamp := 1 + singularBatches[0].Timestamp - 128
+		genesisTimeStamp := 1 + singularBatches[0].Timestamp - 128 // second
 
 		spanBatch := initializedSpanBatch(singularBatches, genesisTimeStamp, chainID)
 		// set originChangedBit to match the original test implementation
 		spanBatch.setFirstOriginChangedBit(uint(originChangedBit))
-		rawSpanBatch, err := spanBatch.ToRawSpanBatch()
+		var cfg rollup.Config
+		rawSpanBatch, err := spanBatch.ToRawSpanBatch(&cfg)
 		require.NoError(t, err)
 
-		spanBatchDerived, err := rawSpanBatch.derive(l2BlockTime, genesisTimeStamp, chainID)
+		cfg.BlockTime = l2BlockTime
+		spanBatchDerived, err := rawSpanBatch.derive(&cfg, genesisTimeStamp, chainID) // after derive, timestamp convert to millisecond timestamp
 		require.NoError(t, err)
 
 		blockCount := len(singularBatches)
@@ -360,12 +362,12 @@ func TestSpanBatchDerive(t *testing.T) {
 		require.Equal(t, len(singularBatches), int(rawSpanBatch.blockCount))
 
 		for i := 1; i < len(singularBatches); i++ {
-			require.Equal(t, spanBatchDerived.Batches[i].Timestamp, spanBatchDerived.Batches[i-1].Timestamp+l2BlockTime)
+			require.Equal(t, spanBatchDerived.Batches[i].Timestamp, spanBatchDerived.Batches[i-1].Timestamp+l2BlockTime*1000)
 		}
 
 		for i := 0; i < len(singularBatches); i++ {
 			require.Equal(t, singularBatches[i].EpochNum, spanBatchDerived.Batches[i].EpochNum)
-			require.Equal(t, singularBatches[i].Timestamp, spanBatchDerived.Batches[i].Timestamp)
+			require.Equal(t, singularBatches[i].Timestamp*1000, spanBatchDerived.Batches[i].Timestamp)
 			require.Equal(t, singularBatches[i].Transactions, spanBatchDerived.Batches[i].Transactions)
 		}
 	}
@@ -404,7 +406,9 @@ func TestSpanBatchMerge(t *testing.T) {
 		spanBatch := initializedSpanBatch(singularBatches, genesisTimeStamp, chainID)
 		// set originChangedBit to match the original test implementation
 		spanBatch.setFirstOriginChangedBit(uint(originChangedBit))
-		rawSpanBatch, err := spanBatch.ToRawSpanBatch()
+		var cfg rollup.Config
+		cfg.BlockTime = 2
+		rawSpanBatch, err := spanBatch.ToRawSpanBatch(&cfg)
 		require.NoError(t, err)
 
 		// check span batch prefix
@@ -444,13 +448,14 @@ func TestSpanBatchToSingularBatch(t *testing.T) {
 		singularBatches := RandomValidConsecutiveSingularBatches(rng, chainID)
 		safeL2Head := testutils.RandomL2BlockRef(rng)
 		safeL2Head.Hash = common.BytesToHash(singularBatches[0].ParentHash[:])
-		safeL2Head.Time = singularBatches[0].Timestamp - 2
-		genesisTimeStamp := 1 + singularBatches[0].Timestamp - 128
+		safeL2Head.Time = singularBatches[0].Timestamp/1000 - 2
+		genesisTimeStamp := 1 + singularBatches[0].Timestamp/1000 - 128 // second
 
 		spanBatch := initializedSpanBatch(singularBatches, genesisTimeStamp, chainID)
 		// set originChangedBit to match the original test implementation
 		spanBatch.setFirstOriginChangedBit(uint(originChangedBit))
-		rawSpanBatch, err := spanBatch.ToRawSpanBatch()
+		var cfg rollup.Config
+		rawSpanBatch, err := spanBatch.ToRawSpanBatch(&cfg)
 		require.NoError(t, err)
 
 		l1Origins := mockL1Origin(rng, rawSpanBatch, singularBatches)

@@ -32,9 +32,9 @@ func L2ClientDefaultConfig(config *rollup.Config, trustRPC bool) *L2ClientConfig
 	span := int(config.SeqWindowSize) * 3 / 2
 	// Estimate number of L2 blocks in this span of L1 blocks
 	// (there's always one L2 block per L1 block, L1 is thus the minimum, even if block time is very high)
-	if config.BlockTime < 12 && config.BlockTime > 0 {
+	if config.SecondBlockInterval(0) < 12 && config.SecondBlockInterval(0) > 0 {
 		span *= 12
-		span /= int(config.BlockTime)
+		span /= int(config.SecondBlockInterval(0))
 	}
 	fullSpan := span
 	if span > 1000 { // sanity cap. If a large sequencing window is configured, do not make the cache too large

@@ -25,7 +25,7 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @custom:network-specific
     uint256 public submissionInterval;
 
-    /// @notice The time between L2 blocks in seconds. Once set, this value MUST NOT be modified.
+    /// @notice The time between L2 blocks in seconds before Volta Hardfork. Once set, this value MUST NOT be modified.
     /// @custom:network-specific
     uint256 public l2BlockTime;
 
@@ -40,6 +40,13 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice The minimum time (in seconds) that must elapse before a withdrawal can be finalized.
     /// @custom:network-specific
     uint256 public finalizationPeriodSeconds;
+
+    /// @notice The time between L2 blocks in milliseconds after Volta Hardfork.
+    uint256 public constant l2MillisecondsBlockTime = 500;
+
+    // TODO: compute accurate hardfork block number
+    /// @notice The L2 block number of Volta Hardfork.
+    uint256 public constant voltaBlockNumber = 0;
 
     /// @notice Emitted when an output is proposed.
     /// @param outputRoot    The output root.
@@ -201,10 +208,7 @@ contract L2OutputOracle is Initializable, ISemver {
             "L2OutputOracle: block number must be equal to next expected block number"
         );
 
-        require(
-            computeL2Timestamp(_l2BlockNumber) < block.timestamp,
-            "L2OutputOracle: cannot propose L2 output in the future"
-        );
+        require(isL2TimestampValid(_l2BlockNumber), "L2OutputOracle: cannot propose L2 output in the future");
 
         require(_outputRoot != bytes32(0), "L2OutputOracle: L2 output proposal cannot be the zero hash");
 
@@ -307,10 +311,34 @@ contract L2OutputOracle is Initializable, ISemver {
         return latestBlockNumber() + submissionInterval;
     }
 
+    /// @notice Checks the given l2 block number is valid.
+    /// @param _l2BlockNumber The L2 block number of the target block.
+    /// @return True that can submit output root, otherwise false.
+    function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (bool) {
+        uint256 l2Timestamp = _l2BlockNumber <= voltaBlockNumber
+            ? computeL2Timestamp(_l2BlockNumber)
+            : computeL2TimestampAfterVolta(_l2BlockNumber);
+
+        uint256 currentTimestamp = _l2BlockNumber <= voltaBlockNumber ? block.timestamp : block.timestamp * 1000;
+
+        return l2Timestamp < currentTimestamp;
+    }
+
     /// @notice Returns the L2 timestamp corresponding to a given L2 block number.
     /// @param _l2BlockNumber The L2 block number of the target block.
-    /// @return L2 timestamp of the given block.
+    /// @return L2 timestamp of the given block in seconds.
     function computeL2Timestamp(uint256 _l2BlockNumber) public view returns (uint256) {
         return startingTimestamp + ((_l2BlockNumber - startingBlockNumber) * l2BlockTime);
+    }
+
+    /// @notice Returns the L2 timestamp corresponding to a given L2 block number after Volta Hardfork.
+    /// @param _l2BlockNumber The L2 block number of the target block.
+    /// @return L2 timestamp of the given block in milliseconds.
+    function computeL2TimestampAfterVolta(uint256 _l2BlockNumber) public view returns (uint256) {
+        uint256 beforeVoltaBlockTime = (voltaBlockNumber - startingBlockNumber) * l2BlockTime * 1000;
+        uint256 afterVoltaBlockTime = (_l2BlockNumber - voltaBlockNumber) * l2MillisecondsBlockTime;
+        uint256 totalPassedBlockTime = beforeVoltaBlockTime + afterVoltaBlockTime;
+
+        return (startingTimestamp * 1000) + totalPassedBlockTime;
     }
 }

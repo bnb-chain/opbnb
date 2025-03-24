@@ -96,7 +96,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	if len(bq.nextSpan) > 0 {
 		// There are cached singular batches derived from the span batch.
 		// Check if the next cached batch matches the given parent block.
-		if bq.nextSpan[0].Timestamp == parent.Time+bq.config.BlockTime {
+		if bq.nextSpan[0].Timestamp == bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp()) {
 			// Pop first one and return.
 			nextBatch := bq.popNextBatch(parent)
 			// len(bq.nextSpan) == 0 means it's the last batch of the span.
@@ -257,7 +257,7 @@ func (bq *BatchQueue) deriveNextBatch(ctx context.Context, outOfData bool, paren
 	// Find the first-seen batch that matches all validity conditions.
 	// We may not have sufficient information to proceed filtering, and then we stop.
 	// There may be none: in that case we force-create an empty batch
-	nextTimestamp := parent.Time + bq.config.BlockTime
+	nextMilliTimestamp := bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp())
 	var nextBatch *BatchWithL1InclusionBlock
 
 	// Go over all batches, in order of inclusion, and find the first batch we can accept.
@@ -304,7 +304,7 @@ batchLoop:
 	firstOfEpoch := epoch.Number == parent.L1Origin.Number+1
 
 	bq.log.Trace("Potentially generating an empty batch",
-		"expiryEpoch", expiryEpoch, "forceEmptyBatches", forceEmptyBatches, "nextTimestamp", nextTimestamp,
+		"expiryEpoch", expiryEpoch, "forceEmptyBatches", forceEmptyBatches, "next_ms_timestamp", nextMilliTimestamp,
 		"epoch_time", epoch.Time, "len_l1_blocks", len(bq.l1Blocks), "firstOfEpoch", firstOfEpoch)
 
 	if !forceEmptyBatches {
@@ -321,20 +321,20 @@ batchLoop:
 	// Fill with empty L2 blocks of the same epoch until we meet the time of the next L1 origin,
 	// to preserve that L2 time >= L1 time. If this is the first block of the epoch, always generate a
 	// batch to ensure that we at least have one batch per epoch.
-	if nextTimestamp < nextEpoch.Time || firstOfEpoch {
-		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextTimestamp)
+	if nextMilliTimestamp < nextEpoch.MillisecondTimestamp() || firstOfEpoch {
+		bq.log.Info("Generating next batch", "epoch", epoch, "timestamp", nextMilliTimestamp)
 		return &SingularBatch{
 			ParentHash:   parent.Hash,
 			EpochNum:     rollup.Epoch(epoch.Number),
 			EpochHash:    epoch.Hash,
-			Timestamp:    nextTimestamp,
+			Timestamp:    nextMilliTimestamp,
 			Transactions: nil,
 		}, nil
 	}
 
 	// At this point we have auto generated every batch for the current epoch
 	// that we can, so we can advance to the next epoch.
-	bq.log.Trace("Advancing internal L1 blocks", "next_timestamp", nextTimestamp, "next_epoch_time", nextEpoch.Time)
+	bq.log.Trace("Advancing internal L1 blocks", "next_ms_timestamp", nextMilliTimestamp, "next_epoch_ms_time", nextEpoch.MillisecondTimestamp())
 	bq.l1Blocks = bq.l1Blocks[1:]
 	return nil, io.EOF
 }

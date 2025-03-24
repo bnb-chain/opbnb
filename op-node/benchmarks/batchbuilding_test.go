@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-batcher/compressor"
+	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/stretchr/testify/require"
 )
@@ -171,13 +172,15 @@ func BenchmarkFinalBatchChannelOut(b *testing.B) {
 				cout, _ := channelOutByType(b, tc.BatchType, tc.cd)
 				// add all but the final batch to the channel out
 				for i := 0; i < tc.BatchCount-1; i++ {
-					err := cout.AddSingularBatch(batches[i], 0)
+					var cfg rollup.Config
+					err := cout.AddSingularBatch(&cfg, batches[i], 0)
 					require.NoError(b, err)
 				}
 				// measure the time to add the final batch
 				b.StartTimer()
 				// add the final batch to the channel out
-				err := cout.AddSingularBatch(batches[tc.BatchCount-1], 0)
+				var cfg rollup.Config
+				err := cout.AddSingularBatch(&cfg, batches[tc.BatchCount-1], 0)
 				require.NoError(b, err)
 			}
 		})
@@ -233,7 +236,8 @@ func BenchmarkIncremental(b *testing.B) {
 				}
 				b.StartTimer()
 				for i := 0; i < tc.BatchCount; i++ {
-					err := cout.AddSingularBatch(batches[i], 0)
+					var cfg rollup.Config
+					err := cout.AddSingularBatch(&cfg, batches[i], 0)
 					if err != nil {
 						done = true
 						return
@@ -297,7 +301,8 @@ func BenchmarkAllBatchesChannelOut(b *testing.B) {
 				b.StartTimer()
 				// add all batches to the channel out
 				for i := 0; i < tc.BatchCount; i++ {
-					err := cout.AddSingularBatch(batches[i], 0)
+					var cfg rollup.Config
+					err := cout.AddSingularBatch(&cfg, batches[i], 0)
 					require.NoError(b, err)
 				}
 			}
@@ -347,7 +352,8 @@ func BenchmarkGetRawSpanBatch(b *testing.B) {
 					require.NoError(b, err)
 				}
 				b.StartTimer()
-				_, err := spanBatch.ToRawSpanBatch()
+				var cfg rollup.Config
+				_, err := spanBatch.ToRawSpanBatch(&cfg)
 				require.NoError(b, err)
 			}
 		})

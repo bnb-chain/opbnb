@@ -269,7 +269,7 @@ func (s *Driver) eventLoop() {
 
 	// Create a ticker to check if there is a gap in the engine queue. Whenever
 	// there is, we send requests to sync source to retrieve the missing payloads.
-	syncCheckInterval := time.Duration(s.config.BlockTime) * time.Second * 2
+	syncCheckInterval := time.Duration(rollup.MillisecondBlockIntervalVolta) * time.Millisecond * 2
 	altSyncTicker := time.NewTicker(syncCheckInterval)
 	defer altSyncTicker.Stop()
 	lastUnsafeL2 := s.engineController.UnsafeL2Head()
@@ -438,7 +438,7 @@ func (s *Driver) eventLoop() {
 				continue
 			} else if err != nil && errors.Is(err, derive.ErrReset) {
 				// If the pipeline corrupts, e.g. due to a reorg, simply reset it
-				s.log.Warn("Derivation pipeline is reset", "err", err)
+				s.log.Warn("Derivation pipeline is reset", "l1 origin", s.derivation.Origin().Number, "err", err)
 				s.derivation.Reset()
 				s.metrics.RecordPipelineReset()
 				continue

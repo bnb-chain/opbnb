@@ -197,6 +197,35 @@ contract L2OutputOracle_getter_Test is CommonTest {
             l2OutputOracle.computeL2Timestamp(startingBlockNumber + 96024), startingTimestamp + l2BlockTime * 96024
         );
     }
+
+    function test_isL2TimestampValid_before_hardfork_succeeds() external {
+        uint256 startingBlockNumber = deploy.cfg().l2OutputOracleStartingBlockNumber();
+        assertEq(startingBlockNumber, 1);
+        uint256 startingTimestamp = deploy.cfg().l2OutputOracleStartingTimestamp();
+        assertEq(startingTimestamp, 1);
+        uint256 l2BlockTime = deploy.cfg().l2BlockTime();
+        assertEq(l2BlockTime, 2);
+
+        vm.warp(138901 * 2 + 1);
+        l2OutputOracle.isL2TimestampValid(138901);
+    }
+
+    function test_isL2TimestampValid_after_hardfork_succeeds() external {
+        uint256 startingBlockNumber = deploy.cfg().l2OutputOracleStartingBlockNumber();
+        uint256 startingTimestamp = deploy.cfg().l2OutputOracleStartingTimestamp();
+        uint256 l2BlockTime = deploy.cfg().l2BlockTime();
+
+        vm.roll(140100);
+        l2OutputOracle.isL2TimestampValid(140000);
+    }
+
+    function test_computeL2TimestampAfterVolta_succeeds() external {
+        uint256 startingBlockNumber = deploy.cfg().l2OutputOracleStartingBlockNumber();
+        uint256 startingTimestamp = deploy.cfg().l2OutputOracleStartingTimestamp();
+        uint256 l2BlockTime = deploy.cfg().l2BlockTime();
+
+        l2OutputOracle.computeL2TimestampAfterVolta(140000);
+    }
 }
 
 contract L2OutputOracle_proposeL2Output_Test is CommonTest {

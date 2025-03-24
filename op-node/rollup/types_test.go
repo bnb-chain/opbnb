@@ -563,7 +563,7 @@ func TestTimestampForBlock(t *testing.T) {
 			config.Genesis.L2.Number = test.genesisBlock
 			config.BlockTime = test.blockTime
 
-			timestamp := config.TimestampForBlock(test.blockNum)
+			timestamp := config.MillisecondTimestampForBlock(test.blockNum) / 1000
 			assert.Equal(t, timestamp, test.expectedBlockTime)
 		})
 	}
