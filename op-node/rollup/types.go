@@ -73,7 +73,7 @@ type Config struct {
 	// Genesis anchor point of the rollup
 	Genesis Genesis `json:"genesis"`
 	// BlockTime is the interval configuration of L2 block;
-	// which supports the new millisecond unit and is compatible with the legacy second unit.
+	// which will be abandoned after the Volta fork.
 	BlockTime uint64 `json:"block_time"`
 	// Sequencer batches may not be more than MaxSequencerDrift seconds after
 	// the L1 timestamp of the sequencing window end.
@@ -128,6 +128,10 @@ type Config struct {
 	// Active if SnowTime != nil && L2 block timestamp >= *SnowTime, inactive otherwise.
 	SnowTime *uint64 `json:"snow_time,omitempty"`
 
+	// VoltaTime sets the activation time of the VoltaTime network upgrade.
+	// Active if VoltaTime != nil && L2 block timestamp >= *VoltaTime, inactive otherwise.
+	VoltaTime *uint64 `json:"volta_time,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -159,22 +163,46 @@ type Config struct {
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
 }
 
-// MillisecondBlockInterval returns millisecond block interval, which has compatible conversions.
-// Mainly used to support milli block interval.
-func (cfg *Config) MillisecondBlockInterval() uint64 {
-	if cfg.BlockTime > 3 {
-		return cfg.BlockTime
+const MillisecondBlockIntervalVolta = 500
+
+func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
+	if cfg.IsVolta(millisecondTimestamp / 1000) {
+		return MillisecondBlockIntervalVolta
 	}
 	return cfg.BlockTime * 1000
 }
 
-// SecondBlockInterval returns second block interval, which has compatible conversions.
-// Mainly used to compatible to history fork time.
-func (cfg *Config) SecondBlockInterval() uint64 {
-	if cfg.BlockTime <= 3 {
-		return cfg.BlockTime
+func (cfg *Config) SecondBlockInterval(millisecondTimestamp uint64) uint64 {
+	return cfg.MillisecondBlockInterval(millisecondTimestamp) / 1000
+}
+
+func (cfg *Config) NextMillisecondBlockTime(millisecondTimestamp uint64) uint64 {
+	return millisecondTimestamp + cfg.MillisecondBlockInterval(millisecondTimestamp)
+}
+
+func (cfg *Config) NextSecondBlockTime(millisecondTimestamp uint64) uint64 {
+	return cfg.NextMillisecondBlockTime(millisecondTimestamp) / 1000
+}
+
+func (c *Config) IsVolta(timestamp uint64) bool {
+	return c.VoltaTime != nil && timestamp >= *c.VoltaTime
+}
+
+func (c *Config) VoltaBlockNumber() uint64 {
+	if c.VoltaTime == nil || *c.VoltaTime == 0 {
+		return 0
 	}
-	return cfg.BlockTime / 1000
+	return (*c.VoltaTime-c.Genesis.L2Time)/c.BlockTime + c.Genesis.L2.Number
+}
+
+func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
+	if l2BlockMillisecondTime/1000 != 0 {
+		return false
+	}
+	l2BlockTime := l2BlockMillisecondTime / 1000
+	return c.IsVolta(l2BlockTime) &&
+		l2BlockTime >= c.BlockTime &&
+		!c.IsVolta(l2BlockTime-c.BlockTime)
 }
 
 // ValidateL1Config checks L1 config variables for errors.
@@ -210,22 +238,35 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 	return nil
 }
 
-func (cfg *Config) TimestampForBlock(blockNumber uint64) uint64 {
-	return cfg.Genesis.L2Time + ((blockNumber - cfg.Genesis.L2.Number) * cfg.SecondBlockInterval())
+func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
+	voltaBlockNumber := cfg.VoltaBlockNumber()
+	if voltaBlockNumber == 0 || blockNumber <= voltaBlockNumber {
+		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
+	} else {
+		return *cfg.VoltaTime*1000 + (blockNumber-voltaBlockNumber)*MillisecondBlockIntervalVolta
+	}
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
-	// subtract genesis time from timestamp to get the time elapsed since genesis, and then divide that
-	// difference by the block time to get the expected L2 block number at the current time. If the
-	// unsafe head does not have this block number, then there is a gap in the queue.
-	genesisMilliTimestamp := cfg.Genesis.L2Time * 1000
-	if milliTimestamp < genesisMilliTimestamp {
-		return 0, fmt.Errorf("did not reach genesis time (%d) yet", genesisMilliTimestamp)
+	voltaBlockNumber := cfg.VoltaBlockNumber()
+	if voltaBlockNumber == 0 || milliTimestamp <= *cfg.VoltaTime*1000 {
+		// subtract genesis time from timestamp to get the time elapsed since genesis, and then divide that
+		// difference by the block time to get the expected L2 block number at the current time. If the
+		// unsafe head does not have this block number, then there is a gap in the queue.
+		genesisMilliTimestamp := cfg.Genesis.L2Time * 1000
+		if milliTimestamp < genesisMilliTimestamp {
+			return 0, fmt.Errorf("did not reach genesis time (%d) yet", genesisMilliTimestamp)
+		}
+		wallClockGenesisDiff := milliTimestamp - genesisMilliTimestamp
+		// Note: round down, we should not request blocks into the future.
+		blocksSinceGenesis := wallClockGenesisDiff / (cfg.BlockTime * 1000)
+		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
+	} else {
+		voltaMilliTimestamp := *cfg.VoltaTime * 1000
+		wallClockGenesisDiff := milliTimestamp - voltaMilliTimestamp
+		blocksSinceVolta := wallClockGenesisDiff / MillisecondBlockIntervalVolta
+		return voltaBlockNumber + blocksSinceVolta, nil
 	}
-	wallClockGenesisDiff := milliTimestamp - genesisMilliTimestamp
-	// Note: round down, we should not request blocks into the future.
-	blocksSinceGenesis := wallClockGenesisDiff / cfg.MillisecondBlockInterval()
-	return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 }
 
 type L1Client interface {
@@ -291,6 +332,8 @@ func (cfg *Config) Check() error {
 	if cfg.BlockTime == 0 {
 		return ErrBlockTimeZero
 	}
+	log.Warn("Note that before volta fork, opBNB use BlockTime as the second block interval; " +
+		"and after volta fork, opBNB use const 500ms as the millisecond block interval")
 	if cfg.ChannelTimeout == 0 {
 		return ErrMissingChannelTimeout
 	}
@@ -353,6 +396,9 @@ func (cfg *Config) Check() error {
 		return err
 	}
 	if err := checkFork(cfg.EcotoneTime, cfg.FjordTime, Ecotone, Fjord); err != nil {
+		return err
+	}
+	if err := checkFork(cfg.FjordTime, cfg.VoltaTime, Fjord, Volta); err != nil {
 		return err
 	}
 
@@ -446,8 +492,8 @@ func (c *Config) IsFjord(timestamp uint64) bool {
 // Fjord upgrade.
 func (c *Config) IsFjordActivationBlock(l2BlockTime uint64) bool {
 	return c.IsFjord(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsFjord(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsFjord(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 // IsInterop returns true if the Interop hardfork is active at or past the given timestamp.
@@ -457,34 +503,34 @@ func (c *Config) IsInterop(timestamp uint64) bool {
 
 func (c *Config) IsRegolithActivationBlock(l2BlockTime uint64) bool {
 	return c.IsRegolith(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsRegolith(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsRegolith(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 func (c *Config) IsCanyonActivationBlock(l2BlockTime uint64) bool {
 	return c.IsCanyon(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsCanyon(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsCanyon(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 func (c *Config) IsDeltaActivationBlock(l2BlockTime uint64) bool {
 	return c.IsDelta(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsDelta(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsDelta(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 // IsEcotoneActivationBlock returns whether the specified block is the first block subject to the
 // Ecotone upgrade. Ecotone activation at genesis does not count.
 func (c *Config) IsEcotoneActivationBlock(l2BlockTime uint64) bool {
 	return c.IsEcotone(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsEcotone(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsEcotone(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 func (c *Config) IsInteropActivationBlock(l2BlockTime uint64) bool {
 	return c.IsInterop(l2BlockTime) &&
-		l2BlockTime >= c.SecondBlockInterval() &&
-		!c.IsInterop(l2BlockTime-c.SecondBlockInterval())
+		l2BlockTime >= c.SecondBlockInterval(l2BlockTime*1000) &&
+		!c.IsInterop(l2BlockTime-c.SecondBlockInterval(l2BlockTime*1000))
 }
 
 // ForkchoiceUpdatedVersion returns the EngineAPIMethod suitable for the chain hard fork version.
@@ -681,6 +727,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"interop_time", fmtForkTimeOrUnset(c.InteropTime),
 		"fermat", c.Fermat,
 		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
+		"volta_time", fmtForkTimeOrUnset(c.VoltaTime),
 		"plasma_mode", c.PlasmaConfig != nil,
 	)
 }

@@ -67,7 +67,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 	}
 	epoch := l1Blocks[0]
 
-	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.MillisecondBlockInterval()
+	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 	if batch.Timestamp > nextMilliTimestamp {
 		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextMilliTimestamp)
 		return BatchFuture
@@ -194,14 +194,18 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		return BatchDrop
 	}
 
-	nextMilliTimestamp := l2SafeHead.MillisecondTimestamp() + cfg.MillisecondBlockInterval()
+	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 
 	if batch.GetTimestamp() > nextMilliTimestamp {
-		log.Trace("received out-of-order batch for future processing after next batch", "next_ms_timestamp", nextMilliTimestamp)
+		log.Trace("received out-of-order batch for future processing after next batch",
+			"first_ms_timestamp_of_spanbatch", batch.GetTimestamp(),
+			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
 	if batch.GetBlockTimestamp(batch.GetBlockCount()-1) < nextMilliTimestamp {
-		log.Warn("span batch has no new blocks after safe head")
+		log.Warn("span batch has no new blocks after safe head",
+			"last_ms_timestamp_of_spanbatch", batch.GetBlockTimestamp(batch.GetBlockCount()-1),
+			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchDrop
 	}
 
@@ -215,12 +219,17 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			log.Warn("batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
-		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%cfg.MillisecondBlockInterval() != 0 {
+		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%rollup.MillisecondBlockIntervalVolta != 0 {
 			log.Warn("batch has misaligned timestamp, not overlapped exactly")
 			return BatchDrop
 		}
-		parentNum = l2SafeHead.Number - (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())/cfg.MillisecondBlockInterval() - 1
-		var err error
+		currentNum, err := cfg.TargetBlockNumber(batch.GetTimestamp())
+		if err != nil {
+			log.Warn("failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err)
+			// unable to validate the batch for now. retry later.
+			return BatchUndecided
+		}
+		parentNum = currentNum - 1
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {
 			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
@@ -291,7 +300,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		}
 		blockTimestamp := batch.GetBlockTimestamp(i)
 		if blockTimestamp < l1Origin.MillisecondTimestamp() {
-			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.Time, "origin", l1Origin.ID())
+			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.MillisecondTimestamp(), "origin", l1Origin.ID())
 			return BatchDrop
 		}
 

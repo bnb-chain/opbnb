@@ -187,11 +187,6 @@ func Setup(t require.TestingT, deployParams *DeployParams, alloc *AllocParams) *
 		PlasmaConfig:           pcfg,
 	}
 
-	if rollupCfg.BlockTime <= 3 {
-		// covert to ms timestamp
-		rollupCfg.BlockTime = rollupCfg.BlockTime * 1000
-	}
-
 	require.NoError(t, rollupCfg.Check())
 
 	// Sanity check that the config is correct

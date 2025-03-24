@@ -33,7 +33,7 @@ var testConfig = Config{
 			GasLimit:    30_000_000,
 		},
 	},
-	BlockTime:               2000,
+	BlockTime:               2,
 	MaxSequencerDrift:       600,
 	SeqWindowSize:           3600,
 	ChannelTimeout:          300,

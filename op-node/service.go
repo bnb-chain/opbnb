@@ -27,12 +27,6 @@ import (
 	opflags "github.com/ethereum-optimism/optimism/op-service/flags"
 )
 
-const (
-	minSecondBlockInterval      = 1
-	maxSecondBlockInterval      = 3
-	maxMillisecondBlockInterval = 750
-)
-
 // NewConfig creates a Config from the provided flags or environment variables.
 func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 	if err := flags.CheckRequired(ctx); err != nil {
@@ -47,17 +41,6 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 	if !ctx.Bool(flags.RollupLoadProtocolVersions.Name) {
 		log.Info("Not opted in to ProtocolVersions signal loading, disabling ProtocolVersions contract now.")
 		rollupConfig.ProtocolVersionsAddress = common.Address{}
-	}
-
-	{
-		if rollupConfig.BlockTime >= minSecondBlockInterval && rollupConfig.BlockTime <= maxSecondBlockInterval {
-			// Convert legacy second-level timestamp to millisecond timestamp,
-			// This is a compatibility behavior.
-			rollupConfig.BlockTime = rollupConfig.BlockTime * 1000
-		} else if rollupConfig.BlockTime%50 != 0 && rollupConfig.BlockTime > maxMillisecondBlockInterval {
-			return nil, fmt.Errorf("block time is invalid, block_time: %v", rollupConfig.BlockTime)
-		}
-		// rollupConfig.BlockTime is millisecond block interval
 	}
 
 	configPersistence := NewConfigPersistence(ctx)

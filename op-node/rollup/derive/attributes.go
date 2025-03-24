@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -107,7 +108,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.rollupCfg.IsSnow((l2Parent.MillisecondTimestamp() + ba.rollupCfg.MillisecondBlockInterval()) / 1000) {
+	if ba.rollupCfg.IsSnow(ba.rollupCfg.NextSecondBlockTime(l2Parent.MillisecondTimestamp())) {
 		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
 		if err != nil {
 			return nil, err
@@ -124,7 +125,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	l1Info = bsc.NewBlockInfoBSCWrapper(l1Info, l1BaseFee)
 
 	// Sanity check the L1 origin was correctly selected to maintain the time invariant between L1 and L2
-	nextL2MilliTime := l2Parent.MillisecondTimestamp() + ba.rollupCfg.MillisecondBlockInterval()
+	nextL2MilliTime := ba.rollupCfg.NextMillisecondBlockTime(l2Parent.MillisecondTimestamp())
 	if nextL2MilliTime < l1Info.MillisecondTimestamp() {
 		return nil, NewResetError(fmt.Errorf("cannot build L2 block on top %s for time %d before L1 origin %s at time %d",
 			l2Parent, nextL2MilliTime, eth.ToBlockID(l1Info), l1Info.MillisecondTimestamp()))
@@ -178,7 +179,14 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
 	}
-	pa.SetMillisecondTimestamp(nextL2MilliTime)
+
+	isVoltaTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
+	pa.SetMillisecondTimestamp(nextL2MilliTime, isVoltaTime)
+	if isVoltaTime {
+		log.Debug("succeed to build payload attributes after fork",
+			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
+			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
+	}
 	return pa, nil
 }
 

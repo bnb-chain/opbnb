@@ -154,7 +154,11 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 	if safe {
 		d.log.Warn("delaying sequencing to not interrupt safe-head changes", "onto", buildingOnto, "onto_time", buildingOnto.Time)
 		// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-		return time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())
+
+		if buildingOnto == (eth.L2BlockRef{}) {
+			return time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval(uint64(time.Now().UnixMilli())))
+		}
+		return time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval(buildingOnto.MillisecondTimestamp()))
 	}
 
 	head := d.engine.UnsafeL2Head()
@@ -166,8 +170,15 @@ func (d *Sequencer) PlanNextSequencerAction() time.Duration {
 		return delay
 	}
 
-	blockTime := time.Duration(d.rollupCfg.MillisecondBlockInterval()) * time.Millisecond
-	payloadTime := time.UnixMilli(int64(head.MillisecondTimestamp() + d.rollupCfg.MillisecondBlockInterval()))
+	var blockInterval uint64
+	if buildingOnto == (eth.L2BlockRef{}) {
+		blockInterval = d.rollupCfg.MillisecondBlockInterval(uint64(time.Now().UnixMilli()))
+	} else {
+		blockInterval = d.rollupCfg.MillisecondBlockInterval(buildingOnto.MillisecondTimestamp())
+	}
+
+	blockTime := time.Millisecond * time.Duration(blockInterval)
+	payloadTime := time.UnixMilli(int64(head.MillisecondTimestamp() + blockInterval))
 	remainingTime := payloadTime.Sub(now)
 
 	// If we started building a block already, and if that work is still consistent,
@@ -222,11 +233,19 @@ func (d *Sequencer) BuildingOnto() eth.L2BlockRef {
 // If the engine is currently building safe blocks, then that building is not interrupted, and sequencing is delayed.
 func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.AsyncGossiper, sequencerConductor conductor.SequencerConductor) (*eth.ExecutionPayloadEnvelope, error) {
 	// if the engine returns a non-empty payload, OR if the async gossiper already has a payload, we can CompleteBuildingBlock
-	if onto, buildingID, safe := d.engine.BuildingPayload(); buildingID != (eth.PayloadID{}) || agossip.Get() != nil {
+	onto, buildingID, safe := d.engine.BuildingPayload()
+	var blockInterval uint64
+	if onto == (eth.L2BlockRef{}) {
+		blockInterval = d.rollupCfg.MillisecondBlockInterval(uint64(time.Now().UnixMilli()))
+	} else {
+		blockInterval = d.rollupCfg.MillisecondBlockInterval(onto.MillisecondTimestamp())
+	}
+
+	if buildingID != (eth.PayloadID{}) || agossip.Get() != nil {
 		if safe {
 			d.log.Warn("avoiding sequencing to not interrupt safe-head changes", "onto", onto, "onto_time", onto.Time)
 			// approximates the worst-case time it takes to build a block, to reattempt sequencing after.
-			d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval()))
+			d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(blockInterval))
 			return nil, nil
 		}
 		envelope, err := d.CompleteBuildingBlock(ctx, agossip, sequencerConductor)
@@ -234,9 +253,11 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err // bubble up critical errors.
 			} else if errors.Is(err, derive.ErrReset) {
-				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
+				d.log.Error("sequencer failed to seal new block, requiring derivation reset",
+					"L2 block number", onto.Number, "L1 origin", onto.L1Origin.Number, "timestamp_ms",
+					onto.MilliTime, "timestamp_second", onto.Time, "err", err)
 				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())) // hold off from sequencing for a full block
+				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(blockInterval)) // hold off from sequencing for a full block
 				d.CancelBuildingBlock(ctx)
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
@@ -263,9 +284,10 @@ func (d *Sequencer) RunNextSequencerAction(ctx context.Context, agossip async.As
 			if errors.Is(err, derive.ErrCritical) {
 				return nil, err
 			} else if errors.Is(err, derive.ErrReset) {
-				d.log.Error("sequencer failed to seal new block, requiring derivation reset", "err", err)
+				d.log.Error("sequencer failed to seal new block, requiring derivation reset",
+					"L2 block number", onto.Number, "timestamp_ms", onto.MilliTime, "timestamp_second", onto.Time, "err", err)
 				d.metrics.RecordSequencerReset()
-				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(d.rollupCfg.MillisecondBlockInterval())) // hold off from sequencing for a full block
+				d.nextAction = d.timeNow().Add(time.Millisecond * time.Duration(blockInterval)) // hold off from sequencing for a full block
 				return nil, err
 			} else if errors.Is(err, derive.ErrTemporary) {
 				d.log.Error("sequencer temporarily failed to start building new block", "err", err)

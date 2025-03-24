@@ -782,7 +782,7 @@ func ChannelBuilder_InputBytes(t *testing.T, batchType uint) {
 			require.NoError(err)
 			err = spanBatch.AppendSingularBatch(singularBatch, l1Info.SequenceNumber)
 			require.NoError(err)
-			rawSpanBatch, err := spanBatch.ToRawSpanBatch()
+			rawSpanBatch, err := spanBatch.ToRawSpanBatch(&defaultTestRollupConfig)
 			require.NoError(err)
 			batch := derive.NewBatchData(rawSpanBatch)
 			var buf bytes.Buffer
