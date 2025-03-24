@@ -52,7 +52,7 @@ type Service struct {
 	claimants []common.Address
 	claimer   *claims.BondClaimScheduler
 
-	factoryContract *contracts.DisputeGameFactoryContract
+	factoryContract contracts.DisputeGameFactory
 	registry        *registry.GameTypeRegistry
 	oracles         *registry.OracleRegistry
 	rollupClient    *sources.RollupClient
@@ -198,8 +198,14 @@ func (s *Service) initMetricsServer(cfg *opmetrics.CLIConfig) error {
 }
 
 func (s *Service) initFactoryContract(cfg *config.Config) error {
-	factoryContract := contracts.NewDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
-		batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	var factoryContract contracts.DisputeGameFactory
+	if cfg.ZKDisputeGame {
+		factoryContract = contracts.NewZkDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
+			batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	} else {
+		factoryContract = contracts.NewDisputeGameFactoryContract(s.metrics, cfg.GameFactoryAddress,
+			batching.NewMultiCaller(s.l1Client.Client(), batching.DefaultBatchSize))
+	}
 	s.factoryContract = factoryContract
 	return nil
 }
@@ -251,13 +257,15 @@ func (s *Service) initLargePreimages() error {
 }
 
 func (s *Service) initMonitor(cfg *config.Config) {
-	s.monitor = newGameMonitor(s.logger, s.l1Clock, s.factoryContract, s.sched, s.preimages, cfg.GameWindow, s.claimer, s.l1Client.BlockNumber, cfg.GameAllowlist, s.pollClient)
+	s.monitor = newGameMonitor(s.logger, s.l1Clock, s.factoryContract,
+		s.sched, s.preimages, cfg.GameWindow, s.claimer, s.l1Client.BlockNumber,
+		cfg.GameAllowlist, s.pollClient, cfg.ZKDisputeGame)
 }
 
 func (s *Service) Start(ctx context.Context) error {
 	s.logger.Info("starting scheduler")
 	s.sched.Start(ctx)
-	s.claimer.Start(ctx)
+	//s.claimer.Start(ctx)
 	s.preimages.Start(ctx)
 	s.logger.Info("starting monitoring")
 	s.monitor.StartMonitoring()

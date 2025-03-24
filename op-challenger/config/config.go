@@ -58,9 +58,10 @@ const (
 	TraceTypeCannon       TraceType = "cannon"
 	TraceTypeAsterisc     TraceType = "asterisc"
 	TraceTypePermissioned TraceType = "permissioned"
+	TraceTypeZK           TraceType = "zk"
 )
 
-var TraceTypes = []TraceType{TraceTypeAlphabet, TraceTypeCannon, TraceTypePermissioned, TraceTypeAsterisc, TraceTypeFast}
+var TraceTypes = []TraceType{TraceTypeAlphabet, TraceTypeCannon, TraceTypePermissioned, TraceTypeAsterisc, TraceTypeFast, TraceTypeZK}
 
 func (t TraceType) String() string {
 	return string(t)
@@ -152,9 +153,13 @@ type Config struct {
 
 	MaxPendingTx uint64 // Maximum number of pending transactions (0 == no limit)
 
-	TxMgrConfig   txmgr.CLIConfig
-	MetricsConfig opmetrics.CLIConfig
-	PprofConfig   oppprof.CLIConfig
+	TxMgrConfig                  txmgr.CLIConfig
+	MetricsConfig                opmetrics.CLIConfig
+	PprofConfig                  oppprof.CLIConfig
+	ZKDisputeGame                bool
+	ZKChallengeByProof           bool
+	ZKResponseChallengeByProof   bool
+	ZKResponseChallengeClaimants []common.Address
 }
 
 func NewConfig(
