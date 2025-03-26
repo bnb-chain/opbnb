@@ -7,7 +7,7 @@ This enhancement significantly improves transaction efficiency and overall netwo
 
 It is set to be activated on both the opBNB Mainnet and Testnet environments according to the following schedule:
 
-- Testnet: Apr-02-2025 11:00 AM +UTC
+- Testnet: Apr-02-2025 03:00 AM +UTC
 - Mainnet: Mid-Apr-2025
 
 All mainnet and testnet nodes must upgrade to this release before the hardfork time.
@@ -16,10 +16,9 @@ Also note that the `op-geth` should be upgraded to v0.5.7 accordingly, check [th
 ### What's Changed
 
 #### FEATURE
-* [\#265](https://github.com/bnb-chain/opbnb/pull/265) feat: BEP-543 to shorten block interval
+* [\#265](https://github.com/bnb-chain/opbnb/pull/265) BEP-543 to shorten block interval
 
 ### Docker Images
-
 - ghcr.io/bnb-chain/op-node:v0.5.3
 - ghcr.io/bnb-chain/op-batcher:v0.5.3
 - ghcr.io/bnb-chain/op-proposer:v0.5.3
