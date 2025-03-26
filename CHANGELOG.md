@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.5.3
+
+This release introduces the implementation of [BEP-543](https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-543.md), effectively reducing the block time from 1 second to an impressive 500 milliseconds.
+This enhancement significantly improves transaction efficiency and overall network performance, allowing for faster processing and a more seamless experience for users.
+
+It is set to be activated on both the opBNB Mainnet and Testnet environments according to the following schedule:
+
+- Testnet: Apr-02-2025 11:00 AM +UTC
+- Mainnet: Mid-Apr-2025
+
+All mainnet and testnet nodes must upgrade to this release before the hardfork time.
+Also note that the `op-geth` should be upgraded to v0.5.7 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.7) for more details.
+
+### What's Changed
+
+#### FEATURE
+* [\#265](https://github.com/bnb-chain/opbnb/pull/265) feat: BEP-543 to shorten block interval
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.3
+- ghcr.io/bnb-chain/op-batcher:v0.5.3
+- ghcr.io/bnb-chain/op-proposer:v0.5.3
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.2...v0.5.3
+
 ## v0.5.2
 
 This is a minor release and must upgrade to this release before the Pascal & Prague hardforks time of BSC, supports EIP-7702.
