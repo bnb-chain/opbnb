@@ -42,7 +42,6 @@ const (
 	Ecotone  ForkName = "ecotone"
 	Fjord    ForkName = "fjord"
 	Interop  ForkName = "interop"
-	Volta    ForkName = "volta"
 	None     ForkName = "none"
 )
 
@@ -53,8 +52,7 @@ var nextFork = map[ForkName]ForkName{
 	Delta:    Ecotone,
 	Ecotone:  Fjord,
 	Fjord:    Interop,
-	Interop:  Volta,
-	Volta:    None,
+	Interop:  None,
 }
 
 type ChainSpec struct {
@@ -136,9 +134,6 @@ func (s *ChainSpec) CheckForkActivation(log log.Logger, block eth.L2BlockRef) {
 		if s.config.IsInterop(block.Time) {
 			s.currentFork = Interop
 		}
-		if s.config.IsVolta(block.Time) {
-			s.currentFork = Volta
-		}
 		log.Info("Current hardfork version detected", "forkName", s.currentFork)
 		return
 	}
@@ -158,8 +153,6 @@ func (s *ChainSpec) CheckForkActivation(log log.Logger, block eth.L2BlockRef) {
 		foundActivationBlock = s.config.IsFjordActivationBlock(block.Time)
 	case Interop:
 		foundActivationBlock = s.config.IsInteropActivationBlock(block.Time)
-	case Volta:
-		foundActivationBlock = s.config.IsVoltaActivationBlock(block.MillisecondTimestamp())
 	}
 
 	if foundActivationBlock {
