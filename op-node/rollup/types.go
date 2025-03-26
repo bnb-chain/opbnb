@@ -398,9 +398,6 @@ func (cfg *Config) Check() error {
 	if err := checkFork(cfg.EcotoneTime, cfg.FjordTime, Ecotone, Fjord); err != nil {
 		return err
 	}
-	if err := checkFork(cfg.FjordTime, cfg.VoltaTime, Fjord, Volta); err != nil {
-		return err
-	}
 
 	return nil
 }
