@@ -196,7 +196,7 @@ func (c *Config) VoltaBlockNumber() uint64 {
 }
 
 func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
-	if l2BlockMillisecondTime/1000 != 0 {
+	if l2BlockMillisecondTime%1000 != 0 {
 		return false
 	}
 	l2BlockTime := l2BlockMillisecondTime / 1000
@@ -398,6 +398,12 @@ func (cfg *Config) Check() error {
 	if err := checkFork(cfg.EcotoneTime, cfg.FjordTime, Ecotone, Fjord); err != nil {
 		return err
 	}
+	if err := validateForkOrder(cfg.FjordTime, cfg.VoltaTime, Fjord, Volta); err != nil {
+		return err
+	}
+	if err := validateForkOrder(cfg.SnowTime, cfg.VoltaTime, Snow, Volta); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -452,6 +458,23 @@ func checkFork(a, b *uint64, aName, bName ForkName) error {
 	}
 	if *a > *b {
 		return fmt.Errorf("fork %s set to %d, but prior fork %s has higher offset %d", bName, *b, aName, *a)
+	}
+	return nil
+}
+
+// validateForkOrder validates that fork A is before fork B
+func validateForkOrder(a, b *uint64, aName, bName ForkName) error {
+	if a == nil && b == nil {
+		return nil
+	}
+	if a == nil && b != nil {
+		return fmt.Errorf("fork %s set (to %d), but prior fork %s missing", bName, *b, aName)
+	}
+	if a != nil && b == nil {
+		return nil
+	}
+	if *a >= *b {
+		return fmt.Errorf("fork %s set to %d, but prior fork %s has higher or equal offset %d", bName, *b, aName, *a)
 	}
 	return nil
 }
@@ -686,6 +709,8 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf(" - Fermat:              #%-8v\n", c.Fermat)
 	banner += "OPBNB hard forks (timestamp based):\n"
 	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.SnowTime))
+	banner += "OPBNB hard forks (timestamp based):\n"
+	banner += fmt.Sprintf(" - Volta: %s\n", fmtForkTimeOrUnset(c.VoltaTime))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	if c.PlasmaConfig != nil {

@@ -41,6 +41,8 @@ const (
 	Delta    ForkName = "delta"
 	Ecotone  ForkName = "ecotone"
 	Fjord    ForkName = "fjord"
+	Snow     ForkName = "snow"
+	Volta    ForkName = "volta"
 	Interop  ForkName = "interop"
 	None     ForkName = "none"
 )
