@@ -464,11 +464,17 @@ func checkFork(a, b *uint64, aName, bName ForkName) error {
 
 // validateForkOrder validates that fork A is before fork B
 func validateForkOrder(a, b *uint64, aName, bName ForkName) error {
-	if err := checkFork(a, b, aName, bName); err != nil {
-		return err
+	if a == nil && b == nil {
+		return nil
 	}
-	if *a == *b {
-		return fmt.Errorf("fork %s set to %d, but prior fork %s has equal offset %d", bName, *b, aName, *a)
+	if a == nil && b != nil {
+		return fmt.Errorf("fork %s set (to %d), but prior fork %s missing", bName, *b, aName)
+	}
+	if a != nil && b == nil {
+		return nil
+	}
+	if *a >= *b {
+		return fmt.Errorf("fork %s set to %d, but prior fork %s has higher or equal offset %d", bName, *b, aName, *a)
 	}
 	return nil
 }
