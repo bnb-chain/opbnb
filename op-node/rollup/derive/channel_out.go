@@ -8,8 +8,11 @@ import (
 	"io"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -54,7 +57,7 @@ type ChannelOut interface {
 	ID() ChannelID
 	Reset() error
 	AddBlock(*rollup.Config, *types.Block) error
-	AddSingularBatch(*SingularBatch, uint64) error
+	AddSingularBatch(*rollup.Config, *SingularBatch, uint64) error
 	InputBytes() int
 	ReadyBytes() int
 	Flush() error
@@ -117,7 +120,7 @@ func (co *SingularChannelOut) AddBlock(rollupCfg *rollup.Config, block *types.Bl
 	if err != nil {
 		return err
 	}
-	return co.AddSingularBatch(batch, l1Info.SequenceNumber)
+	return co.AddSingularBatch(rollupCfg, batch, l1Info.SequenceNumber)
 }
 
 // AddSingularBatch adds a batch to the channel. It returns the RLP encoded byte size
@@ -128,7 +131,7 @@ func (co *SingularChannelOut) AddBlock(rollupCfg *rollup.Config, block *types.Bl
 // AddSingularBatch should be used together with BlockToBatch if you need to access the
 // BatchData before adding a block to the channel. It isn't possible to access
 // the batch data with AddBlock.
-func (co *SingularChannelOut) AddSingularBatch(batch *SingularBatch, _ uint64) error {
+func (co *SingularChannelOut) AddSingularBatch(cfg *rollup.Config, batch *SingularBatch, _ uint64) error {
 	if co.closed {
 		return ErrChannelOutAlreadyClosed
 	}
@@ -234,16 +237,31 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 	if l1InfoTx.Type() != types.DepositTxType {
 		return nil, nil, ErrNotDepositTx
 	}
-	l1Info, err := L1BlockInfoFromBytes(rollupCfg, block.Time(), l1InfoTx.Data())
+	l1Info, err := L1BlockInfoFromBytes(rollupCfg, block.Time() /*second timestamp for fork*/, l1InfoTx.Data())
 	if err != nil {
 		return nil, l1Info, fmt.Errorf("could not parse the L1 Info deposit: %w", err)
+	}
+
+	ts := uint64(0)
+	isVolta := rollupCfg.IsVolta(block.Time())
+	if isVolta { // after volta fork
+		milliPart := uint64(0)
+		if block.MixDigest() != (common.Hash{}) {
+			milliPart = uint64(eth.Bytes32(block.MixDigest())[0])*256 + uint64(eth.Bytes32(block.MixDigest())[1])
+		}
+		ts = block.Time()*1000 + milliPart
+		log.Debug("succeed to transform singular batch after fork",
+			"timestamp_ms", milliPart, "seconds-timestamp", block.Time(),
+			"l2 block", block.Number(), "l1 origin", l1Info.Number)
+	} else { // before volta fork
+		ts = block.Time()
 	}
 
 	return &SingularBatch{
 		ParentHash:   block.ParentHash(),
 		EpochNum:     rollup.Epoch(l1Info.Number),
 		EpochHash:    l1Info.BlockHash,
-		Timestamp:    block.Time(),
+		Timestamp:    ts,
 		Transactions: opaqueTxs,
 	}, l1Info, nil
 }

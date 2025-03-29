@@ -88,7 +88,7 @@ func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *Sing
 		return nil, NewResetError(fmt.Errorf("valid batch has bad parent hash %s, expected %s", batch.ParentHash, l2SafeHead.Hash))
 	}
 	// sanity check timestamp
-	if expected := l2SafeHead.Time + aq.config.BlockTime; expected != batch.Timestamp {
+	if expected := aq.config.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp()); expected != batch.Timestamp {
 		return nil, NewResetError(fmt.Errorf("valid batch has bad timestamp %d, expected %d", batch.Timestamp, expected))
 	}
 	fetchCtx, cancel := context.WithTimeout(ctx, 20*time.Second)

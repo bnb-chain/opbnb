@@ -211,8 +211,8 @@ func (d *OpGeth) StartBlockBuilding(ctx context.Context, attrs *eth.PayloadAttri
 
 // CreatePayloadAttributes creates a valid PayloadAttributes containing a L1Info deposit transaction followed by the supplied transactions.
 func (d *OpGeth) CreatePayloadAttributes(txs ...*types.Transaction) (*eth.PayloadAttributes, error) {
-	timestamp := d.L2Head.Timestamp + 2
-	l1Info, err := derive.L1InfoDepositBytes(d.l2Engine.RollupConfig(), d.SystemConfig, d.sequenceNum, d.L1Head, uint64(timestamp))
+	milliTimestamp := d.L2Head.MillisecondTimestamp() + 2*1000 // 2000 millisecond block interval
+	l1Info, err := derive.L1InfoDepositBytes(d.l2Engine.RollupConfig(), d.SystemConfig, d.sequenceNum, d.L1Head, milliTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -228,17 +228,17 @@ func (d *OpGeth) CreatePayloadAttributes(txs ...*types.Transaction) (*eth.Payloa
 	}
 
 	var withdrawals *types.Withdrawals
-	if d.L2ChainConfig.IsCanyon(uint64(timestamp)) {
+	if d.L2ChainConfig.IsCanyon(milliTimestamp / 1000) {
 		withdrawals = &types.Withdrawals{}
 	}
 
 	var parentBeaconBlockRoot *common.Hash
-	if d.L2ChainConfig.IsEcotone(uint64(timestamp)) {
+	if d.L2ChainConfig.IsEcotone(milliTimestamp / 1000) {
 		parentBeaconBlockRoot = d.L1Head.ParentBeaconRoot()
 	}
 
 	attrs := eth.PayloadAttributes{
-		Timestamp:             timestamp,
+		Timestamp:             eth.Uint64Quantity(milliTimestamp / 1000),
 		Transactions:          txBytes,
 		NoTxPool:              true,
 		GasLimit:              (*eth.Uint64Quantity)(&d.SystemConfig.GasLimit),

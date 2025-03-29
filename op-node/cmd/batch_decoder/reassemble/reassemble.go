@@ -127,7 +127,7 @@ func processFrames(cfg Config, rollupCfg *rollup.Config, id derive.ChannelID, fr
 					batchTypes = append(batchTypes, int(batchType))
 					switch batchType {
 					case derive.SingularBatchType:
-						singularBatch, err := derive.GetSingularBatch(batchData)
+						singularBatch, err := derive.GetSingularBatch(batchData, rollupCfg)
 						if err != nil {
 							invalidBatches = true
 							fmt.Printf("Error converting singularBatch from batchData for channel %v. Err: %v\n", id.String(), err)
@@ -135,7 +135,7 @@ func processFrames(cfg Config, rollupCfg *rollup.Config, id derive.ChannelID, fr
 						// singularBatch will be nil when errored
 						batches = append(batches, singularBatch)
 					case derive.SpanBatchType:
-						spanBatch, err := derive.DeriveSpanBatch(batchData, cfg.L2BlockTime, cfg.L2GenesisTime, cfg.L2ChainID)
+						spanBatch, err := derive.DeriveSpanBatch(batchData, rollupCfg, cfg.L2GenesisTime, cfg.L2ChainID)
 						if err != nil {
 							invalidBatches = true
 							fmt.Printf("Error deriving spanBatch from batchData for channel %v. Err: %v\n", id.String(), err)

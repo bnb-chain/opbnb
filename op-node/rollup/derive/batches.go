@@ -67,13 +67,13 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 	}
 	epoch := l1Blocks[0]
 
-	nextTimestamp := l2SafeHead.Time + cfg.BlockTime
-	if batch.Timestamp > nextTimestamp {
-		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextTimestamp)
+	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
+	if batch.Timestamp > nextMilliTimestamp {
+		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
-	if batch.Timestamp < nextTimestamp {
-		log.Warn("dropping batch with old timestamp", "min_timestamp", nextTimestamp)
+	if batch.Timestamp < nextMilliTimestamp {
+		log.Warn("dropping batch with old timestamp", "batch_timestamp", batch.Timestamp, "min_timestamp", nextMilliTimestamp)
 		return BatchDrop
 	}
 
@@ -118,14 +118,14 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 		return BatchDrop
 	}
 
-	if batch.Timestamp < batchOrigin.Time {
-		log.Warn("batch timestamp is less than L1 origin timestamp", "l2_timestamp", batch.Timestamp, "l1_timestamp", batchOrigin.Time, "origin", batchOrigin.ID())
+	if batch.Timestamp < batchOrigin.MillisecondTimestamp() {
+		log.Warn("batch timestamp is less than L1 origin timestamp", "l2_ms_timestamp", batch.Timestamp, "l1_ms_timestamp", batchOrigin.MillisecondTimestamp(), "origin", batchOrigin.ID())
 		return BatchDrop
 	}
 
 	spec := rollup.NewChainSpec(cfg)
 	// Check if we ran out of sequencer time drift
-	if max := batchOrigin.Time + spec.MaxSequencerDrift(batchOrigin.Time); batch.Timestamp > max {
+	if max := batchOrigin.MillisecondTimestamp() + spec.MaxSequencerDrift(batchOrigin.Time)*1000; batch.Timestamp > max {
 		if len(batch.Transactions) == 0 {
 			// If the sequencer is co-operating by producing an empty batch,
 			// then allow the batch if it was the right thing to do to maintain the L2 time >= L1 time invariant.
@@ -136,7 +136,7 @@ func checkSingularBatch(cfg *rollup.Config, log log.Logger, l1Blocks []eth.L1Blo
 					return BatchUndecided
 				}
 				nextOrigin := l1Blocks[1]
-				if batch.Timestamp >= nextOrigin.Time { // check if the next L1 origin could have been adopted
+				if batch.Timestamp >= nextOrigin.MillisecondTimestamp() { // check if the next L1 origin could have been adopted
 					log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 					return BatchDrop
 				} else {
@@ -194,14 +194,18 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		return BatchDrop
 	}
 
-	nextTimestamp := l2SafeHead.Time + cfg.BlockTime
+	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 
-	if batch.GetTimestamp() > nextTimestamp {
-		log.Trace("received out-of-order batch for future processing after next batch", "next_timestamp", nextTimestamp)
+	if batch.GetTimestamp() > nextMilliTimestamp {
+		log.Trace("received out-of-order batch for future processing after next batch",
+			"first_ms_timestamp_of_spanbatch", batch.GetTimestamp(),
+			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
-	if batch.GetBlockTimestamp(batch.GetBlockCount()-1) < nextTimestamp {
-		log.Warn("span batch has no new blocks after safe head")
+	if batch.GetBlockTimestamp(batch.GetBlockCount()-1) < nextMilliTimestamp {
+		log.Warn("span batch has no new blocks after safe head",
+			"last_ms_timestamp_of_spanbatch", batch.GetBlockTimestamp(batch.GetBlockCount()-1),
+			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchDrop
 	}
 
@@ -209,18 +213,23 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	// if the span batch does not overlap the current safe chain, parentBLock should be l2SafeHead.
 	parentNum := l2SafeHead.Number
 	parentBlock := l2SafeHead
-	if batch.GetTimestamp() < nextTimestamp {
-		if batch.GetTimestamp() > l2SafeHead.Time {
+	if batch.GetTimestamp() < nextMilliTimestamp {
+		if batch.GetTimestamp() > l2SafeHead.MillisecondTimestamp() {
 			// batch timestamp cannot be between safe head and next timestamp
 			log.Warn("batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
-		if (l2SafeHead.Time-batch.GetTimestamp())%cfg.BlockTime != 0 {
+		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%rollup.MillisecondBlockIntervalVolta != 0 {
 			log.Warn("batch has misaligned timestamp, not overlapped exactly")
 			return BatchDrop
 		}
-		parentNum = l2SafeHead.Number - (l2SafeHead.Time-batch.GetTimestamp())/cfg.BlockTime - 1
-		var err error
+		currentNum, err := cfg.TargetBlockNumber(batch.GetTimestamp())
+		if err != nil {
+			log.Warn("failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err)
+			// unable to validate the batch for now. retry later.
+			return BatchUndecided
+		}
+		parentNum = currentNum - 1
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {
 			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
@@ -272,7 +281,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	originAdvanced := startEpochNum == parentBlock.L1Origin.Number+1
 
 	for i := 0; i < batch.GetBlockCount(); i++ {
-		if batch.GetBlockTimestamp(i) <= l2SafeHead.Time {
+		if batch.GetBlockTimestamp(i) <= l2SafeHead.MillisecondTimestamp() {
 			continue
 		}
 		var l1Origin eth.L1BlockRef
@@ -290,14 +299,14 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			}
 		}
 		blockTimestamp := batch.GetBlockTimestamp(i)
-		if blockTimestamp < l1Origin.Time {
-			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.Time, "origin", l1Origin.ID())
+		if blockTimestamp < l1Origin.MillisecondTimestamp() {
+			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.MillisecondTimestamp(), "origin", l1Origin.ID())
 			return BatchDrop
 		}
 
 		spec := rollup.NewChainSpec(cfg)
 		// Check if we ran out of sequencer time drift
-		if max := l1Origin.Time + spec.MaxSequencerDrift(l1Origin.Time); blockTimestamp > max {
+		if max := l1Origin.MillisecondTimestamp() + spec.MaxSequencerDrift(l1Origin.Time)*1000; blockTimestamp > max {
 			if len(batch.GetBlockTransactions(i)) == 0 {
 				// If the sequencer is co-operating by producing an empty batch,
 				// then allow the batch if it was the right thing to do to maintain the L2 time >= L1 time invariant.
@@ -307,7 +316,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 						log.Info("without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid")
 						return BatchUndecided
 					}
-					if blockTimestamp >= l1Blocks[originIdx+1].Time { // check if the next L1 origin could have been adopted
+					if blockTimestamp >= l1Blocks[originIdx+1].MillisecondTimestamp() { // check if the next L1 origin could have been adopted
 						log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 						return BatchDrop
 					} else {
@@ -335,7 +344,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	}
 
 	// Check overlapped blocks
-	if batch.GetTimestamp() < nextTimestamp {
+	if batch.GetTimestamp() < nextMilliTimestamp {
 		for i := uint64(0); i < l2SafeHead.Number-parentNum; i++ {
 			safeBlockNum := parentNum + i + 1
 			safeBlockPayload, err := l2Fetcher.PayloadByNumber(ctx, safeBlockNum)

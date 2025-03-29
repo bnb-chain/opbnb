@@ -305,6 +305,31 @@ type DeployConfig struct {
 	UseInterop bool `json:"useInterop,omitempty"`
 }
 
+func (d *DeployConfig) L1MillisecondBlockInterval() uint64 {
+	// convert second to millisecond
+	return d.L1BlockTime * 1000
+}
+
+func (d *DeployConfig) L2MillisecondBlockInterval() uint64 {
+	if d.L2BlockTime > 3 {
+		// has been millisecond
+		return d.L2BlockTime
+	}
+	// convert second to millisecond
+	return d.L2BlockTime * 1000
+}
+
+// L2SecondBlockInterval is just used by ut&e2e test.
+// TODO: ut&e2e need to be refined later.
+func (d *DeployConfig) L2SecondBlockInterval() uint64 {
+	if d.L2BlockTime <= 3 {
+		// has been second
+		return d.L2BlockTime
+	}
+	// convert millisecond to second
+	return d.L2BlockTime / 1000
+}
+
 // Copy will deeply copy the DeployConfig. This does a JSON roundtrip to copy
 // which makes it easier to maintain, we do not need efficiency in this case.
 func (d *DeployConfig) Copy() *DeployConfig {
@@ -434,9 +459,10 @@ func (d *DeployConfig) Check() error {
 			return fmt.Errorf("%w: GovernanceToken owner cannot be address(0)", ErrInvalidDeployConfig)
 		}
 	}
+
 	// L2 block time must always be smaller than L1 block time
-	if d.L1BlockTime < d.L2BlockTime {
-		return fmt.Errorf("L2 block time (%d) is larger than L1 block time (%d)", d.L2BlockTime, d.L1BlockTime)
+	if d.L1MillisecondBlockInterval() < d.L2MillisecondBlockInterval() {
+		return fmt.Errorf("L2 block interval ms (%d) is larger than L1 block interval ms (%d)", d.L2MillisecondBlockInterval(), d.L1MillisecondBlockInterval())
 	}
 	if d.RequiredProtocolVersion == (params.ProtocolVersion{}) {
 		log.Warn("RequiredProtocolVersion is empty")
@@ -585,6 +611,7 @@ func (d *DeployConfig) DeltaTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+// TODO judge if it is need to use milliseconds timestamp with the fork information
 func (d *DeployConfig) EcotoneTime(genesisTime uint64) *uint64 {
 	if d.L2GenesisEcotoneTimeOffset == nil {
 		return nil

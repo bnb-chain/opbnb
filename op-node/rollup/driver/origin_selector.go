@@ -46,18 +46,23 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	if err != nil {
 		return eth.L1BlockRef{}, err
 	}
-	msd := los.spec.MaxSequencerDrift(currentOrigin.Time)
+	// TODO: may need to pass l1origin milli-timestamp later if IsFjord() use the milli-timestamp
+	msd := los.spec.MaxSequencerDrift(currentOrigin.Time) * 1000 // ms
 	log := los.log.New("current", currentOrigin, "current_time", currentOrigin.Time,
-		"l2_head", l2Head, "l2_head_time", l2Head.Time, "max_seq_drift", msd)
+		"l2_head", l2Head, "l2_head_time_ms", l2Head.MillisecondTimestamp(), "max_seq_drift_ms", msd)
 
 	// If we are past the sequencer depth, we may want to advance the origin, but need to still
 	// check the time of the next origin.
-	pastSeqDrift := l2Head.Time+los.cfg.BlockTime > currentOrigin.Time+msd
+	pastSeqDrift := los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()) > currentOrigin.MillisecondTimestamp()+msd
 	// Limit the time to fetch next origin block by default
 	refCtx, refCancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer refCancel()
 	if pastSeqDrift {
-		log.Warn("Next L2 block time is past the sequencer drift + current origin time")
+		log.Warn("Next L2 block time is past the sequencer drift + current origin time",
+			"l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
+			"l2_block_ms_interval", los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()),
+			"l1_origin_ms_timestamp", currentOrigin.MillisecondTimestamp(),
+			"max_ms_drift", msd)
 		// Must fetch next L1 block as long as it may take, cause we are pastSeqDrift
 		refCtx = ctx
 	}
@@ -93,8 +98,17 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	// of slack. For simplicity, we implement our Sequencer to always start building on the latest
 	// L1 block when we can.
 	// If not pastSeqDrift and next origin receipts not cached, fallback to current origin.
-	if l2Head.Time+los.cfg.BlockTime >= nextOrigin.Time && (pastSeqDrift || receiptsCached) {
+	if los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()) >= nextOrigin.MillisecondTimestamp() && (pastSeqDrift || receiptsCached) {
 		return nextOrigin, nil
+	} else {
+		log.Warn("select l1 old origin, give up next origin",
+			"current_l2_head_ms_timestamp", l2Head.MillisecondTimestamp(),
+			"next_l2_head_ms_timestamp", los.cfg.NextMillisecondBlockTime(l2Head.MillisecondTimestamp()),
+			"current_l1_origin_ms_timestamp", currentOrigin.MillisecondTimestamp(),
+			"next_l1_origin_ms_timestamp", nextOrigin.MillisecondTimestamp(),
+			"l2_past_seq_drift", pastSeqDrift,
+			"max_ms_drift", msd,
+			"l1_receipts_cached", receiptsCached)
 	}
 
 	return currentOrigin, nil

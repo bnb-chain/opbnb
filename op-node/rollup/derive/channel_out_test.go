@@ -103,7 +103,8 @@ func TestOutputFrameNoEmptyLastFrame(t *testing.T) {
 			txCount := 1
 			singularBatch := RandomSingularBatch(rng, txCount, chainID)
 
-			err := cout.AddSingularBatch(singularBatch, 0)
+			var cfg rollup.Config
+			err := cout.AddSingularBatch(&cfg, singularBatch, 0)
 			var written uint64
 			require.NoError(t, err)
 
@@ -259,7 +260,8 @@ func TestSpanChannelOut(t *testing.T) {
 func SpanChannelOutCompressionOnlyOneBatch(t *testing.T, algo CompressionAlgo) {
 	cout, singularBatches := SpanChannelAndBatches(t, 300, 2, algo)
 
-	err := cout.AddSingularBatch(singularBatches[0], 0)
+	var cfg rollup.Config
+	err := cout.AddSingularBatch(&cfg, singularBatches[0], 0)
 	// confirm compression was not skipped
 	require.Greater(t, cout.compressor.Len(), 0)
 	require.NoError(t, err)
@@ -268,7 +270,7 @@ func SpanChannelOutCompressionOnlyOneBatch(t *testing.T, algo CompressionAlgo) {
 	require.ErrorIs(t, cout.FullErr(), ErrCompressorFull)
 
 	// confirm adding another batch would cause the same full error
-	err = cout.AddSingularBatch(singularBatches[1], 0)
+	err = cout.AddSingularBatch(&cfg, singularBatches[1], 0)
 	require.ErrorIs(t, err, ErrCompressorFull)
 }
 
@@ -277,7 +279,8 @@ func SpanChannelOutCompressionUndo(t *testing.T, algo CompressionAlgo) {
 	// target is larger than one batch, but smaller than two batches
 	cout, singularBatches := SpanChannelAndBatches(t, 750, 2, algo)
 
-	err := cout.AddSingularBatch(singularBatches[0], 0)
+	var cfg rollup.Config
+	err := cout.AddSingularBatch(&cfg, singularBatches[0], 0)
 	require.NoError(t, err)
 	// confirm that the first compression was skipped
 	if algo == Zlib {
@@ -288,7 +291,7 @@ func SpanChannelOutCompressionUndo(t *testing.T, algo CompressionAlgo) {
 	// record the RLP length to confirm it doesn't change when adding a rejected batch
 	rlp1 := cout.activeRLP().Len()
 
-	err = cout.AddSingularBatch(singularBatches[1], 0)
+	err = cout.AddSingularBatch(&cfg, singularBatches[1], 0)
 	require.ErrorIs(t, err, ErrCompressorFull)
 	// confirm that the second compression was not skipped
 	require.Greater(t, cout.compressor.Len(), 0)
@@ -303,7 +306,8 @@ func SpanChannelOutClose(t *testing.T, algo CompressionAlgo) {
 	target := uint64(600)
 	cout, singularBatches := SpanChannelAndBatches(t, target, 1, algo)
 
-	err := cout.AddSingularBatch(singularBatches[0], 0)
+	var cfg rollup.Config
+	err := cout.AddSingularBatch(&cfg, singularBatches[0], 0)
 	require.NoError(t, err)
 	// confirm no compression has happened yet
 

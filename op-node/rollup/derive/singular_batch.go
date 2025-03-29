@@ -20,9 +20,12 @@ import (
 
 // SingularBatch is an implementation of Batch interface, containing the input to build one L2 block.
 type SingularBatch struct {
-	ParentHash   common.Hash  // parent L2 block hash
-	EpochNum     rollup.Epoch // aka l1 num
-	EpochHash    common.Hash  // l1 block hash
+	ParentHash common.Hash  // parent L2 block hash
+	EpochNum   rollup.Epoch // aka l1 num
+	EpochHash  common.Hash  // l1 block hash
+	// before volta fork, Timestamp is second timestamp in op-batcher side,
+	// after volta fork, Timestamp is millisecond timestamp in op-batcher side,
+	// On the op-node side, this field is uniformly converted to millisecond timestamp to support millisecond schedule.
 	Timestamp    uint64
 	Transactions []hexutil.Bytes
 }
@@ -72,10 +75,16 @@ func (b *SingularBatch) decode(r *bytes.Reader) error {
 }
 
 // GetSingularBatch retrieves SingularBatch from batchData
-func GetSingularBatch(batchData *BatchData) (*SingularBatch, error) {
+func GetSingularBatch(batchData *BatchData, rollupCfg *rollup.Config) (*SingularBatch, error) {
 	singularBatch, ok := batchData.inner.(*SingularBatch)
 	if !ok {
 		return nil, NewCriticalError(errors.New("failed type assertion to SingularBatch"))
 	}
+
+	if !rollupCfg.IsVolta(singularBatch.Timestamp) {
+		singularBatch.Timestamp = singularBatch.Timestamp * 1000
+		log.Debug("convert singular batch to milliseconds timestamp", "time", singularBatch.Timestamp)
+	}
+
 	return singularBatch, nil
 }
