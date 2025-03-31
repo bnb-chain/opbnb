@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.3-hotfix
+
+This release is a hotfix that modifies the `SeqWindowSize` configuration.
+If not changed, opBNB will not function correctly for 3 hours after the BSC [BEP-524](https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-524.md) takes effect.
+As a result, it will be unable to recover. After the modification, this recovery time will be extended to 12 hours.
+
+### What's Changed
+
+* [\#285](https://github.com/bnb-chain/opbnb/pull/285) feat: change default seq window size
+
+### Docker Images
+- ghcr.io/bnb-chain/op-node:v0.5.3-hotfix
+- ghcr.io/bnb-chain/op-batcher:v0.5.3-hotfix
+- ghcr.io/bnb-chain/op-proposer:v0.5.3-hotfix
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.2...v0.5.3-hotfix
+
 ## v0.5.3
 
 This release introduces the implementation of [BEP-543](https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-543.md), effectively reducing the block time from 1 second to an impressive 500 milliseconds.
