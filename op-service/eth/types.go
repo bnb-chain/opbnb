@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math"
 	"math/big"
 	"reflect"
@@ -33,6 +34,8 @@ const (
 )
 
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")
+
+var BlockMillisecondsIntervalUint uint64 = 500
 
 // InputError distinguishes an user-input error from regular rpc errors,
 // to help the (Engine) API user divert from accidental input mistakes.
@@ -341,16 +344,18 @@ func (pa *PayloadAttributes) MillisecondTimestamp() uint64 {
 // SetMillisecondTimestamp is used to set millisecond timestamp.
 // [32]byte PrevRandao
 // [0][1] represent l2 millisecond's mill part.
-func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecond bool) {
+func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecond bool, blockIntervalCount uint64) {
 	pa.Timestamp = hexutil.Uint64(ts / 1000)
 	if updateMilliSecond {
 		milliPartBytes := uint256.NewInt(ts % 1000).Bytes32()
 		pa.PrevRandao[0] = milliPartBytes[30]
 		pa.PrevRandao[1] = milliPartBytes[31]
 
-		// It is just a marker byte to ensure that the whole is not empty;
-		// op-geth relies on non-empty to determine that the passed in millisecond timestamp.
-		pa.PrevRandao[2] = 1
+		if blockIntervalCount == 0 || blockIntervalCount > 255 {
+			log.Crit("failed to get block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
+		}
+		// count must occupy only one byte.
+		pa.PrevRandao[2] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
 	}
 }
 
