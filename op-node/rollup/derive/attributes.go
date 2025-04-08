@@ -181,7 +181,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	}
 
 	isVoltaTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
-	pa.SetMillisecondTimestamp(nextL2MilliTime, isVoltaTime)
+	blockIntervalCount := ba.rollupCfg.MillisecondBlockInterval(nextL2MilliTime) / eth.BlockMillisecondsIntervalUint
+	pa.SetMillisecondTimestamp(nextL2MilliTime, isVoltaTime, blockIntervalCount)
 	if isVoltaTime {
 		log.Debug("succeed to build payload attributes after fork",
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
