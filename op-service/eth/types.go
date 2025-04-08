@@ -35,7 +35,7 @@ const (
 
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")
 
-var BlockMillisecondsIntervalUint uint64 = 500
+const BlockMillisecondsIntervalUint uint64 = 250
 
 // InputError distinguishes an user-input error from regular rpc errors,
 // to help the (Engine) API user divert from accidental input mistakes.
