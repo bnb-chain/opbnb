@@ -62,7 +62,7 @@ contract L2OutputOracle is Initializable, Semver {
     /**
      * @notice The L2 block number of Volta Hardfork.
      */
-    uint256 public constant VOLTA_BLOCK_NUMBER = 0;
+    uint256 public constant VOLTA_BLOCK_NUMBER = 53450677;
 
     /**
      * @notice Emitted when an output is proposed.
