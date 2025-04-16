@@ -55,6 +55,16 @@ contract L2OutputOracle is Initializable, Semver {
     Types.OutputProposal[] internal l2Outputs;
 
     /**
+     * @notice The time between L2 blocks in milliseconds after Volta Hardfork.
+     */
+    uint256 public constant L2_MILLISECONDS_BLOCK_TIME = 500;
+
+    /**
+     * @notice The L2 block number of Volta Hardfork.
+     */
+    uint256 public constant VOLTA_BLOCK_NUMBER = 53450677;
+
+    /**
      * @notice Emitted when an output is proposed.
      *
      * @param outputRoot    The output root.
@@ -193,7 +203,7 @@ contract L2OutputOracle is Initializable, Semver {
         );
 
         require(
-            computeL2Timestamp(_l2BlockNumber) < block.timestamp,
+            isL2TimestampValid(_l2BlockNumber),
             "L2OutputOracle: cannot propose L2 output in the future"
         );
 
@@ -338,13 +348,49 @@ contract L2OutputOracle is Initializable, Semver {
     }
 
     /**
+     * @notice Checks the given l2 block number is valid.
+     *
+     * @param _l2BlockNumber The L2 block number of the target block.
+     *
+     * @return True that can submit output root, otherwise false.
+     */
+    function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (bool) {
+        uint256 l2Timestamp = _l2BlockNumber <= VOLTA_BLOCK_NUMBER
+            ? computeL2Timestamp(_l2BlockNumber)
+            : computeL2TimestampAfterVolta(_l2BlockNumber);
+
+        uint256 currentTimestamp = _l2BlockNumber <= VOLTA_BLOCK_NUMBER
+            ? block.timestamp : block.timestamp * 1000;
+
+        return l2Timestamp < currentTimestamp;
+    }
+
+    /**
      * @notice Returns the L2 timestamp corresponding to a given L2 block number.
      *
      * @param _l2BlockNumber The L2 block number of the target block.
      *
-     * @return L2 timestamp of the given block.
+     * @return L2 timestamp of the given block in seconds.
      */
     function computeL2Timestamp(uint256 _l2BlockNumber) public view returns (uint256) {
         return startingTimestamp + ((_l2BlockNumber - startingBlockNumber) * L2_BLOCK_TIME);
+    }
+
+    /**
+     * @notice Returns the L2 timestamp corresponding to a given L2 block number
+     *         after Volta Hardfork.
+     *
+     * @param _l2BlockNumber The L2 block number of the target block.
+     *
+     * @return L2 timestamp of the given block in milliseconds.
+     */
+    function computeL2TimestampAfterVolta(uint256 _l2BlockNumber) public view returns (uint256) {
+        uint256 beforeVoltaBlockTime = (VOLTA_BLOCK_NUMBER - startingBlockNumber)
+            * L2_BLOCK_TIME * 1000;
+        uint256 afterVoltaBlockTime = (_l2BlockNumber - VOLTA_BLOCK_NUMBER)
+            * L2_MILLISECONDS_BLOCK_TIME;
+        uint256 totalPassedBlockTime = beforeVoltaBlockTime + afterVoltaBlockTime;
+
+        return (startingTimestamp * 1000) + totalPassedBlockTime;
     }
 }
