@@ -386,6 +386,7 @@ func (cfg *Config) Check() error {
 		return err
 	}
 
+	cfg.validateAndCorrectVoltaTime()
 	if err := checkFork(cfg.RegolithTime, cfg.CanyonTime, Regolith, Canyon); err != nil {
 		return err
 	}
@@ -398,10 +399,10 @@ func (cfg *Config) Check() error {
 	if err := checkFork(cfg.EcotoneTime, cfg.FjordTime, Ecotone, Fjord); err != nil {
 		return err
 	}
-	if err := validateForkOrder(cfg.FjordTime, cfg.VoltaTime, Fjord, Volta); err != nil {
+	if err := checkFork(cfg.FjordTime, cfg.VoltaTime, Fjord, Volta); err != nil {
 		return err
 	}
-	if err := validateForkOrder(cfg.SnowTime, cfg.VoltaTime, Snow, Volta); err != nil {
+	if err := checkFork(cfg.SnowTime, cfg.VoltaTime, Snow, Volta); err != nil {
 		return err
 	}
 
@@ -462,21 +463,16 @@ func checkFork(a, b *uint64, aName, bName ForkName) error {
 	return nil
 }
 
-// validateForkOrder validates that fork A is before fork B
-func validateForkOrder(a, b *uint64, aName, bName ForkName) error {
-	if a == nil && b == nil {
-		return nil
+func (c *Config) validateAndCorrectVoltaTime() {
+	if c.VoltaTime == nil {
+		return
 	}
-	if a == nil && b != nil {
-		return fmt.Errorf("fork %s set (to %d), but prior fork %s missing", bName, *b, aName)
+	if *c.VoltaTime == 0 {
+		log.Warn("correct volta time to genesis time", "from", *c.VoltaTime, "to", c.Genesis.L2Time)
+		*c.VoltaTime = c.Genesis.L2Time
+	} else if *c.VoltaTime < c.Genesis.L2Time {
+		log.Crit("volta time invalid")
 	}
-	if a != nil && b == nil {
-		return nil
-	}
-	if *a >= *b {
-		return fmt.Errorf("fork %s set to %d, but prior fork %s has higher or equal offset %d", bName, *b, aName, *a)
-	}
-	return nil
 }
 
 func (c *Config) L1Signer() types.Signer {
