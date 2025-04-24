@@ -141,6 +141,9 @@ type DeployConfig struct {
 	// L2GenesisInteropTimeOffset is the number of seconds after genesis block that the Interop hard fork activates.
 	// Set it to 0 to activate at genesis. Nil to disable Interop.
 	L2GenesisInteropTimeOffset *hexutil.Uint64 `json:"l2GenesisInteropTimeOffset,omitempty"`
+	// L2GenesisVoltaTimeOffset is the number of seconds after genesis block that the Volta hard fork activates.
+	// Set it to 0 to activate at genesis. Nil to disable Interop.
+	L2GenesisVoltaTimeOffset *hexutil.Uint64 `json:"l2GenesisVoltaTimeOffset,omitempty"`
 	// L2GenesisBlockExtraData is configurable extradata. Will default to []byte("BEDROCK") if left unspecified.
 	L2GenesisBlockExtraData []byte `json:"l2GenesisBlockExtraData"`
 	// ProxyAdminOwner represents the owner of the ProxyAdmin predeploy on L2.
@@ -656,6 +659,17 @@ func (d *DeployConfig) SnowTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+func (d *DeployConfig) VoltaTime(genesisTime uint64) *uint64 {
+	if d.L2GenesisVoltaTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.L2GenesisVoltaTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
 func (d *DeployConfig) HaberTime(genesisTime uint64) *uint64 {
 	if d.HaberTimeOffset == nil {
 		return nil
@@ -733,6 +747,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		PlasmaConfig:           plasma,
 		Fermat:                 d.Fermat,
 		SnowTime:               d.SnowTime(l1StartBlock.Time()),
+		VoltaTime:              d.VoltaTime(l1StartBlock.Time()),
 	}, nil
 }
 
