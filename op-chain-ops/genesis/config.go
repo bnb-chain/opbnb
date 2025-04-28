@@ -142,7 +142,7 @@ type DeployConfig struct {
 	// Set it to 0 to activate at genesis. Nil to disable Interop.
 	L2GenesisInteropTimeOffset *hexutil.Uint64 `json:"l2GenesisInteropTimeOffset,omitempty"`
 	// L2GenesisVoltaTimeOffset is the number of seconds after genesis block that the Volta hard fork activates.
-	// Set it to 0 to activate at genesis. Nil to disable Interop.
+	// Set it to 0 to activate at genesis. Nil to disable Volta.
 	L2GenesisVoltaTimeOffset *hexutil.Uint64 `json:"l2GenesisVoltaTimeOffset,omitempty"`
 	// L2GenesisBlockExtraData is configurable extradata. Will default to []byte("BEDROCK") if left unspecified.
 	L2GenesisBlockExtraData []byte `json:"l2GenesisBlockExtraData"`
