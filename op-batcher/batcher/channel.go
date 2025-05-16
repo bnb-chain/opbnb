@@ -32,10 +32,12 @@ type channel struct {
 	minInclusionBlock uint64
 	// Inclusion block number of last confirmed TX
 	maxInclusionBlock uint64
+
+	outFactory ChannelOutFactory
 }
 
-func newChannel(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config, latestL1OriginBlockNum uint64) (*channel, error) {
-	cb, err := NewChannelBuilder(cfg, *rollupCfg, latestL1OriginBlockNum)
+func newChannel(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config, outFactory ChannelOutFactory, latestL1OriginBlockNum uint64) (*channel, error) {
+	cb, err := NewChannelBuilder(cfg, *rollupCfg, outFactory, latestL1OriginBlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("creating new channel: %w", err)
 	}
@@ -47,6 +49,7 @@ func newChannel(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollup
 		channelBuilder:        cb,
 		pendingTransactions:   make(map[string]txData),
 		confirmedTransactions: make(map[string]eth.BlockID),
+		outFactory:            outFactory,
 	}, nil
 }
 

@@ -57,16 +57,17 @@ type RollupClient interface {
 
 // DriverSetup is the collection of input/output interfaces and configuration that the driver operates on.
 type DriverSetup struct {
-	Log              log.Logger
-	Metr             metrics.Metricer
-	RollupConfig     *rollup.Config
-	Config           BatcherConfig
-	Txmgr            txmgr.TxManager
-	L1Client         L1Client
-	EndpointProvider dial.L2EndpointProvider
-	ChannelConfig    ChannelConfig
-	PlasmaDA         *plasma.DAClient
-	AutoSwitchDA     bool
+	Log               log.Logger
+	Metr              metrics.Metricer
+	RollupConfig      *rollup.Config
+	Config            BatcherConfig
+	Txmgr             txmgr.TxManager
+	L1Client          L1Client
+	EndpointProvider  dial.L2EndpointProvider
+	ChannelConfig     ChannelConfig
+	PlasmaDA          *plasma.DAClient
+	AutoSwitchDA      bool
+	ChannelOutFactory ChannelOutFactory
 }
 
 // BatchSubmitter encapsulates a service responsible for submitting L2 tx
@@ -98,7 +99,7 @@ type BatchSubmitter struct {
 func NewBatchSubmitter(setup DriverSetup) *BatchSubmitter {
 	return &BatchSubmitter{
 		DriverSetup: setup,
-		state:       NewChannelManager(setup.Log, setup.Metr, setup.ChannelConfig, setup.RollupConfig),
+		state:       NewChannelManager(setup.Log, setup.Metr, setup.ChannelConfig, setup.RollupConfig, setup.ChannelOutFactory),
 	}
 }
 
