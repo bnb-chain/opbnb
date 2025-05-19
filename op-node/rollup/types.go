@@ -55,7 +55,7 @@ type Genesis struct {
 	// unlike later L2 blocks.
 	SystemConfig eth.SystemConfig `json:"system_config"`
 	// The genesis state root of L2 genesis block
-	L2GenesisStateRoot common.Hash `json:"l2_genesis_state_root"`
+	L2GenesisStateRoot common.Hash `json:"l2_genesis_state_root,omitempty"`
 }
 
 type PlasmaConfig struct {
