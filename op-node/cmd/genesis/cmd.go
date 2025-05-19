@@ -47,6 +47,10 @@ var (
 		Name:  "outfile.rollup",
 		Usage: "Path to rollup output file",
 	}
+	outfileStateRootFlag = &cli.PathFlag{
+		Name:  "outfile.stateroot",
+		Usage: "Path to genesis state root output file",
+	}
 
 	l1AllocsFlag = &cli.StringFlag{
 		Name:  "l1-allocs",
@@ -76,6 +80,7 @@ var (
 		l1DeploymentsFlag,
 		outfileL2Flag,
 		outfileRollupFlag,
+		outfileStateRootFlag,
 	}
 )
 
@@ -225,6 +230,17 @@ var Subcommands = cli.Commands{
 			}
 
 			l2GenesisBlock := l2Genesis.ToBlock()
+			if ctx.IsSet("outfile.stateroot") {
+				stateRoot := struct {
+					StateRoot string `json:"stateRoot"`
+				}{
+					StateRoot: l2GenesisBlock.Header().Root.Hex(),
+				}
+				if err := jsonutil.WriteJSON(ctx.String("outfile.stateroot"), stateRoot, 0o666); err != nil {
+					return err
+				}
+			}
+
 			rollupConfig, err := config.RollupConfig(l1StartBlock, l2GenesisBlock.Hash(), l2GenesisBlock.Number().Uint64())
 			if err != nil {
 				return err
