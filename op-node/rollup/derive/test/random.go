@@ -45,5 +45,5 @@ func RandomL2BlockWithChainIdAndTime(rng *rand.Rand, txCount int, chainId *big.I
 	for i := 0; i < txCount; i++ {
 		txs = append(txs, testutils.RandomTx(rng, big.NewInt(int64(rng.Uint32())), signer))
 	}
-	return block.WithBody(txs, nil)
+	return block.WithBody(types.Body{Transactions: txs, Uncles: nil})
 }

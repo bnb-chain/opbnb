@@ -682,7 +682,7 @@ func (l *BatchSubmitter) sendTransaction(ctx context.Context, txdata txData, que
 		candidate = l.calldataTxCandidate(data)
 	}
 
-	intrinsicGas, err := core.IntrinsicGas(candidate.TxData, nil, nil, true, true, false, false)
+	intrinsicGas, err := core.IntrinsicGas(candidate.TxData, nil, true, true, false, false)
 	if err != nil {
 		// we log instead of return an error here because txmgr can do its own gas estimation
 		l.Log.Error("Failed to calculate intrinsic gas", "err", err)
