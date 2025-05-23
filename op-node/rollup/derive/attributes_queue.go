@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -24,7 +25,7 @@ import (
 // This stage does not need to retain any references to L1 blocks.
 
 type AttributesBuilder interface {
-	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error)
+	PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID, l1BaseFee *big.Int) (attrs *eth.PayloadAttributes, err error)
 	CachePayloadByHash(payload *eth.ExecutionPayloadEnvelope) bool
 }
 
@@ -93,7 +94,7 @@ func (aq *AttributesQueue) createNextAttributes(ctx context.Context, batch *Sing
 	}
 	fetchCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	attrs, err := aq.builder.PreparePayloadAttributes(fetchCtx, l2SafeHead, batch.Epoch())
+	attrs, err := aq.builder.PreparePayloadAttributes(fetchCtx, l2SafeHead, batch.Epoch(), nil)
 	if err != nil {
 		return nil, err
 	}

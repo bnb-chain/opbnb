@@ -89,7 +89,7 @@ func (d *Sequencer) StartBuildingBlock(ctx context.Context) error {
 	defer cancel()
 
 	start = time.Now()
-	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID())
+	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID(), nil)
 	if err != nil {
 		return err
 	}
