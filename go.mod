@@ -277,11 +277,10 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.13.15 => github.com/bnb-chain/op-geth v1.101315.2-0.0.20250418091555-2b39d61b7cbf
+// https://github.com/bnb-chain/op-geth/tree/tee-base-stateless-poc
+replace github.com/ethereum/go-ethereum v1.13.15 => github.com/bnb-chain/op-geth v1.101315.2-0.0.20250520053659-1fde7613d115
 
 replace github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v1.0.0
-
-//replace github.com/ethereum/go-ethereum v1.13.9 => ../op-geth
 
 // replace github.com/ethereum-optimism/superchain-registry/superchain => ../superchain-registry/superchain
 

@@ -33,7 +33,7 @@ func TestChannelTimeout(t *testing.T) {
 		CompressorConfig: compressor.Config{
 			CompressionAlgo: derive.Zlib,
 		},
-	}, &rollup.Config{})
+	}, &rollup.Config{}, nil)
 	m.Clear(eth.BlockID{})
 
 	// Pending channel is nil so is cannot be timed out
@@ -77,7 +77,7 @@ func TestChannelManager_NextTxData(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	m := NewChannelManager(log, metrics.NoopMetrics, ChannelConfig{CompressorConfig: compressor.Config{
 		CompressionAlgo: derive.Zlib,
-	}}, &rollup.Config{})
+	}}, &rollup.Config{}, nil)
 	m.Clear(eth.BlockID{})
 
 	// Nil pending channel should return EOF
@@ -127,7 +127,7 @@ func TestChannel_NextTxData_singleFrameTx(t *testing.T) {
 		CompressorConfig: compressor.Config{
 			CompressionAlgo: derive.Zlib,
 		},
-	}, &rollup.Config{}, latestL1BlockOrigin)
+	}, &rollup.Config{}, nil, latestL1BlockOrigin)
 	require.NoError(err)
 	chID := ch.ID()
 
@@ -168,7 +168,7 @@ func TestChannel_NextTxData_multiFrameTx(t *testing.T) {
 		CompressorConfig: compressor.Config{
 			CompressionAlgo: derive.Zlib,
 		},
-	}, &rollup.Config{}, latestL1BlockOrigin)
+	}, &rollup.Config{}, nil, latestL1BlockOrigin)
 	require.NoError(err)
 	chID := ch.ID()
 
@@ -217,7 +217,7 @@ func TestChannelTxConfirmed(t *testing.T) {
 		CompressorConfig: compressor.Config{
 			CompressionAlgo: derive.Zlib,
 		},
-	}, &rollup.Config{})
+	}, &rollup.Config{}, nil)
 	m.Clear(eth.BlockID{})
 
 	// Let's add a valid pending transaction to the channel manager
@@ -268,7 +268,7 @@ func TestChannelTxFailed(t *testing.T) {
 	log := testlog.Logger(t, log.LevelCrit)
 	m := NewChannelManager(log, metrics.NoopMetrics, ChannelConfig{CompressorConfig: compressor.Config{
 		CompressionAlgo: derive.Zlib,
-	}}, &rollup.Config{})
+	}}, &rollup.Config{}, nil)
 	m.Clear(eth.BlockID{})
 
 	// Let's add a valid pending transaction to the channel

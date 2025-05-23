@@ -50,15 +50,18 @@ type channelManager struct {
 	closed bool
 
 	isVolta bool
+
+	outFactory ChannelOutFactory
 }
 
-func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config) *channelManager {
+func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config, outFactory ChannelOutFactory) *channelManager {
 	return &channelManager{
 		log:        log,
 		metr:       metr,
 		cfg:        cfg,
 		rollupCfg:  rollupCfg,
 		txChannels: make(map[string]*channel),
+		outFactory: outFactory,
 	}
 }
 
@@ -206,7 +209,7 @@ func (s *channelManager) ensureChannelWithSpace(l1Head eth.BlockID) error {
 		return nil
 	}
 
-	pc, err := newChannel(s.log, s.metr, s.cfg, s.rollupCfg, s.l1OriginLastClosedChannel.Number)
+	pc, err := newChannel(s.log, s.metr, s.cfg, s.rollupCfg, s.outFactory, s.l1OriginLastClosedChannel.Number)
 	if err != nil {
 		return fmt.Errorf("creating new channel: %w", err)
 	}

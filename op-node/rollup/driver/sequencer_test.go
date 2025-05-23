@@ -131,7 +131,7 @@ var _ derive.EngineControl = (*FakeEngineControl)(nil)
 
 type testAttrBuilderFn func(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error)
 
-func (fn testAttrBuilderFn) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error) {
+func (fn testAttrBuilderFn) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID, l1BaseFeeFromStateless *big.Int) (attrs *eth.PayloadAttributes, err error) {
 	return fn(ctx, l2Parent, epoch)
 }
 

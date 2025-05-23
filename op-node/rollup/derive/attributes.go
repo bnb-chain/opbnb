@@ -55,7 +55,7 @@ func NewFetchingAttributesBuilder(rollupCfg *rollup.Config, l1 L1ReceiptsFetcher
 // by setting NoTxPool=false as sequencer, or by appending batch transactions as verifier.
 // The severity of the error is returned; a crit=false error means there was a temporary issue, like a failed RPC or time-out.
 // A crit=true error means the input arguments are inconsistent or invalid.
-func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error) {
+func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID, l1BaseFeeFromStateless *big.Int) (attrs *eth.PayloadAttributes, err error) {
 	var l1Info eth.BlockInfo
 	var depositTxs []hexutil.Bytes
 	var seqNumber uint64
@@ -108,19 +108,24 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	// Calculate bsc block base fee
 	var l1BaseFee *big.Int
-	if ba.rollupCfg.IsSnow(ba.rollupCfg.NextSecondBlockTime(l2Parent.MillisecondTimestamp())) {
-		l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
-		if err != nil {
-			return nil, err
-		}
-	} else if ba.rollupCfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
-		l1BaseFee = bsc.BaseFeeByNetworks(ba.rollupCfg.L2ChainID)
+	if l1BaseFeeFromStateless != nil {
+		// op-enclave is using the l1 base fee from stateless
+		l1BaseFee = l1BaseFeeFromStateless
 	} else {
-		_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
-		if err != nil {
-			return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+		if ba.rollupCfg.IsSnow(ba.rollupCfg.NextSecondBlockTime(l2Parent.MillisecondTimestamp())) {
+			l1BaseFee, err = SnowL1GasPrice(ctx, ba, epoch)
+			if err != nil {
+				return nil, err
+			}
+		} else if ba.rollupCfg.IsFermat(big.NewInt(int64(l2Parent.Number + 1))) {
+			l1BaseFee = bsc.BaseFeeByNetworks(ba.rollupCfg.L2ChainID)
+		} else {
+			_, transactions, err := ba.l1.InfoAndTxsByHash(ctx, epoch.Hash)
+			if err != nil {
+				return nil, NewTemporaryError(fmt.Errorf("failed to fetch L1 block info and txs: %w", err))
+			}
+			l1BaseFee = bsc.BaseFeeByTransactions(transactions)
 		}
-		l1BaseFee = bsc.BaseFeeByTransactions(transactions)
 	}
 	l1Info = bsc.NewBlockInfoBSCWrapper(l1Info, l1BaseFee)
 
