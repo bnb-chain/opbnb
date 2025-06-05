@@ -84,7 +84,7 @@ func (los *L1OriginSelector) FindL1Origin(ctx context.Context, l2Head eth.L2Bloc
 	}
 
 	receiptsCached := true
-	receiptsCtx, receiptsCancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	receiptsCtx, receiptsCancel := context.WithTimeout(ctx, 50*time.Millisecond)
 	defer receiptsCancel()
 	_, _, err = los.l1.FetchReceipts(receiptsCtx, nextOrigin.Hash)
 	if err != nil {
