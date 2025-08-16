@@ -11,6 +11,26 @@ import "src/dispute/lib/LibUDT.sol";
 /// @param gameType The unsupported game type.
 error NoImplementation(GameType gameType);
 
+/// @notice the following errors are related to zk fault dispute games
+error NoClaims();
+error InvalidParentGameIndex();
+error InvalidParentGameType();
+error InvalidParentGameStatus();
+error InvalidOriginClaims();
+error InvalidDisputeClaimIndex();
+error InvalidExpectedClaim();
+error ClaimAlreadyChallenged();
+error ClaimNotChallenged();
+error InvalidClaimsLength();
+error GameChallengeSucceeded();
+error ChallengeAlreadyInvalid();
+error UnresolvedChallenges();
+error ParentGameNotResolved();
+error ParentGameIsInvalid();
+error InvalidGameStatus();
+error NoExpiredChallenges();
+error InvalidRewardPercentage();
+
 /// @notice Thrown when a dispute game that already exists is attempted to be created.
 /// @param uuid The UUID of the dispute game that already exists.
 error GameAlreadyExists(Hash uuid);
