@@ -28,8 +28,29 @@ RUN make op-node VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.18
 
-RUN apk add --no-cache libstdc++
+# Set user variables
+ARG NODE_USER_UID=1001
+ARG NODE_USER_GID=1001
+ARG NODE_USER=op-node
+
+RUN apk add --no-cache libstdc++ ca-certificates bash \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g ${NODE_USER_GID} ${NODE_USER} \
+    && adduser -u ${NODE_USER_UID} -G ${NODE_USER} -D ${NODE_USER} \
+    && addgroup ${NODE_USER} tty \
+    && sed -i -e "s/bin\/sh/bin\/bash/" /etc/passwd
+
+RUN echo "[ ! -z \"\$TERM\" -a -r /etc/motd ] && cat /etc/motd" >> /etc/bash/bashrc
 
 COPY --from=builder /app/op-node/bin/op-node /usr/local/bin
+
+# Change ownership of the binary to the non-root user
+RUN chown ${NODE_USER}:${NODE_USER} /usr/local/bin/op-node
+
+# Set working directory to user's home
+WORKDIR /home/${NODE_USER}
+
+# Switch to non-root user
+USER ${NODE_USER}
 
 CMD ["op-node"]
