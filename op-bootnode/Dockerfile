@@ -33,7 +33,7 @@ ARG BOOTNODE_USER_UID=1001
 ARG BOOTNODE_USER_GID=1001
 ARG BOOTNODE_USER=bootnode
 
-RUN apk add --no-cache libstdc++ ca-certificates bash \
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
     && rm -rf /var/cache/apk/* \
     && addgroup -g ${BOOTNODE_USER_GID} ${BOOTNODE_USER} \
     && adduser -u ${BOOTNODE_USER_UID} -G ${BOOTNODE_USER} -D ${BOOTNODE_USER} \

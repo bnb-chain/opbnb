@@ -32,7 +32,7 @@ ARG BATCHER_USER_UID=1001
 ARG BATCHER_USER_GID=1001
 ARG BATCHER_USER=batcher
 
-RUN apk add --no-cache libstdc++ ca-certificates bash \
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
     && rm -rf /var/cache/apk/* \
     && addgroup -g ${BATCHER_USER_GID} ${BATCHER_USER} \
     && adduser -u ${BATCHER_USER_UID} -G ${BATCHER_USER} -D ${BATCHER_USER} \

@@ -33,7 +33,7 @@ ARG NODE_USER_UID=1001
 ARG NODE_USER_GID=1001
 ARG NODE_USER=op-node
 
-RUN apk add --no-cache libstdc++ ca-certificates bash \
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
     && rm -rf /var/cache/apk/* \
     && addgroup -g ${NODE_USER_GID} ${NODE_USER} \
     && adduser -u ${NODE_USER_UID} -G ${NODE_USER} -D ${NODE_USER} \

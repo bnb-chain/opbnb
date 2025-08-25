@@ -32,7 +32,7 @@ ARG PROPOSER_USER_UID=1001
 ARG PROPOSER_USER_GID=1001
 ARG PROPOSER_USER=proposer
 
-RUN apk add --no-cache libstdc++ ca-certificates bash \
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
     && rm -rf /var/cache/apk/* \
     && addgroup -g ${PROPOSER_USER_GID} ${PROPOSER_USER} \
     && adduser -u ${PROPOSER_USER_UID} -G ${PROPOSER_USER} -D ${PROPOSER_USER} \
