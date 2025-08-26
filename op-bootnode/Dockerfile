@@ -28,8 +28,29 @@ RUN make op-bootnode VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.18
 
-RUN apk add --no-cache libstdc++
+# Set user variables
+ARG BOOTNODE_USER_UID=1001
+ARG BOOTNODE_USER_GID=1001
+ARG BOOTNODE_USER=bootnode
+
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g ${BOOTNODE_USER_GID} ${BOOTNODE_USER} \
+    && adduser -u ${BOOTNODE_USER_UID} -G ${BOOTNODE_USER} -D ${BOOTNODE_USER} \
+    && addgroup ${BOOTNODE_USER} tty \
+    && sed -i -e "s/bin\/sh/bin\/bash/" /etc/passwd
+
+RUN echo "[ ! -z \"\$TERM\" -a -r /etc/motd ] && cat /etc/motd" >> /etc/bash/bashrc
 
 COPY --from=builder /app/op-bootnode/bin/op-bootnode /usr/local/bin
+
+# Change ownership of the binary to the non-root user
+RUN chown ${BOOTNODE_USER}:${BOOTNODE_USER} /usr/local/bin/op-bootnode
+
+# Set working directory to user's home
+WORKDIR /home/${BOOTNODE_USER}
+
+# Switch to non-root user
+USER ${BOOTNODE_USER}
 
 ENTRYPOINT ["op-bootnode"]

@@ -27,8 +27,29 @@ RUN make op-batcher VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.18
 
-RUN apk add --no-cache libstdc++
+# Set user variables
+ARG BATCHER_USER_UID=1001
+ARG BATCHER_USER_GID=1001
+ARG BATCHER_USER=batcher
+
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g ${BATCHER_USER_GID} ${BATCHER_USER} \
+    && adduser -u ${BATCHER_USER_UID} -G ${BATCHER_USER} -D ${BATCHER_USER} \
+    && addgroup ${BATCHER_USER} tty \
+    && sed -i -e "s/bin\/sh/bin\/bash/" /etc/passwd
+
+RUN echo "[ ! -z \"\$TERM\" -a -r /etc/motd ] && cat /etc/motd" >> /etc/bash/bashrc
 
 COPY --from=builder /app/op-batcher/bin/op-batcher /usr/local/bin
+
+# Change ownership of the binary to the non-root user
+RUN chown ${BATCHER_USER}:${BATCHER_USER} /usr/local/bin/op-batcher
+
+# Set working directory to user's home
+WORKDIR /home/${BATCHER_USER}
+
+# Switch to non-root user
+USER ${BATCHER_USER}
 
 ENTRYPOINT ["op-batcher"]
