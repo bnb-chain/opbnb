@@ -27,8 +27,29 @@ RUN make op-proposer VERSION="$VERSION" GOOS=$TARGETOS GOARCH=$TARGETARCH
 
 FROM alpine:3.18
 
-RUN apk add --no-cache libstdc++
+# Set user variables
+ARG PROPOSER_USER_UID=1001
+ARG PROPOSER_USER_GID=1001
+ARG PROPOSER_USER=proposer
+
+RUN apk add --no-cache libstdc++ ca-certificates bash curl \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g ${PROPOSER_USER_GID} ${PROPOSER_USER} \
+    && adduser -u ${PROPOSER_USER_UID} -G ${PROPOSER_USER} -D ${PROPOSER_USER} \
+    && addgroup ${PROPOSER_USER} tty \
+    && sed -i -e "s/bin\/sh/bin\/bash/" /etc/passwd
+
+RUN echo "[ ! -z \"\$TERM\" -a -r /etc/motd ] && cat /etc/motd" >> /etc/bash/bashrc
 
 COPY --from=builder /app/op-proposer/bin/op-proposer /usr/local/bin
+
+# Change ownership of the binary to the non-root user
+RUN chown ${PROPOSER_USER}:${PROPOSER_USER} /usr/local/bin/op-proposer
+
+# Set working directory to user's home
+WORKDIR /home/${PROPOSER_USER}
+
+# Switch to non-root user
+USER ${PROPOSER_USER}
 
 CMD ["op-proposer"]
