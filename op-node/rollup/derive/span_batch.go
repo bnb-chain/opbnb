@@ -363,11 +363,24 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 
 	var blockInterval uint64
 	var millisecondTimestamp bool
+	var isFourierfork bool
 	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime >= genesisTimestamp {
 		secondSinceVolta := *rollupCfg.VoltaTime - genesisTimestamp
 		if b.relTimestamp >= secondSinceVolta {
-			blockInterval = rollup.MillisecondBlockIntervalVolta
 			millisecondTimestamp = true
+			// check if batch time stamp has passed fourier fork
+			if rollupCfg.FourierTime != nil && *rollupCfg.FourierTime >= genesisTimestamp {
+				// Convert Fourier threshold to milliseconds since genesis for comparison
+				msSinceFourier := (*rollupCfg.FourierTime - genesisTimestamp) * 1000
+				if b.relTimestamp >= msSinceFourier {
+					blockInterval = rollup.MillisecondBlockIntervalFourier
+					isFourierfork = true
+				} else {
+					blockInterval = rollup.MillisecondBlockIntervalVolta
+				}
+			} else {
+				blockInterval = rollup.MillisecondBlockIntervalVolta
+			}
 		} else {
 			blockInterval = rollupCfg.BlockTime * 1000
 		}
@@ -385,6 +398,11 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		if millisecondTimestamp {
 			// relTimestamp and blockInterval has changed to millisecond
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + blockInterval*uint64(i)
+			// TDOO debug log, remove later
+			if isFourierfork {
+				log.Debug("succeed to build span batch in fourier fork",
+					"timestamp", batch.Timestamp)
+			}
 		} else {
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)

@@ -219,9 +219,19 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			log.Warn("batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
-		if (l2SafeHead.MillisecondTimestamp()-batch.GetTimestamp())%rollup.MillisecondBlockIntervalVolta != 0 {
-			log.Warn("batch has misaligned timestamp, not overlapped exactly")
-			return BatchDrop
+
+		milliSecondsDistance := l2SafeHead.MillisecondTimestamp() - batch.GetTimestamp()
+		if !cfg.IsFourier(l2SafeHead.MillisecondTimestamp()) {
+			if milliSecondsDistance%rollup.MillisecondBlockIntervalVolta != 0 {
+				log.Warn("batch has misaligned timestamp, not overlapped exactly")
+				return BatchDrop
+			}
+		} else {
+			// block interval has changed after fourier fork
+			if milliSecondsDistance%rollup.MillisecondBlockIntervalFourier != 0 {
+				log.Warn("batch has misaligned timestamp after fourier fork, not overlapped exactly")
+				return BatchDrop
+			}
 		}
 		currentNum, err := cfg.TargetBlockNumber(batch.GetTimestamp())
 		if err != nil {
