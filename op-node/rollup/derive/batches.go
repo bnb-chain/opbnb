@@ -221,7 +221,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		}
 
 		milliSecondsDistance := l2SafeHead.MillisecondTimestamp() - batch.GetTimestamp()
-		if !cfg.IsFourier(l2SafeHead.MillisecondTimestamp()) {
+		if !cfg.IsFourier(l2SafeHead.MillisecondTimestamp() / 1000) {
 			if milliSecondsDistance%rollup.MillisecondBlockIntervalVolta != 0 {
 				log.Warn("batch has misaligned timestamp, not overlapped exactly")
 				return BatchDrop
