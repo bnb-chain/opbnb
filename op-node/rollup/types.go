@@ -210,6 +210,19 @@ func (c *Config) VoltaBlockNumber() int64 {
 	return int64((*c.VoltaTime-c.Genesis.L2Time)/c.BlockTime + c.Genesis.L2.Number)
 }
 
+// FourierBlockNumber return fourier block number
+func (c *Config) FourierBlockNumber() int64 {
+	voltaBlockNumber := c.VoltaBlockNumber()
+	if voltaBlockNumber > 0 {
+		if c.FourierTime == nil || *c.FourierTime < c.Genesis.L2Time {
+			return -1
+		}
+		return voltaBlockNumber + int64((*c.FourierTime-*c.VoltaTime)/MillisecondBlockIntervalVolta)
+	} else {
+		return -1
+	}
+}
+
 func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
 	if l2BlockMillisecondTime%1000 != 0 {
 		return false
@@ -253,7 +266,6 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 	return nil
 }
 
-// TODO(dylan) add Fourier logic to this function, fix invalid hardcode
 func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	voltaBlockNumber := cfg.VoltaBlockNumber()
 	if voltaBlockNumber < 0 { // not active volta hardfork
@@ -263,7 +275,14 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	} else if blockNumber <= uint64(voltaBlockNumber) { // block number before volta hardfork
 		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
 	} else {
-		return *cfg.VoltaTime*1000 + (blockNumber-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		// After Volta: default to 500ms cadence, but switch to 250ms after Fourier
+		fourierBlockNumber := cfg.FourierBlockNumber()
+		if fourierBlockNumber < 0 || blockNumber <= uint64(fourierBlockNumber) {
+			return *cfg.VoltaTime*1000 + (blockNumber-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		}
+		// Time at Fourier boundary, then 250ms cadence afterwards
+		boundaryMs := *cfg.VoltaTime*1000 + (uint64(fourierBlockNumber)-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		return boundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
 	}
 }
 
