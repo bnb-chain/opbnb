@@ -683,3 +683,126 @@ func TestGetPayloadVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestTargetBlockNumber(t *testing.T) {
+	tests := []struct {
+		name                string
+		genesisL2Time       uint64
+		genesisL2Number     uint64
+		blockTime           uint64
+		voltaTime           *uint64
+		fourierTime         *uint64
+		milliTimestamp      uint64
+		expectedBlockNumber uint64
+		expectError         bool
+		errorMsg            string
+	}{
+		{
+			name:                "BeforeGenesis",
+			genesisL2Time:       1000,
+			genesisL2Number:     0,
+			blockTime:           2,
+			voltaTime:           nil,
+			fourierTime:         nil,
+			milliTimestamp:      500000, // 500 seconds, before genesis at 1000 seconds
+			expectedBlockNumber: 0,
+			expectError:         true,
+			errorMsg:            "did not reach genesis time (1000000) yet",
+		},
+		{
+			name:                "GenesisPhase",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           nil,
+			fourierTime:         nil,
+			milliTimestamp:      1010000, // 1010 seconds = genesis + 10 seconds
+			expectedBlockNumber: 105,     // 100 + (10*1000)/(2*1000) = 100 + 5
+			expectError:         false,
+		},
+		{
+			name:                "GenesisPhaseVoltaNotActive",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           uint64Ptr(2000), // Volta at 2000 seconds
+			fourierTime:         nil,
+			milliTimestamp:      1500000, // 1500 seconds, before Volta
+			expectedBlockNumber: 350,     // 100 + (500*1000)/(2*1000) = 100 + 250
+			expectError:         false,
+		},
+		{
+			name:                "VoltaPhaseNoFourier",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           uint64Ptr(2000), // Volta at 2000 seconds
+			fourierTime:         nil,
+			milliTimestamp:      2500000, // 2500 seconds, after Volta, no Fourier
+			expectedBlockNumber: 1600,    // VoltaBlockNumber=600 (100 + (2000-1000)/2), then 600 + (500*1000)/500 = 600 + 1000 = 1600
+			expectError:         false,
+		},
+		{
+			name:                "VoltaPhaseBeforeFourier",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           uint64Ptr(2000), // Volta at 2000 seconds
+			fourierTime:         uint64Ptr(3000), // Fourier at 3000 seconds
+			milliTimestamp:      2500000,         // 2500 seconds, after Volta but before Fourier
+			expectedBlockNumber: 1600,            // Same as above case
+			expectError:         false,
+		},
+		{
+			name:                "FourierPhase",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           uint64Ptr(2000), // Volta at 2000 seconds
+			fourierTime:         uint64Ptr(3000), // Fourier at 3000 seconds
+			milliTimestamp:      3500000,         // 3500 seconds, after Fourier
+			expectedBlockNumber: 2602,            // FourierBlockNumber=602 (600+2), then 602 + (500*1000)/250 = 602 + 2000 = 2602
+			expectError:         false,
+		},
+		{
+			name:                "VoltaDisabled",
+			genesisL2Time:       1000,
+			genesisL2Number:     100,
+			blockTime:           2,
+			voltaTime:           uint64Ptr(500), // Volta before genesis, effectively disabled
+			fourierTime:         nil,
+			milliTimestamp:      1500000, // 1500 seconds
+			expectedBlockNumber: 350,     // Genesis mode: 100 + (500*1000)/(2*1000) = 350
+			expectError:         false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := &Config{
+				Genesis: Genesis{
+					L2Time: test.genesisL2Time,
+					L2:     eth.BlockID{Number: test.genesisL2Number},
+				},
+				BlockTime:   test.blockTime,
+				VoltaTime:   test.voltaTime,
+				FourierTime: test.fourierTime,
+			}
+
+			blockNumber, err := config.TargetBlockNumber(test.milliTimestamp)
+
+			if test.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.errorMsg)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.expectedBlockNumber, blockNumber)
+			}
+		})
+	}
+}
+
+// Helper function to create uint64 pointer
+func uint64Ptr(v uint64) *uint64 {
+	return &v
+}

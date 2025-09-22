@@ -167,8 +167,10 @@ type Config struct {
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
 }
 
-const MillisecondBlockIntervalVolta = 500
-const MillisecondBlockIntervalFourier = 250
+const (
+	MillisecondBlockIntervalVolta   = 500
+	MillisecondBlockIntervalFourier = 250
+)
 
 func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
 	if cfg.IsFourier(millisecondTimestamp) {
@@ -286,7 +288,6 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	}
 }
 
-// TODO(dylan) add Fourier logic to this function
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
 	voltaBlockNumber := cfg.VoltaBlockNumber()
 	if voltaBlockNumber < 0 || milliTimestamp < *cfg.VoltaTime*1000 {
@@ -302,11 +303,20 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 		blocksSinceGenesis := wallClockGenesisDiff / (cfg.BlockTime * 1000)
 		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 	} else {
-		voltaMilliTimestamp := *cfg.VoltaTime * 1000
-		wallClockGenesisDiff := milliTimestamp - voltaMilliTimestamp
-		// TODO(dylan) add fix this logic, no hard code
-		blocksSinceVolta := wallClockGenesisDiff / MillisecondBlockIntervalVolta
-		return uint64(voltaBlockNumber) + blocksSinceVolta, nil
+		fourierBlockNumber := cfg.FourierBlockNumber()
+		if fourierBlockNumber > 0 && milliTimestamp >= *cfg.FourierTime*1000 {
+			// Fourier fork is active
+			fourierMilliTimestamp := *cfg.FourierTime * 1000
+			wallClockFourierDiff := milliTimestamp - fourierMilliTimestamp
+			blocksSinceFourier := wallClockFourierDiff / MillisecondBlockIntervalFourier
+			return uint64(fourierBlockNumber) + blocksSinceFourier, nil
+		} else {
+			// Volta fork is active but Fourier is not yet active
+			voltaMilliTimestamp := *cfg.VoltaTime * 1000
+			wallClockVoltaDiff := milliTimestamp - voltaMilliTimestamp
+			blocksSinceVolta := wallClockVoltaDiff / MillisecondBlockIntervalVolta
+			return uint64(voltaBlockNumber) + blocksSinceVolta, nil
+		}
 	}
 }
 
