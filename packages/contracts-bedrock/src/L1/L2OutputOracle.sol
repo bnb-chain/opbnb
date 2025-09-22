@@ -44,9 +44,14 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice The time between L2 blocks in milliseconds after Volta Hardfork.
     uint256 public constant l2MillisecondsBlockTime = 500;
 
-    // TODO: compute accurate hardfork block number
     /// @notice The L2 block number of Volta Hardfork.
     uint256 public constant voltaBlockNumber = 0;
+
+    /// @notice The time between L2 blocks in milliseconds after Fourier Hardfork.
+    uint256 public constant L2_FOURIER_MILLISECONDS_BLOCK_TIME = 250;
+
+    /// @notice The L2 block number of Fourier Hardfork.
+    uint256 public constant FOURIER_BLOCK_NUMBER = 0;
 
     /// @notice Emitted when an output is proposed.
     /// @param outputRoot    The output root.
@@ -315,11 +320,22 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @param _l2BlockNumber The L2 block number of the target block.
     /// @return True that can submit output root, otherwise false.
     function isL2TimestampValid(uint256 _l2BlockNumber) public view returns (bool) {
-        uint256 l2Timestamp = _l2BlockNumber <= voltaBlockNumber
-            ? computeL2Timestamp(_l2BlockNumber)
-            : computeL2TimestampAfterVolta(_l2BlockNumber);
+        uint256 l2Timestamp;
+        uint256 currentTimestamp;
 
-        uint256 currentTimestamp = _l2BlockNumber <= voltaBlockNumber ? block.timestamp : block.timestamp * 1000;
+        if (_l2BlockNumber <= voltaBlockNumber) {
+            // Before Volta Hardfork: use seconds
+            l2Timestamp = computeL2Timestamp(_l2BlockNumber);
+            currentTimestamp = block.timestamp;
+        } else if (_l2BlockNumber <= FOURIER_BLOCK_NUMBER) {
+            // After Volta but before Fourier: use milliseconds
+            l2Timestamp = computeL2TimestampAfterVolta(_l2BlockNumber);
+            currentTimestamp = block.timestamp * 1000;
+        } else {
+            // After Fourier Hardfork: use milliseconds
+            l2Timestamp = computeL2TimestampAfterFourier(_l2BlockNumber);
+            currentTimestamp = block.timestamp * 1000;
+        }
 
         return l2Timestamp < currentTimestamp;
     }
@@ -338,6 +354,22 @@ contract L2OutputOracle is Initializable, ISemver {
         uint256 beforeVoltaBlockTime = (voltaBlockNumber - startingBlockNumber) * l2BlockTime * 1000;
         uint256 afterVoltaBlockTime = (_l2BlockNumber - voltaBlockNumber) * l2MillisecondsBlockTime;
         uint256 totalPassedBlockTime = beforeVoltaBlockTime + afterVoltaBlockTime;
+
+        return (startingTimestamp * 1000) + totalPassedBlockTime;
+    }
+
+    /// @notice Returns the L2 timestamp corresponding to a given L2 block number after Fourier Hardfork.
+    /// @param _l2BlockNumber The L2 block number of the target block.
+    /// @return L2 timestamp of the given block in milliseconds.
+    function computeL2TimestampAfterFourier(uint256 _l2BlockNumber) public view returns (uint256) {
+        // Time from start to Volta (1000 milliseconds per block)
+        uint256 beforeVoltaBlockTime = (voltaBlockNumber - startingBlockNumber) * l2BlockTime * 1000;
+        // Time from Volta to Fourier (500 milliseconds per block)
+        uint256 voltaToFourierBlockTime = (FOURIER_BLOCK_NUMBER - voltaBlockNumber) * l2MillisecondsBlockTime;
+        // Time from Fourier to target block (250 milliseconds per block)
+        uint256 afterFourierBlockTime = (_l2BlockNumber - FOURIER_BLOCK_NUMBER) * L2_FOURIER_MILLISECONDS_BLOCK_TIME;
+
+        uint256 totalPassedBlockTime = beforeVoltaBlockTime + voltaToFourierBlockTime + afterFourierBlockTime;
 
         return (startingTimestamp * 1000) + totalPassedBlockTime;
     }
