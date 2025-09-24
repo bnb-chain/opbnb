@@ -9,9 +9,9 @@ LDFLAGS := -ldflags "$(LDFLAGSSTRING)"
 
 op-bootnode:
 ifeq ($(TARGETARCH),arm64)
-	wget https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
-	tar -xf zig-linux-x86_64-0.13.0.tar.xz
-	export PATH=$$PATH:/app/op-bootnode/zig-linux-x86_64-0.13.0/ && env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CC="zig cc -target aarch64-linux-musl" CGO_ENABLED=1 go build -v $(LDFLAGS) -o ./bin/op-bootnode ./cmd
+	wget https://musl.cc/aarch64-linux-musl-cross.tgz
+	tar zxf aarch64-linux-musl-cross.tgz
+	export PATH=$$PATH:/app/op-bootnode/aarch64-linux-musl-cross/bin/ && env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CC=aarch64-linux-musl-gcc CGO_ENABLED=1 go build -v $(LDFLAGS) -o ./bin/op-bootnode ./cmd
 else
 	env GO111MODULE=on GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) go build -v $(LDFLAGS) -o ./bin/op-bootnode ./cmd
 endif
