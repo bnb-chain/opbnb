@@ -269,6 +269,12 @@ func (s *channelManager) processBlocks() error {
 			s.currentChannel.Close()
 			s.isFourier = true
 			s.isVolta = true
+
+			if s.rollupCfg.IsFirstFourier(block.Time()) {
+				log.Debug("AAA SSS succeed to close channel after first fourier fork",
+					"l2 block", block.Number(), "index", i)
+			}
+
 			log.Info("before fourier fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
 			break
 		}

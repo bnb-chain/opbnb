@@ -407,6 +407,17 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)
 		}
+
+		if rollupCfg.IsFirstFourier(batch.Timestamp) {
+			log.Debug("AAA SSS succeed to build span batch in first fourier fork",
+				"timestamp", batch.Timestamp,
+				"rel_timestamp", b.relTimestamp,
+				"genesis_timestamp", genesisTimestamp,
+				"index", i,
+				"block_interval", blockInterval,
+				"block_count", b.blockCount)
+		}
+
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])

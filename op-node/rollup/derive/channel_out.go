@@ -253,6 +253,13 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 		log.Debug("SSS succeed to transform singular batch after fork",
 			"timestamp_ms", milliPart, "seconds-timestamp", block.Time(),
 			"l2 block", block.Number(), "l1 origin", l1Info.Number)
+
+		if rollupCfg.IsFirstFourier(block.Time()) {
+			log.Debug("AAA SSS succeed to transform singular batch after first fourier fork",
+				"timestamp", ts,
+				"l2 block", block.Number(),
+				"l1 origin", l1Info.Number)
+		}
 	} else { // before volta fork
 		ts = block.Time()
 	}

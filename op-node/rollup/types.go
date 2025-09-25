@@ -204,6 +204,10 @@ func (c *Config) IsFourier(timestamp uint64) bool {
 	return c.FourierTime != nil && timestamp >= *c.FourierTime
 }
 
+func (c *Config) IsFirstFourier(millisecondTimestamp uint64) bool {
+	return c.FourierTime != nil && millisecondTimestamp >= *c.FourierTime && millisecondTimestamp-MillisecondBlockIntervalFourier < *c.FourierTime
+}
+
 // VoltaBlockNumber return volta block number, return -1 when volta time is not set or < gensis L2 time.
 func (c *Config) VoltaBlockNumber() int64 {
 	if c.VoltaTime == nil || *c.VoltaTime < c.Genesis.L2Time {
