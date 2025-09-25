@@ -250,7 +250,7 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 			milliPart = uint64(eth.Bytes32(block.MixDigest())[0])*256 + uint64(eth.Bytes32(block.MixDigest())[1])
 		}
 		ts = block.Time()*1000 + milliPart
-		log.Debug("succeed to transform singular batch after fork",
+		log.Debug("SSS succeed to transform singular batch after fork",
 			"timestamp_ms", milliPart, "seconds-timestamp", block.Time(),
 			"l2 block", block.Number(), "l1 origin", l1Info.Number)
 	} else { // before volta fork

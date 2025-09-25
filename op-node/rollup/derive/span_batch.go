@@ -412,12 +412,18 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
 			txIdx++
 		}
-		log.Info("SSS succeed to build span batch element", "batch", batch)
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
 	if millisecondTimestamp {
-		log.Debug("SSS succeed to build span batch with milliseconds timestamp", "rel timestamp", b.relTimestamp,
-			"first l1 origin", spanBatch.GetStartEpochNum(), "block count", spanBatch.GetBlockCount())
+		log.Debug("SSS succeed to build span batch with milliseconds timestamp",
+			"rel timestamp", b.relTimestamp,
+			"genesis timestamp", genesisTimestamp,
+			"start timestamp", spanBatch.GetTimestamp(),
+			"end timestamp", spanBatch.GetBlockTimestamp(spanBatch.GetBlockCount()-1),
+			"is_fourier", isFourierfork,
+			"is_millisecond", millisecondTimestamp,
+			"first l1 origin", spanBatch.GetStartEpochNum(),
+			"block count", spanBatch.GetBlockCount())
 	}
 	return &spanBatch, nil
 }
@@ -606,11 +612,14 @@ func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 	} else {
 		relTs = span_start.Timestamp - b.GenesisTimestamp
 	}
-	log.Debug("succeed to make raw span_batch",
+	log.Debug("SSS succeed to make raw span_batch",
 		"span_start_timestamp", span_start.Timestamp,
 		"rel_timestamp", relTs,
 		"genesis_timestamp", b.GenesisTimestamp,
-		"is_volta", cfg.IsVolta(span_start.Timestamp))
+		"is_start_volta", cfg.IsVolta(span_start.Timestamp),
+		"is_start_fourier", cfg.IsFourier(span_start.Timestamp),
+		"is_end_volta", cfg.IsVolta(span_end.Timestamp),
+		"is_end_fourier", cfg.IsFourier(span_end.Timestamp))
 
 	return &RawSpanBatch{
 		spanBatchPrefix: spanBatchPrefix{

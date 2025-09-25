@@ -186,11 +186,11 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	if isMillisecondTime {
 		//TODO debug log, remove later
 		if ba.rollupCfg.IsFourier(nextL2MilliTime / 1000) {
-			log.Debug("succeed to build payload attributes after fourier fork",
+			log.Debug("SSS succeed to build payload attributes after fourier fork",
 				"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 				"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 		} else {
-			log.Debug("succeed to build payload attributes after fork",
+			log.Debug("SSSsucceed to build payload attributes after fork",
 				"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 				"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 		}
