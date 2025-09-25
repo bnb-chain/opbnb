@@ -49,7 +49,8 @@ type channelManager struct {
 	// if set to true, prevents production of any new channel frames
 	closed bool
 
-	isVolta bool
+	isVolta   bool
+	isFourier bool
 }
 
 func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config) *channelManager {
@@ -271,6 +272,14 @@ func (s *channelManager) processBlocks() error {
 			break
 		}
 
+		if s.isVolta && !s.isFourier && s.rollupCfg.IsFourier(block.Time()) && s.currentChannel.InputBytes() != 0 {
+			// the current channel is before fourier fork.
+			s.currentChannel.Close()
+			s.isFourier = true
+			log.Info("before fourier fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
+			break
+		}
+
 		l1info, err := s.currentChannel.AddBlock(block)
 		if errors.As(err, &_chFullErr) {
 			// current block didn't get added because channel is already full
@@ -369,6 +378,13 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 		// set volta flag at startup
 		s.isVolta = true
 		log.Info("succeed to set is_volta flag", "block_time", block.Time(),
+			"l2 block num", block.Number())
+	}
+
+	if s.tip == (common.Hash{}) && s.rollupCfg.IsFourier(block.Time()) {
+		// set fourier flag at startup
+		s.isFourier = true
+		log.Info("succeed to set is_fourier flag", "block_time", block.Time(),
 			"l2 block num", block.Number())
 	}
 
