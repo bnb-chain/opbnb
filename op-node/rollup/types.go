@@ -173,7 +173,7 @@ const (
 )
 
 func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
-	if cfg.IsFourier(millisecondTimestamp) {
+	if cfg.IsFourier(millisecondTimestamp / 1000) {
 		return MillisecondBlockIntervalFourier
 	}
 

@@ -48,6 +48,7 @@ func CheckBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1Block
 			log.Error("failed type assertion to SpanBatch")
 			return BatchDrop
 		}
+		log.Info("checkSpanBatch", "span_batch", spanBatch)
 		return checkSpanBatch(ctx, cfg, log, l1Blocks, l2SafeHead, spanBatch, batch.L1InclusionBlock, l2Fetcher)
 	default:
 		log.Warn("Unrecognized batch type: %d", typ)
@@ -175,7 +176,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 
 	// sanity check we have consistent inputs
 	if len(l1Blocks) == 0 {
-		log.Warn("missing L1 block input, cannot proceed with batch checking")
+		log.Warn("SSS missing L1 block input, cannot proceed with batch checking")
 		return BatchUndecided
 	}
 	epoch := l1Blocks[0]
@@ -184,26 +185,26 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	batchOrigin := epoch
 	if startEpochNum == batchOrigin.Number+1 {
 		if len(l1Blocks) < 2 {
-			log.Info("eager batch wants to advance epoch, but could not without more L1 blocks", "current_epoch", epoch.ID())
+			log.Info("SSS eager batch wants to advance epoch, but could not without more L1 blocks", "current_epoch", epoch.ID())
 			return BatchUndecided
 		}
 		batchOrigin = l1Blocks[1]
 	}
 	if !cfg.IsDelta(batchOrigin.Time) {
-		log.Warn("received SpanBatch with L1 origin before Delta hard fork", "l1_origin", batchOrigin.ID(), "l1_origin_time", batchOrigin.Time)
+		log.Warn("SSS received SpanBatch with L1 origin before Delta hard fork", "l1_origin", batchOrigin.ID(), "l1_origin_time", batchOrigin.Time)
 		return BatchDrop
 	}
 
 	nextMilliTimestamp := cfg.NextMillisecondBlockTime(l2SafeHead.MillisecondTimestamp())
 
 	if batch.GetTimestamp() > nextMilliTimestamp {
-		log.Trace("received out-of-order batch for future processing after next batch",
+		log.Trace("SSS received out-of-order batch for future processing after next batch",
 			"first_ms_timestamp_of_spanbatch", batch.GetTimestamp(),
 			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchFuture
 	}
 	if batch.GetBlockTimestamp(batch.GetBlockCount()-1) < nextMilliTimestamp {
-		log.Warn("span batch has no new blocks after safe head",
+		log.Warn("SSS span batch has no new blocks after safe head",
 			"last_ms_timestamp_of_spanbatch", batch.GetBlockTimestamp(batch.GetBlockCount()-1),
 			"next_ms_timestamp", nextMilliTimestamp)
 		return BatchDrop
@@ -216,51 +217,51 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	if batch.GetTimestamp() < nextMilliTimestamp {
 		if batch.GetTimestamp() > l2SafeHead.MillisecondTimestamp() {
 			// batch timestamp cannot be between safe head and next timestamp
-			log.Warn("batch has misaligned timestamp, block time is too short")
+			log.Warn("SSS batch has misaligned timestamp, block time is too short")
 			return BatchDrop
 		}
 
 		milliSecondsDistance := l2SafeHead.MillisecondTimestamp() - batch.GetTimestamp()
 		if !cfg.IsFourier(l2SafeHead.MillisecondTimestamp() / 1000) {
 			if milliSecondsDistance%rollup.MillisecondBlockIntervalVolta != 0 {
-				log.Warn("batch has misaligned timestamp, not overlapped exactly")
+				log.Warn("SSS batch has misaligned timestamp, not overlapped exactly")
 				return BatchDrop
 			}
 		} else {
 			// block interval has changed after fourier fork
 			if milliSecondsDistance%rollup.MillisecondBlockIntervalFourier != 0 {
-				log.Warn("batch has misaligned timestamp after fourier fork, not overlapped exactly")
+				log.Warn("SSS batch has misaligned timestamp after fourier fork, not overlapped exactly")
 				return BatchDrop
 			}
 		}
 		currentNum, err := cfg.TargetBlockNumber(batch.GetTimestamp())
 		if err != nil {
-			log.Warn("failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err)
+			log.Warn("SSS failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err)
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
 		parentNum = currentNum - 1
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {
-			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
+			log.Warn("SSS failed to fetch L2 block", "number", parentNum, "err", err)
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
 	}
 	if !batch.CheckParentHash(parentBlock.Hash) {
-		log.Warn("ignoring batch with mismatching parent hash", "parent_block", parentBlock.Hash)
+		log.Warn("SSS ignoring batch with mismatching parent hash", "parent_block", parentBlock.Hash)
 		return BatchDrop
 	}
 
 	// Filter out batches that were included too late.
 	if startEpochNum+cfg.SeqWindowSize < l1InclusionBlock.Number {
-		log.Warn("batch was included too late, sequence window expired")
+		log.Warn("SSS batch was included too late, sequence window expired")
 		return BatchDrop
 	}
 
 	// Check the L1 origin of the batch
 	if startEpochNum > parentBlock.L1Origin.Number+1 {
-		log.Warn("batch is for future epoch too far ahead, while it has the next timestamp, so it must be invalid", "current_epoch", epoch.ID())
+		log.Warn("SSS batch is for future epoch too far ahead, while it has the next timestamp, so it must be invalid", "current_epoch", epoch.ID())
 		return BatchDrop
 	}
 
@@ -270,7 +271,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	for _, l1Block := range l1Blocks {
 		if l1Block.Number == endEpochNum {
 			if !batch.CheckOriginHash(l1Block.Hash) {
-				log.Warn("batch is for different L1 chain, epoch hash does not match", "expected", l1Block.Hash)
+				log.Warn("SSS batch is for different L1 chain, epoch hash does not match", "expected", l1Block.Hash)
 				return BatchDrop
 			}
 			originChecked = true
@@ -278,12 +279,12 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		}
 	}
 	if !originChecked {
-		log.Info("need more l1 blocks to check entire origins of span batch")
+		log.Info("SSS need more l1 blocks to check entire origins of span batch")
 		return BatchUndecided
 	}
 
 	if startEpochNum < parentBlock.L1Origin.Number {
-		log.Warn("dropped batch, epoch is too old", "minimum", parentBlock.ID())
+		log.Warn("SSS dropped batch, epoch is too old", "minimum", parentBlock.ID())
 		return BatchDrop
 	}
 
@@ -310,7 +311,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 		}
 		blockTimestamp := batch.GetBlockTimestamp(i)
 		if blockTimestamp < l1Origin.MillisecondTimestamp() {
-			log.Warn("block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.MillisecondTimestamp(), "origin", l1Origin.ID())
+			log.Warn("SSS block timestamp is less than L1 origin timestamp", "l2_timestamp", blockTimestamp, "l1_timestamp", l1Origin.MillisecondTimestamp(), "origin", l1Origin.ID())
 			return BatchDrop
 		}
 
@@ -323,31 +324,31 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 				// We only check batches that do not advance the epoch, to ensure epoch advancement regardless of time drift is allowed.
 				if !originAdvanced {
 					if originIdx+1 >= len(l1Blocks) {
-						log.Info("without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid")
+						log.Info("SSS without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid")
 						return BatchUndecided
 					}
 					if blockTimestamp >= l1Blocks[originIdx+1].MillisecondTimestamp() { // check if the next L1 origin could have been adopted
-						log.Info("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
+						log.Info("SSS batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid")
 						return BatchDrop
 					} else {
-						log.Info("continuing with empty batch before late L1 block to preserve L2 time invariant")
+						log.Info("SSS continuing with empty batch before late L1 block to preserve L2 time invariant")
 					}
 				}
 			} else {
 				// If the sequencer is ignoring the time drift rule, then drop the batch and force an empty batch instead,
 				// as the sequencer is not allowed to include anything past this point without moving to the next epoch.
-				log.Warn("batch exceeded sequencer time drift, sequencer must adopt new L1 origin to include transactions again", "max_time", max)
+				log.Warn("SSS batch exceeded sequencer time drift, sequencer must adopt new L1 origin to include transactions again", "max_time", max)
 				return BatchDrop
 			}
 		}
 
 		for i, txBytes := range batch.GetBlockTransactions(i) {
 			if len(txBytes) == 0 {
-				log.Warn("transaction data must not be empty, but found empty tx", "tx_index", i)
+				log.Warn("SSS transaction data must not be empty, but found empty tx", "tx_index", i)
 				return BatchDrop
 			}
 			if txBytes[0] == types.DepositTxType {
-				log.Warn("sequencers may not embed any deposits into batch data, but found tx that has one", "tx_index", i)
+				log.Warn("SSS sequencers may not embed any deposits into batch data, but found tx that has one", "tx_index", i)
 				return BatchDrop
 			}
 		}
@@ -359,7 +360,7 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 			safeBlockNum := parentNum + i + 1
 			safeBlockPayload, err := l2Fetcher.PayloadByNumber(ctx, safeBlockNum)
 			if err != nil {
-				log.Warn("failed to fetch L2 block payload", "number", parentNum, "err", err)
+				log.Warn("SSS failed to fetch L2 block payload", "number", parentNum, "err", err)
 				// unable to validate the batch for now. retry later.
 				return BatchUndecided
 			}
@@ -373,26 +374,27 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 				}
 			}
 			if len(safeBlockTxs)-depositCount != len(batchTxs) {
-				log.Warn("overlapped block's tx count does not match", "safeBlockTxs", len(safeBlockTxs), "batchTxs", len(batchTxs))
+				log.Warn("SSS overlapped block's tx count does not match", "safeBlockTxs", len(safeBlockTxs), "batchTxs", len(batchTxs))
 				return BatchDrop
 			}
 			for j := 0; j < len(batchTxs); j++ {
 				if !bytes.Equal(safeBlockTxs[j+depositCount], batchTxs[j]) {
-					log.Warn("overlapped block's transaction does not match")
+					log.Warn("SSS overlapped block's transaction does not match")
 					return BatchDrop
 				}
 			}
 			safeBlockRef, err := PayloadToBlockRef(cfg, safeBlockPayload.ExecutionPayload)
 			if err != nil {
-				log.Error("failed to extract L2BlockRef from execution payload", "hash", safeBlockPayload.ExecutionPayload.BlockHash, "err", err)
+				log.Error("SSS failed to extract L2BlockRef from execution payload", "hash", safeBlockPayload.ExecutionPayload.BlockHash, "err", err)
 				return BatchDrop
 			}
 			if safeBlockRef.L1Origin.Number != batch.GetBlockEpochNum(int(i)) {
-				log.Warn("overlapped block's L1 origin number does not match")
+				log.Warn("SSS overlapped block's L1 origin number does not match")
 				return BatchDrop
 			}
 		}
 	}
 
+	log.Info("SSS checkSpanBatch success")
 	return BatchAccept
 }

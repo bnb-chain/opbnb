@@ -66,11 +66,14 @@ func (cr *ChannelInReader) NextChannel() {
 func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 	if cr.nextBatchFn == nil {
 		if data, err := cr.prev.NextData(ctx); err == io.EOF {
+			log.Info("SSS ChannelInReader NextBatch io.EOF")
 			return nil, io.EOF
 		} else if err != nil {
+			log.Info("SSS ChannelInReader NextBatch error", "error", err)
 			return nil, err
 		} else {
 			if err := cr.WriteChannel(data); err != nil {
+				log.Info("SSS ChannelInReader NextBatch WriteChannel error", "error", err)
 				return nil, NewTemporaryError(err)
 			}
 		}
@@ -80,10 +83,11 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 	// This depends on the behavior of rlp.Stream
 	batchData, err := cr.nextBatchFn()
 	if err == io.EOF {
+		log.Info("SSS ChannelInReader nextBatchFn NextBatch io.EOF")
 		cr.NextChannel()
 		return nil, NotEnoughData
 	} else if err != nil {
-		cr.log.Warn("failed to read batch from channel reader, skipping to next channel now", "err", err)
+		cr.log.Warn("SSS ChannelInReader nextBatchFn failed to read batch from channel reader, skipping to next channel now", "err", err)
 		cr.NextChannel()
 		return nil, NotEnoughData
 	}
@@ -100,6 +104,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 		return batch, nil
 	case SpanBatchType:
 		if origin := cr.Origin(); !cr.cfg.IsDelta(origin.Time) {
+			log.Info("SSS ChannelInReader cannot accept span batch in L1 block", "origin", origin, "origin_time", origin.Time)
 			// Check hard fork activation with the L1 inclusion block time instead of the L1 origin block time.
 			// Therefore, even if the batch passed this rule, it can be dropped in the batch queue.
 			// This is just for early dropping invalid batches as soon as possible.
@@ -111,7 +116,7 @@ func (cr *ChannelInReader) NextBatch(ctx context.Context) (Batch, error) {
 		if err != nil {
 			return nil, err
 		}
-		batch.LogContext(cr.log).Debug("decoded span batch from channel", "stage_origin", cr.Origin())
+		batch.LogContext(cr.log).Debug("SSS decoded span batch from channel", "stage_origin", cr.Origin())
 		cr.metrics.RecordDerivedBatches("span")
 		return batch, nil
 	default:

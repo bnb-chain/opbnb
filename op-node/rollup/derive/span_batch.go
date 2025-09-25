@@ -400,7 +400,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + blockInterval*uint64(i)
 			// TDOO debug log, remove later
 			if isFourierfork {
-				log.Debug("succeed to build span batch in fourier fork",
+				log.Debug("SSS succeed to build span batch in fourier fork",
 					"timestamp", batch.Timestamp)
 			}
 		} else {
@@ -412,10 +412,11 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
 			txIdx++
 		}
+		log.Info("SSS succeed to build span batch element", "batch", batch)
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
 	if millisecondTimestamp {
-		log.Debug("succeed to build span batch with milliseconds timestamp", "rel timestamp", b.relTimestamp,
+		log.Debug("SSS succeed to build span batch with milliseconds timestamp", "rel timestamp", b.relTimestamp,
 			"first l1 origin", spanBatch.GetStartEpochNum(), "block count", spanBatch.GetBlockCount())
 	}
 	return &spanBatch, nil
@@ -426,8 +427,10 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 func (b *RawSpanBatch) ToSpanBatch(rollupCfg *rollup.Config, genesisTimestamp uint64, chainID *big.Int) (*SpanBatch, error) {
 	spanBatch, err := b.derive(rollupCfg, genesisTimestamp, chainID)
 	if err != nil {
+		log.Info("SSS RawSpanBatch ToSpanBatch derive error", "error", err)
 		return nil, err
 	}
+	log.Info("SSS RawSpanBatch ToSpanBatch derive success", "span_batch", spanBatch)
 	return spanBatch, nil
 }
 
@@ -633,8 +636,10 @@ func (b *SpanBatch) GetSingularBatches(l1Origins []eth.L1BlockRef, l2SafeHead et
 	originIdx := 0
 	for _, batch := range b.Batches {
 		if batch.Timestamp <= l2SafeHead.MillisecondTimestamp() {
+			log.Info("SSS SpanBatch GetSingularBatches skip batch", "batch_timestamp", batch.Timestamp, "l2_safe_head_timestamp", l2SafeHead.MillisecondTimestamp())
 			continue
 		}
+		log.Info("SSS SpanBatch GetSingularBatches process batch", "batch_timestamp", batch.Timestamp, "l2_safe_head_timestamp", l2SafeHead.MillisecondTimestamp())
 		singularBatch := SingularBatch{
 			EpochNum:     batch.EpochNum,
 			Timestamp:    batch.Timestamp,
@@ -650,6 +655,7 @@ func (b *SpanBatch) GetSingularBatches(l1Origins []eth.L1BlockRef, l2SafeHead et
 			}
 		}
 		if !originFound {
+			log.Info("SSS SpanBatch GetSingularBatches unable to find L1 origin for the epoch number", "epoch_number", batch.EpochNum)
 			return nil, fmt.Errorf("unable to find L1 origin for the epoch number: %d", batch.EpochNum)
 		}
 		singularBatches = append(singularBatches, &singularBatch)
@@ -673,6 +679,7 @@ func NewSpanBatch(genesisTimestamp uint64, chainID *big.Int) *SpanBatch {
 func DeriveSpanBatch(batchData *BatchData, rollupCfg *rollup.Config, genesisTimestamp uint64, chainID *big.Int) (*SpanBatch, error) {
 	rawSpanBatch, ok := batchData.inner.(*RawSpanBatch)
 	if !ok {
+		log.Info("SSS DeriveSpanBatch failed type assertion to SpanBatch")
 		return nil, NewCriticalError(errors.New("failed type assertion to SpanBatch"))
 	}
 	// If the batch type is Span batch, derive block inputs from RawSpanBatch.

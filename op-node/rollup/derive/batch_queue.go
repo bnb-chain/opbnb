@@ -94,17 +94,20 @@ func (bq *BatchQueue) popNextBatch(parent eth.L2BlockRef) *SingularBatch {
 // It also returns the boolean that indicates if the batch is the last block in the batch.
 func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*SingularBatch, bool, error) {
 	if len(bq.nextSpan) > 0 {
+		log.Info("SSS BatchQueue NextBatch", "nextSpan_len", len(bq.nextSpan))
 		// There are cached singular batches derived from the span batch.
 		// Check if the next cached batch matches the given parent block.
 		if bq.nextSpan[0].Timestamp == bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp()) {
+			log.Info("SSS BatchQueue NextBatch success", "nextBatchTime", bq.nextSpan[0].GetTimestamp())
 			// Pop first one and return.
 			nextBatch := bq.popNextBatch(parent)
 			// len(bq.nextSpan) == 0 means it's the last batch of the span.
 			return nextBatch, len(bq.nextSpan) == 0, nil
 		} else {
+			log.Info("SSS BatchQueue NextBatch failed", "nextBatchTime", bq.nextSpan[0].GetTimestamp(), "nextBatchTimeExpected", bq.config.NextMillisecondBlockTime(parent.MillisecondTimestamp()))
 			// Given parent block does not match the next batch. It means the previously returned batch is invalid.
 			// Drop cached batches and find another batch.
-			bq.log.Warn("parent block does not match the next batch. dropped cached batches", "parent", parent.ID(), "nextBatchTime", bq.nextSpan[0].GetTimestamp())
+			bq.log.Warn("SSS parent block does not match the next batch. dropped cached batches", "parent", parent.ID(), "nextBatchTime", bq.nextSpan[0].GetTimestamp())
 			bq.nextSpan = bq.nextSpan[:0]
 		}
 	}
@@ -117,7 +120,7 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 		for i, l1Block := range bq.l1Blocks {
 			if parent.L1Origin.Number == l1Block.Number {
 				bq.l1Blocks = bq.l1Blocks[i:]
-				bq.log.Debug("Advancing internal L1 blocks", "next_epoch", bq.l1Blocks[0].ID(), "next_epoch_time", bq.l1Blocks[0].Time)
+				bq.log.Debug("SSS Advancing internal L1 blocks", "next_epoch", bq.l1Blocks[0].ID(), "next_epoch_time", bq.l1Blocks[0].Time)
 				break
 			}
 		}
@@ -143,12 +146,13 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 			// originBehind is false.
 			bq.l1Blocks = bq.l1Blocks[:0]
 		}
-		bq.log.Info("Advancing bq origin", "origin", bq.origin, "originBehind", originBehind)
+		bq.log.Info("SSS Advancing bq origin", "origin", bq.origin, "originBehind", originBehind)
 	}
 
 	// Load more data into the batch queue
 	outOfData := false
 	if batch, err := bq.prev.NextBatch(ctx); err == io.EOF {
+		log.Info("SSS BatchQueue prev NextBatch io.EOF", "batch", batch)
 		outOfData = true
 	} else if err != nil {
 		return nil, false, err
@@ -169,10 +173,13 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	// Finally attempt to derive more batches
 	batch, err := bq.deriveNextBatch(ctx, outOfData, parent)
 	if err == io.EOF && outOfData {
+		log.Info("SSS BatchQueue deriveNextBatch io.EOF and outOfData")
 		return nil, false, io.EOF
 	} else if err == io.EOF {
+		log.Info("SSS BatchQueue deriveNextBatch io.EOF")
 		return nil, false, NotEnoughData
 	} else if err != nil {
+		log.Info("SSS BatchQueue deriveNextBatch error", "error", err)
 		return nil, false, err
 	}
 
@@ -187,11 +194,13 @@ func (bq *BatchQueue) NextBatch(ctx context.Context, parent eth.L2BlockRef) (*Si
 	case SpanBatchType:
 		spanBatch, ok := batch.AsSpanBatch()
 		if !ok {
+			log.Info("SSS BatchQueue deriveNextBatch SpanBatch GetSingularBatches failed type assertion")
 			return nil, false, NewCriticalError(errors.New("failed type assertion to SpanBatch"))
 		}
 		// If next batch is SpanBatch, convert it to SingularBatches.
 		singularBatches, err := spanBatch.GetSingularBatches(bq.l1Blocks, parent)
 		if err != nil {
+			log.Info("SSS BatchQueue deriveNextBatch SpanBatch GetSingularBatches error", "error", err)
 			return nil, false, NewCriticalError(err)
 		}
 		bq.nextSpan = singularBatches
@@ -268,21 +277,25 @@ batchLoop:
 		validity := CheckBatch(ctx, bq.config, bq.log.New("batch_index", i), bq.l1Blocks, parent, batch, bq.l2)
 		switch validity {
 		case BatchFuture:
+			log.Info("SSS BatchQueue deriveNextBatch BatchFuture", "batch_timestamp", batch.Batch.GetTimestamp())
 			remaining = append(remaining, batch)
 			continue
 		case BatchDrop:
+			log.Info("SSS BatchQueue deriveNextBatch BatchDrop", "batch_timestamp", batch.Batch.GetTimestamp())
 			batch.Batch.LogContext(bq.log).Warn("Dropping batch",
 				"parent", parent.ID(),
 				"parent_time", parent.Time,
 			)
 			continue
 		case BatchAccept:
+			log.Info("SSS BatchQueue deriveNextBatch BatchAccept", "batch_timestamp", batch.Batch.GetTimestamp())
 			nextBatch = batch
 			// don't keep the current batch in the remaining items since we are processing it now,
 			// but retain every batch we didn't get to yet.
 			remaining = append(remaining, bq.batches[i+1:]...)
 			break batchLoop
 		case BatchUndecided:
+			log.Info("SSS BatchQueue deriveNextBatch BatchUndecided", "batch_timestamp", batch.Batch.GetTimestamp())
 			remaining = append(remaining, bq.batches[i:]...)
 			bq.batches = remaining
 			return nil, io.EOF
