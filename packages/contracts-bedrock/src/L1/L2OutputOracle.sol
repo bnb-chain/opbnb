@@ -166,7 +166,7 @@ contract L2OutputOracle is Initializable, ISemver {
     ///         Public getter is legacy and will be removed in the future. Use `L2_MILLISECONDS_BLOCK_TIME` instead.
     /// @return L2 block time in milliseconds.
     /// @custom:legacy
-    function l2MillisecondsBlockTime() external view returns (uint256) {
+    function l2MillisecondsBlockTime() external pure returns (uint256) {
         return L2_MILLISECONDS_BLOCK_TIME;
     }
 
@@ -174,7 +174,7 @@ contract L2OutputOracle is Initializable, ISemver {
     ///         Public getter is legacy and will be removed in the future. Use `VOLTA_BLOCK_NUMBER` instead.
     /// @return L2 block number of Volta Hardfork.
     /// @custom:legacy
-    function voltaBlockNumber() external view returns (uint256) {
+    function voltaBlockNumber() external pure returns (uint256) {
         return VOLTA_BLOCK_NUMBER;
     }
 
