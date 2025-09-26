@@ -187,6 +187,16 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 	}
+
+	if ba.rollupCfg.IsFirstVolta(nextL2MilliTime) {
+		log.Debug("111 succeed to build payload attributes after first volta fork",
+			"l2_parent_timestamp_ms", l2Parent.MillisecondTimestamp(),
+			"l2_parent_block", l2Parent.Number,
+			"l2_next_timestamp_ms", nextL2MilliTime,
+			"l2_genesis_time", ba.rollupCfg.Genesis.L2Time,
+			"l1_origin", l1Info.NumberU64())
+	}
+
 	return pa, nil
 }
 

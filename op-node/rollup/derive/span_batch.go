@@ -394,6 +394,17 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
 			txIdx++
 		}
+
+		if rollupCfg.IsFirstVolta(batch.Timestamp) {
+			log.Debug("111 AAA SSS succeed to build span batch in first volta fork",
+				"l2_block_millisecond_time", batch.Timestamp,
+				"rel_timestamp", b.relTimestamp,
+				"l2_genesis_timestamp", genesisTimestamp,
+				"index", i,
+				"block_interval", blockInterval,
+				"block_count", b.blockCount)
+		}
+
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
 	if millisecondTimestamp {

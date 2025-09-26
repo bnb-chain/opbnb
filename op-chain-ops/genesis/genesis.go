@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 // defaultGasLimit represents the default gas limit for a genesis block.
@@ -99,6 +100,11 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 	// Ensure that the extradata is valid
 	if size := len(extraData); size > 32 {
 		return nil, fmt.Errorf("transition block extradata too long: %d", size)
+	}
+
+	var mixhash common.Hash
+	if config.L2GenesisVoltaTimeOffset != nil && *config.L2GenesisVoltaTimeOffset != 0 {
+		mixhash[2] = uint256.NewInt(2).Bytes32()[31]
 	}
 
 	genesis := &core.Genesis{

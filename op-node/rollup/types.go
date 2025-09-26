@@ -205,6 +205,11 @@ func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
 		!c.IsVolta(l2BlockTime-c.BlockTime)
 }
 
+func (c *Config) IsFirstVolta(millisecondTimestamp uint64) bool {
+	ts := millisecondTimestamp / 1000
+	return c.VoltaTime != nil && ts == *c.VoltaTime
+}
+
 // ValidateL1Config checks L1 config variables for errors.
 func (cfg *Config) ValidateL1Config(ctx context.Context, client L1Client) error {
 	// Validate the L1 Client Chain ID

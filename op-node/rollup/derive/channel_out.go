@@ -257,6 +257,14 @@ func BlockToSingularBatch(rollupCfg *rollup.Config, block *types.Block) (*Singul
 		ts = block.Time()
 	}
 
+	if rollupCfg.IsFirstVolta(ts) {
+		log.Debug("111 AAA SSS succeed to transform singular batch after first volta fork",
+			"l2_block_millisecond_time", ts,
+			"l2_block_time", block.Time(),
+			"l2_genesis_time", rollupCfg.Genesis.L2Time,
+			"l2_block", block.Number())
+	}
+
 	return &SingularBatch{
 		ParentHash:   block.ParentHash(),
 		EpochNum:     rollup.Epoch(l1Info.Number),
