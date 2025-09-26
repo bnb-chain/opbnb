@@ -282,7 +282,7 @@ func (s *channelManager) processBlocks() error {
 			// the current channel is before volta fork.
 			s.currentChannel.Close()
 			s.isVolta = true
-			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
+			log.Info("111 before volta fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
 			break
 		}
 
@@ -391,8 +391,9 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
 		// set volta flag at startup
 		s.isVolta = true
-		log.Info("succeed to set is_volta flag", "block_time", block.Time(),
-			"l2 block num", block.Number())
+		log.Info("111 succeed to set is_volta flag",
+			"l2_block_time", block.Time(),
+			"l2_block_num", block.Number())
 	}
 
 	s.metr.RecordL2BlockInPendingQueue(block)

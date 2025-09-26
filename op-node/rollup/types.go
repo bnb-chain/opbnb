@@ -200,6 +200,11 @@ func (c *Config) IsVolta(timestamp uint64) bool {
 	return c.VoltaTime != nil && timestamp >= *c.VoltaTime
 }
 
+func (c *Config) IsFirstVolta(millisecondTimestamp uint64) bool {
+	ts := millisecondTimestamp / 1000
+	return c.VoltaTime != nil && ts == *c.VoltaTime
+}
+
 func (c *Config) IsFourier(timestamp uint64) bool {
 	return c.FourierTime != nil && timestamp >= *c.FourierTime
 }
