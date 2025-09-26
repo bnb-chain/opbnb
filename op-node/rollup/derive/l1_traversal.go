@@ -83,12 +83,6 @@ func (l1t *L1Traversal) AdvanceL1Block(ctx context.Context) error {
 		return NewCriticalError(fmt.Errorf("failed to update L1 sysCfg with receipts from block %s: %w", nextL1Origin, err))
 	}
 
-	if !l1t.cfg.IsFourier(origin.Time) && l1t.cfg.IsFourier(nextL1Origin.Time) {
-		l1t.log.Info("SSS advanced L1 traversal cross fourier fork", "origin", nextL1Origin)
-	} else if l1t.cfg.IsFourier(nextL1Origin.Time) {
-		l1t.log.Info("SSS advanced L1 traversal before fourier fork", "origin", nextL1Origin)
-	}
-
 	l1t.block = nextL1Origin
 	l1t.done = false
 	return nil

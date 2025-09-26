@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // defaultGasLimit represents the default gas limit for a genesis block.
@@ -102,13 +101,6 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		return nil, fmt.Errorf("transition block extradata too long: %d", size)
 	}
 
-	var mixhash common.Hash
-	if config.L2GenesisFourierTimeOffset != nil && *config.L2GenesisFourierTimeOffset == 0 {
-		mixhash[2] = uint256.NewInt(1).Bytes32()[31]
-	} else if config.L2GenesisVoltaTimeOffset != nil && *config.L2GenesisVoltaTimeOffset != 0 {
-		mixhash[2] = uint256.NewInt(2).Bytes32()[31]
-	}
-
 	genesis := &core.Genesis{
 		Config:     &optimismChainConfig,
 		Nonce:      uint64(config.L2GenesisBlockNonce),
@@ -116,7 +108,7 @@ func NewL2Genesis(config *DeployConfig, block *types.Block) (*core.Genesis, erro
 		ExtraData:  extraData,
 		GasLimit:   uint64(gasLimit),
 		Difficulty: difficulty.ToInt(),
-		Mixhash:    mixhash,
+		Mixhash:    config.L2GenesisBlockMixHash,
 		Coinbase:   predeploys.SequencerFeeVaultAddr,
 		Number:     uint64(config.L2GenesisBlockNumber),
 		GasUsed:    uint64(config.L2GenesisBlockGasUsed),

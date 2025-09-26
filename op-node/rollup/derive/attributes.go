@@ -184,27 +184,13 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	blockIntervalCount := ba.rollupCfg.MillisecondBlockInterval(nextL2MilliTime) / eth.BlockMillisecondsIntervalUint
 	pa.SetMillisecondTimestamp(nextL2MilliTime, isMillisecondTime, blockIntervalCount)
 	if isMillisecondTime {
-		if ba.rollupCfg.IsFirstVolta(nextL2MilliTime) {
-			log.Debug("111 AAA SSS succeed to build payload attributes after first volta fork",
-				"l2_parent_timestamp_ms", l2Parent.MillisecondTimestamp(),
-				"l2_next_timestamp_ms", nextL2MilliTime,
-				"l1_origin", l1Info.NumberU64(),
-				"l2_parent_block", l2Parent.Number)
-		}
-
 		//TODO debug log, remove later
 		if ba.rollupCfg.IsFourier(nextL2MilliTime / 1000) {
-			log.Debug("SSS succeed to build payload attributes after fourier fork",
+			log.Debug("succeed to build payload attributes after fourier fork",
 				"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 				"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 		} else {
-			log.Debug("SSS succeed to build payload attributes after fork",
-				"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
-				"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
-		}
-
-		if ba.rollupCfg.IsFirstFourier(nextL2MilliTime) {
-			log.Debug("AAA SSS succeed to build payload attributes after first fourier fork",
+			log.Debug("succeed to build payload attributes after volta fork",
 				"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 				"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number)
 		}

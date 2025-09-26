@@ -269,20 +269,14 @@ func (s *channelManager) processBlocks() error {
 			s.currentChannel.Close()
 			s.isFourier = true
 			s.isVolta = true
-
-			if s.rollupCfg.IsFirstFourier(block.Time()) {
-				log.Debug("AAA SSS succeed to close channel after first fourier fork",
-					"l2 block", block.Number(), "index", i)
-			}
-
-			log.Info("before fourier fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
+			log.Info("before fourier fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
 			break
 		}
 		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.InputBytes() != 0 {
 			// the current channel is before volta fork.
 			s.currentChannel.Close()
 			s.isVolta = true
-			log.Info("111 before volta fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
+			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
 			break
 		}
 
@@ -384,16 +378,13 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 		// set fourier flag at startup
 		s.isFourier = true
 		s.isVolta = true
-		log.Info("succeed to set is_fourier flag", "block_time", block.Time(),
-			"l2 block num", block.Number())
+		log.Info("succeed to set is_fourier flag", "l2_block_time", block.Time(), "l2_block_num", block.Number())
 	}
 
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
 		// set volta flag at startup
 		s.isVolta = true
-		log.Info("111 succeed to set is_volta flag",
-			"l2_block_time", block.Time(),
-			"l2_block_num", block.Number())
+		log.Info("succeed to set is_volta flag", "l2_block_time", block.Time(), "l2_block_num", block.Number())
 	}
 
 	s.metr.RecordL2BlockInPendingQueue(block)

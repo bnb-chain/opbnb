@@ -61,17 +61,14 @@ func (aq *AttributesQueue) NextAttributes(ctx context.Context, parent eth.L2Bloc
 	if aq.batch == nil {
 		batch, isLastInSpan, err := aq.prev.NextBatch(ctx, parent)
 		if err != nil {
-			log.Info("SSS AttributesQueue NextAttributes", "error", err)
 			return nil, err
 		}
-		log.Info("SSS AttributesQueue NextAttributes", "batch", batch, "isLastInSpan", isLastInSpan)
 		aq.batch = batch
 		aq.isLastInSpan = isLastInSpan
 	}
 
 	// Actually generate the next attributes
 	if attrs, err := aq.createNextAttributes(ctx, aq.batch, parent); err != nil {
-		log.Info("SSS AttributesQueue NextAttributes createNextAttributes", "error", err)
 		return nil, err
 	} else {
 		// Clear out the local state once we will succeed
