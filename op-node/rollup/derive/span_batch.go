@@ -398,11 +398,6 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 		if millisecondTimestamp {
 			// relTimestamp and blockInterval has changed to millisecond
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp + blockInterval*uint64(i)
-			// TDOO debug log, remove later
-			if isFourierfork {
-				log.Debug("succeed to build span batch in fourier fork",
-					"timestamp", batch.Timestamp)
-			}
 		} else {
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)
