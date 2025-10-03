@@ -76,15 +76,20 @@ type ChannelBuilder struct {
 	outputBytes int
 }
 
-// NewChannelBuilder creates a new channel builder or returns an error if the
-// channel out could not be created.
-// it acts as a factory for either a span or singular channel out
-func NewChannelBuilder(cfg ChannelConfig, rollupCfg rollup.Config, latestL1OriginBlockNum uint64) (*ChannelBuilder, error) {
+type ChannelOutFactory func(cfg ChannelConfig, rollupCfg *rollup.Config) (derive.ChannelOut, error)
+
+// NewChannelOut creates a new channel out based on the given configuration.
+func NewChannelOut(cfg ChannelConfig, rollupCfg *rollup.Config) (derive.ChannelOut, error) {
+	var (
+		co  derive.ChannelOut
+		err error
+	)
+
 	c, err := cfg.CompressorConfig.NewCompressor()
 	if err != nil {
 		return nil, err
 	}
-	var co derive.ChannelOut
+
 	if cfg.BatchType == derive.SpanBatchType {
 		co, err = derive.NewSpanChannelOut(rollupCfg.Genesis.L2Time, rollupCfg.L2ChainID, cfg.CompressorConfig.TargetOutputSize, cfg.CompressorConfig.CompressionAlgo)
 	} else {
@@ -92,6 +97,20 @@ func NewChannelBuilder(cfg ChannelConfig, rollupCfg rollup.Config, latestL1Origi
 	}
 	if err != nil {
 		return nil, fmt.Errorf("creating channel out: %w", err)
+	}
+	return co, nil
+}
+
+// NewChannelBuilder creates a new channel builder or returns an error if the
+// channel out could not be created.
+// it acts as a factory for either a span or singular channel out
+func NewChannelBuilder(cfg ChannelConfig, rollupCfg rollup.Config, outFactory ChannelOutFactory, latestL1OriginBlockNum uint64) (*ChannelBuilder, error) {
+	if outFactory == nil {
+		outFactory = NewChannelOut
+	}
+	co, err := outFactory(cfg, &rollupCfg)
+	if err != nil {
+		return nil, err
 	}
 
 	cb := &ChannelBuilder{
