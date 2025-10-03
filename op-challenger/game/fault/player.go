@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type actor func(ctx context.Context) error
@@ -34,6 +35,8 @@ type SyncValidator interface {
 
 type L1HeaderSource interface {
 	HeaderByHash(context.Context, common.Hash) (*gethTypes.Header, error)
+	BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*gethTypes.Receipt, error)
+	TransactionByHash(ctx context.Context, hash common.Hash) (tx *gethTypes.Transaction, isPending bool, err error)
 }
 
 type TxSender interface {
@@ -64,7 +67,12 @@ type GameContract interface {
 	GetL1Head(ctx context.Context) (common.Hash, error)
 }
 
-type resourceCreator func(ctx context.Context, logger log.Logger, gameDepth types.Depth, dir string) (types.TraceAccessor, error)
+type resourceCreator func(
+	ctx context.Context,
+	logger log.Logger,
+	gameDepth types.Depth,
+	dir string,
+) (types.TraceAccessor, error)
 
 func NewGamePlayer(
 	ctx context.Context,

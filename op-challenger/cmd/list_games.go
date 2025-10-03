@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching/rpcblock"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/urfave/cli/v2"
 )
 
@@ -71,7 +70,7 @@ func ListGames(ctx *cli.Context) error {
 	}
 	defer l1Client.Close()
 
-	caller := batching.NewMultiCaller(l1Client.(*ethclient.Client).Client(), batching.DefaultBatchSize)
+	caller := batching.NewMultiCaller(l1Client.Client(), batching.DefaultBatchSize)
 	contract := contracts.NewDisputeGameFactoryContract(metrics.NoopContractMetrics, factoryAddr, caller)
 	head, err := l1Client.HeaderByNumber(ctx.Context, nil)
 	if err != nil {
@@ -89,7 +88,14 @@ type gameInfo struct {
 	err        error
 }
 
-func listGames(ctx context.Context, caller *batching.MultiCaller, factory *contracts.DisputeGameFactoryContract, block common.Hash, gameWindow time.Duration, sortBy, sortOrder string) error {
+func listGames(
+	ctx context.Context,
+	caller *batching.MultiCaller,
+	factory *contracts.DisputeGameFactoryContract,
+	block common.Hash,
+	gameWindow time.Duration,
+	sortBy, sortOrder string,
+) error {
 	earliestTimestamp := clock.MinCheckedTimestamp(clock.SystemClock, gameWindow)
 	games, err := factory.GetGamesAtOrAfter(ctx, block, earliestTimestamp)
 	if err != nil {

@@ -26,34 +26,52 @@ import (
 var maxChildChecks = big.NewInt(512)
 
 var (
-	methodVersion                 = "version"
-	methodMaxClockDuration        = "maxClockDuration"
-	methodMaxGameDepth            = "maxGameDepth"
-	methodAbsolutePrestate        = "absolutePrestate"
-	methodStatus                  = "status"
-	methodRootClaim               = "rootClaim"
-	methodClaimCount              = "claimDataLen"
-	methodClaim                   = "claimData"
-	methodL1Head                  = "l1Head"
-	methodResolvedSubgames        = "resolvedSubgames"
-	methodResolve                 = "resolve"
-	methodResolveClaim            = "resolveClaim"
-	methodAttack                  = "attack"
-	methodDefend                  = "defend"
-	methodStep                    = "step"
-	methodAddLocalData            = "addLocalData"
-	methodVM                      = "vm"
-	methodStartingBlockNumber     = "startingBlockNumber"
-	methodStartingRootHash        = "startingRootHash"
-	methodSplitDepth              = "splitDepth"
-	methodL2BlockNumber           = "l2BlockNumber"
-	methodRequiredBond            = "getRequiredBond"
-	methodClaimCredit             = "claimCredit"
-	methodCredit                  = "credit"
-	methodWETH                    = "weth"
-	methodL2BlockNumberChallenged = "l2BlockNumberChallenged"
-	methodL2BlockNumberChallenger = "l2BlockNumberChallenger"
-	methodChallengeRootL2Block    = "challengeRootL2Block"
+	methodVersion                   = "version"
+	methodMaxClockDuration          = "maxClockDuration"
+	methodMaxGameDepth              = "maxGameDepth"
+	methodAbsolutePrestate          = "absolutePrestate"
+	methodStatus                    = "status"
+	methodRootClaim                 = "rootClaim"
+	methodClaimCount                = "claimDataLen"
+	methodClaimLen                  = "claimsLength"
+	methodClaim                     = "claimData"
+	methodClaimsHash                = "claimsHash"
+	methodL1Head                    = "l1Head"
+	methodResolvedSubgames          = "resolvedSubgames"
+	methodResolve                   = "resolve"
+	methodResolveClaim              = "resolveClaim"
+	methodAttack                    = "attack"
+	methodDefend                    = "defend"
+	methodStep                      = "step"
+	methodAddLocalData              = "addLocalData"
+	methodVM                        = "vm"
+	methodStartingBlockNumber       = "startingBlockNumber"
+	methodStartingRootHash          = "startingRootHash"
+	methodSplitDepth                = "splitDepth"
+	methodL2BlockNumber             = "l2BlockNumber"
+	methodRequiredBond              = "getRequiredBond"
+	methodClaimCredit               = "claimCredit"
+	methodCredit                    = "credit"
+	methodWETH                      = "weth"
+	methodL2BlockNumberChallenged   = "l2BlockNumberChallenged"
+	methodL2BlockNumberChallenger   = "l2BlockNumberChallenger"
+	methodChallengeRootL2Block      = "challengeRootL2Block"
+	methodMaxDetectFaultDuration    = "maxDetectFaultDuration"
+	methodCreateAt                  = "createdAt"
+	methodChallengedClaims          = "challengedClaims"
+	methodParentGameProxy           = "parentGameProxy"
+	methodChallengeBySignal         = "challengeBySignal"
+	methodChallengeByProof          = "challengeByProof"
+	methodChallengerBond            = "CHALLENGER_BOND"
+	methodIsChallengeSuccess        = "isChallengeSuccess"
+	methodConfig                    = "config"
+	methodChallengedClaimIndexesLen = "challengedClaimIndexesLen"
+	methodChallengedClaimIndexes    = "challengedClaimIndexes"
+	methodInvalidChallengeClaims    = "invalidChallengeClaims"
+	methodMaxGenerateProofDuration  = "maxGenerateProofDuration"
+	methodChallengedClaimsTimestamp = "challengedClaimsTimestamp"
+	methodSubmitProofForSignal      = "submitProofForSignal"
+	methodGameCreator               = "gameCreator"
 )
 
 var (
@@ -80,7 +98,12 @@ type outputRootProof struct {
 	LatestBlockhash          [32]byte
 }
 
-func NewFaultDisputeGameContract(ctx context.Context, metrics metrics.ContractMetricer, addr common.Address, caller *batching.MultiCaller) (FaultDisputeGameContract, error) {
+func NewFaultDisputeGameContract(
+	ctx context.Context,
+	metrics metrics.ContractMetricer,
+	addr common.Address,
+	caller *batching.MultiCaller,
+) (FaultDisputeGameContract, error) {
 	contractAbi := snapshots.LoadFaultDisputeGameABI()
 
 	result, err := caller.SingleCall(ctx, rpcblock.Latest, batching.NewContractCall(contractAbi, addr, methodVersion))
@@ -139,7 +162,10 @@ func mustParseAbi(json []byte) *abi.ABI {
 // GetBalanceAndDelay returns the total amount of ETH controlled by this contract.
 // Note that the ETH is actually held by the DelayedWETH contract which may be shared by multiple games.
 // Returns the balance and the address of the contract that actually holds the balance.
-func (f *FaultDisputeGameContractLatest) GetBalanceAndDelay(ctx context.Context, block rpcblock.Block) (*big.Int, time.Duration, common.Address, error) {
+func (f *FaultDisputeGameContractLatest) GetBalanceAndDelay(
+	ctx context.Context,
+	block rpcblock.Block,
+) (*big.Int, time.Duration, common.Address, error) {
 	defer f.metrics.StartContractRequest("GetBalanceAndDelay")()
 	weth, err := f.getDelayedWETH(ctx, block)
 	if err != nil {
@@ -183,7 +209,10 @@ type GameMetadata struct {
 }
 
 // GetGameMetadata returns the game's L1 head, L2 block number, root claim, status, max clock duration, and is l2 block number challenged.
-func (f *FaultDisputeGameContractLatest) GetGameMetadata(ctx context.Context, block rpcblock.Block) (GameMetadata, error) {
+func (f *FaultDisputeGameContractLatest) GetGameMetadata(
+	ctx context.Context,
+	block rpcblock.Block,
+) (GameMetadata, error) {
 	defer f.metrics.StartContractRequest("GetGameMetadata")()
 	results, err := f.multiCaller.Call(ctx, block,
 		f.contract.Call(methodL1Head),
@@ -239,7 +268,10 @@ func (f *FaultDisputeGameContractLatest) GetSplitDepth(ctx context.Context) (typ
 	return types.Depth(splitDepth.GetBigInt(0).Uint64()), nil
 }
 
-func (f *FaultDisputeGameContractLatest) GetCredit(ctx context.Context, recipient common.Address) (*big.Int, gameTypes.GameStatus, error) {
+func (f *FaultDisputeGameContractLatest) GetCredit(
+	ctx context.Context,
+	recipient common.Address,
+) (*big.Int, gameTypes.GameStatus, error) {
 	defer f.metrics.StartContractRequest("GetCredit")()
 	results, err := f.multiCaller.Call(ctx, rpcblock.Latest,
 		f.contract.Call(methodCredit, recipient),
@@ -258,7 +290,11 @@ func (f *FaultDisputeGameContractLatest) GetCredit(ctx context.Context, recipien
 	return credit, status, nil
 }
 
-func (f *FaultDisputeGameContractLatest) GetRequiredBonds(ctx context.Context, block rpcblock.Block, positions ...*big.Int) ([]*big.Int, error) {
+func (f *FaultDisputeGameContractLatest) GetRequiredBonds(
+	ctx context.Context,
+	block rpcblock.Block,
+	positions ...*big.Int,
+) ([]*big.Int, error) {
 	calls := make([]batching.Call, 0, len(positions))
 	for _, position := range positions {
 		calls = append(calls, f.contract.Call(methodRequiredBond, position))
@@ -274,7 +310,11 @@ func (f *FaultDisputeGameContractLatest) GetRequiredBonds(ctx context.Context, b
 	return requiredBonds, nil
 }
 
-func (f *FaultDisputeGameContractLatest) GetCredits(ctx context.Context, block rpcblock.Block, recipients ...common.Address) ([]*big.Int, error) {
+func (f *FaultDisputeGameContractLatest) GetCredits(
+	ctx context.Context,
+	block rpcblock.Block,
+	recipients ...common.Address,
+) ([]*big.Int, error) {
 	defer f.metrics.StartContractRequest("GetCredits")()
 	calls := make([]batching.Call, 0, len(recipients))
 	for _, recipient := range recipients {
@@ -291,7 +331,10 @@ func (f *FaultDisputeGameContractLatest) GetCredits(ctx context.Context, block r
 	return credits, nil
 }
 
-func (f *FaultDisputeGameContractLatest) ClaimCreditTx(ctx context.Context, recipient common.Address) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) ClaimCreditTx(
+	ctx context.Context,
+	recipient common.Address,
+) (txmgr.TxCandidate, error) {
 	defer f.metrics.StartContractRequest("ClaimCredit")()
 	call := f.contract.Call(methodClaimCredit, recipient)
 	_, err := f.multiCaller.SingleCall(ctx, rpcblock.Latest, call)
@@ -301,7 +344,10 @@ func (f *FaultDisputeGameContractLatest) ClaimCreditTx(ctx context.Context, reci
 	return call.ToTxCandidate()
 }
 
-func (f *FaultDisputeGameContractLatest) GetRequiredBond(ctx context.Context, position types.Position) (*big.Int, error) {
+func (f *FaultDisputeGameContractLatest) GetRequiredBond(
+	ctx context.Context,
+	position types.Position,
+) (*big.Int, error) {
 	defer f.metrics.StartContractRequest("GetRequiredBond")()
 	bond, err := f.multiCaller.SingleCall(ctx, rpcblock.Latest, f.contract.Call(methodRequiredBond, position.ToGIndex()))
 	if err != nil {
@@ -310,14 +356,21 @@ func (f *FaultDisputeGameContractLatest) GetRequiredBond(ctx context.Context, po
 	return bond.GetBigInt(0), nil
 }
 
-func (f *FaultDisputeGameContractLatest) UpdateOracleTx(ctx context.Context, claimIdx uint64, data *types.PreimageOracleData) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) UpdateOracleTx(
+	ctx context.Context,
+	claimIdx uint64,
+	data *types.PreimageOracleData,
+) (txmgr.TxCandidate, error) {
 	if data.IsLocal {
 		return f.addLocalDataTx(claimIdx, data)
 	}
 	return f.addGlobalDataTx(ctx, data)
 }
 
-func (f *FaultDisputeGameContractLatest) addLocalDataTx(claimIdx uint64, data *types.PreimageOracleData) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) addLocalDataTx(
+	claimIdx uint64,
+	data *types.PreimageOracleData,
+) (txmgr.TxCandidate, error) {
 	call := f.contract.Call(
 		methodAddLocalData,
 		data.GetIdent(),
@@ -327,7 +380,10 @@ func (f *FaultDisputeGameContractLatest) addLocalDataTx(claimIdx uint64, data *t
 	return call.ToTxCandidate()
 }
 
-func (f *FaultDisputeGameContractLatest) addGlobalDataTx(ctx context.Context, data *types.PreimageOracleData) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) addGlobalDataTx(
+	ctx context.Context,
+	data *types.PreimageOracleData,
+) (txmgr.TxCandidate, error) {
 	oracle, err := f.GetOracle(ctx)
 	if err != nil {
 		return txmgr.TxCandidate{}, err
@@ -335,7 +391,12 @@ func (f *FaultDisputeGameContractLatest) addGlobalDataTx(ctx context.Context, da
 	return oracle.AddGlobalDataTx(data)
 }
 
-func (f *FaultDisputeGameContractLatest) GetWithdrawals(ctx context.Context, block rpcblock.Block, gameAddr common.Address, recipients ...common.Address) ([]*WithdrawalRequest, error) {
+func (f *FaultDisputeGameContractLatest) GetWithdrawals(
+	ctx context.Context,
+	block rpcblock.Block,
+	gameAddr common.Address,
+	recipients ...common.Address,
+) ([]*WithdrawalRequest, error) {
 	defer f.metrics.StartContractRequest("GetWithdrawals")()
 	delayedWETH, err := f.getDelayedWETH(ctx, block)
 	if err != nil {
@@ -344,7 +405,10 @@ func (f *FaultDisputeGameContractLatest) GetWithdrawals(ctx context.Context, blo
 	return delayedWETH.GetWithdrawals(ctx, block, gameAddr, recipients...)
 }
 
-func (f *FaultDisputeGameContractLatest) getDelayedWETH(ctx context.Context, block rpcblock.Block) (*DelayedWETHContract, error) {
+func (f *FaultDisputeGameContractLatest) getDelayedWETH(
+	ctx context.Context,
+	block rpcblock.Block,
+) (*DelayedWETHContract, error) {
 	defer f.metrics.StartContractRequest("GetDelayedWETH")()
 	result, err := f.multiCaller.SingleCall(ctx, block, f.contract.Call(methodWETH))
 	if err != nil {
@@ -425,7 +489,10 @@ func (f *FaultDisputeGameContractLatest) GetClaim(ctx context.Context, idx uint6
 	return f.decodeClaim(result, int(idx)), nil
 }
 
-func (f *FaultDisputeGameContractLatest) GetAllClaims(ctx context.Context, block rpcblock.Block) ([]types.Claim, error) {
+func (f *FaultDisputeGameContractLatest) GetAllClaims(
+	ctx context.Context,
+	block rpcblock.Block,
+) ([]types.Claim, error) {
 	defer f.metrics.StartContractRequest("GetAllClaims")()
 	results, err := batching.ReadArray(ctx, f.multiCaller, block, f.contract.Call(methodClaimCount), func(i *big.Int) *batching.ContractCall {
 		return f.contract.Call(methodClaim, i)
@@ -441,7 +508,11 @@ func (f *FaultDisputeGameContractLatest) GetAllClaims(ctx context.Context, block
 	return claims, nil
 }
 
-func (f *FaultDisputeGameContractLatest) IsResolved(ctx context.Context, block rpcblock.Block, claims ...types.Claim) ([]bool, error) {
+func (f *FaultDisputeGameContractLatest) IsResolved(
+	ctx context.Context,
+	block rpcblock.Block,
+	claims ...types.Claim,
+) ([]bool, error) {
 	defer f.metrics.StartContractRequest("IsResolved")()
 	calls := make([]batching.Call, 0, len(claims))
 	for _, claim := range claims {
@@ -467,7 +538,10 @@ func (f *FaultDisputeGameContractLatest) Vm(ctx context.Context) (*VMContract, e
 	return NewVMContract(vmAddr, f.multiCaller), nil
 }
 
-func (f *FaultDisputeGameContractLatest) IsL2BlockNumberChallenged(ctx context.Context, block rpcblock.Block) (bool, error) {
+func (f *FaultDisputeGameContractLatest) IsL2BlockNumberChallenged(
+	ctx context.Context,
+	block rpcblock.Block,
+) (bool, error) {
 	defer f.metrics.StartContractRequest("IsL2BlockNumberChallenged")()
 	result, err := f.multiCaller.SingleCall(ctx, block, f.contract.Call(methodL2BlockNumberChallenged))
 	if err != nil {
@@ -489,17 +563,29 @@ func (f *FaultDisputeGameContractLatest) ChallengeL2BlockNumberTx(challenge *typ
 	}, headerRlp).ToTxCandidate()
 }
 
-func (f *FaultDisputeGameContractLatest) AttackTx(ctx context.Context, parent types.Claim, pivot common.Hash) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) AttackTx(
+	ctx context.Context,
+	parent types.Claim,
+	pivot common.Hash,
+) (txmgr.TxCandidate, error) {
 	call := f.contract.Call(methodAttack, parent.Value, big.NewInt(int64(parent.ContractIndex)), pivot)
 	return f.txWithBond(ctx, parent.Position.Attack(), call)
 }
 
-func (f *FaultDisputeGameContractLatest) DefendTx(ctx context.Context, parent types.Claim, pivot common.Hash) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) DefendTx(
+	ctx context.Context,
+	parent types.Claim,
+	pivot common.Hash,
+) (txmgr.TxCandidate, error) {
 	call := f.contract.Call(methodDefend, parent.Value, big.NewInt(int64(parent.ContractIndex)), pivot)
 	return f.txWithBond(ctx, parent.Position.Defend(), call)
 }
 
-func (f *FaultDisputeGameContractLatest) txWithBond(ctx context.Context, position types.Position, call *batching.ContractCall) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) txWithBond(
+	ctx context.Context,
+	position types.Position,
+	call *batching.ContractCall,
+) (txmgr.TxCandidate, error) {
 	tx, err := call.ToTxCandidate()
 	if err != nil {
 		return txmgr.TxCandidate{}, fmt.Errorf("failed to create transaction: %w", err)
@@ -511,7 +597,12 @@ func (f *FaultDisputeGameContractLatest) txWithBond(ctx context.Context, positio
 	return tx, nil
 }
 
-func (f *FaultDisputeGameContractLatest) StepTx(claimIdx uint64, isAttack bool, stateData []byte, proof []byte) (txmgr.TxCandidate, error) {
+func (f *FaultDisputeGameContractLatest) StepTx(
+	claimIdx uint64,
+	isAttack bool,
+	stateData []byte,
+	proof []byte,
+) (txmgr.TxCandidate, error) {
 	call := f.contract.Call(methodStep, new(big.Int).SetUint64(claimIdx), isAttack, stateData, proof)
 	return call.ToTxCandidate()
 }
@@ -603,7 +694,12 @@ type FaultDisputeGameContract interface {
 	ClaimCreditTx(ctx context.Context, recipient common.Address) (txmgr.TxCandidate, error)
 	GetRequiredBond(ctx context.Context, position types.Position) (*big.Int, error)
 	UpdateOracleTx(ctx context.Context, claimIdx uint64, data *types.PreimageOracleData) (txmgr.TxCandidate, error)
-	GetWithdrawals(ctx context.Context, block rpcblock.Block, gameAddr common.Address, recipients ...common.Address) ([]*WithdrawalRequest, error)
+	GetWithdrawals(
+		ctx context.Context,
+		block rpcblock.Block,
+		gameAddr common.Address,
+		recipients ...common.Address,
+	) ([]*WithdrawalRequest, error)
 	GetOracle(ctx context.Context) (*PreimageOracleContract, error)
 	GetMaxClockDuration(ctx context.Context) (time.Duration, error)
 	GetMaxGameDepth(ctx context.Context) (types.Depth, error)
