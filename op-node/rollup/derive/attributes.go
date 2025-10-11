@@ -183,14 +183,15 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	isMillisecondTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
 	if ba.rollupCfg.IsFourier(nextL2MilliTime / 1000) {
 		blockIntervalCount := ba.rollupCfg.MillisecondBlockInterval(nextL2MilliTime) / eth.BlockMillisecondsIntervalUint
-		pa.SetMillisecondTimestamp(nextL2MilliTime, isMillisecondTime, blockIntervalCount)
+		pa.SetMillisecondTimestampWithBlockIntervalCount(nextL2MilliTime, isMillisecondTime, blockIntervalCount+1)
 		log.Debug("succeed to build payload attributes after fork",
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number,
 			"is_fourier", true,
 			"blockIntervalCount", blockIntervalCount, "pa.PrevRandao", pa.PrevRandao)
 	} else if isMillisecondTime {
-		pa.SetMillisecondTimestamp(nextL2MilliTime, isMillisecondTime, 0)
+		// compatible v0.5.8, use blockIntervalCount 1
+		pa.SetMillisecondTimestamp(nextL2MilliTime, isMillisecondTime)
 		log.Debug("succeed to build payload attributes after fork",
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number,
