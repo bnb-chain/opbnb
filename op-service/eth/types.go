@@ -344,19 +344,26 @@ func (pa *PayloadAttributes) MillisecondTimestamp() uint64 {
 // SetMillisecondTimestamp is used to set millisecond timestamp.
 // [32]byte PrevRandao
 // [0][1] represent l2 millisecond's mill part.
-func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecond bool, blockIntervalCount uint64) {
+func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecond bool) {
 	pa.Timestamp = hexutil.Uint64(ts / 1000)
 	if updateMilliSecond {
 		milliPartBytes := uint256.NewInt(ts % 1000).Bytes32()
 		pa.PrevRandao[0] = milliPartBytes[30]
 		pa.PrevRandao[1] = milliPartBytes[31]
 
-		if blockIntervalCount == 0 || blockIntervalCount > 255 {
-			log.Crit("failed to get block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
-		}
 		// count must occupy only one byte.
-		pa.PrevRandao[2] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
+		pa.PrevRandao[2] = uint256.NewInt(1).Bytes32()[31]
 	}
+}
+
+// SetMillisecondTimestamp is used to set millisecond timestamp.
+// [32]byte PrevRandao
+// [0][1] represent l2 millisecond's mill part.
+func (pa *PayloadAttributes) SetBlockIntervalCount(blockIntervalCount uint64) {
+	if blockIntervalCount > 255 {
+		log.Crit("overflow block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
+	}
+	pa.PrevRandao[3] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
 }
 
 type ExecutePayloadStatus string
