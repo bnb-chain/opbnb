@@ -76,7 +76,7 @@ func (e *extraHost) Close() error {
 
 func (e *extraHost) initStaticPeers() {
 	for _, addr := range e.staticPeers {
-		e.Peerstore().AddAddrs(addr.ID, addr.Addrs, time.Hour*24*7)
+		e.Peerstore().AddAddrs(addr.ID, addr.Addrs, time.Hour*24*30)
 		// We protect the peer, so the connection manager doesn't decide to prune it.
 		// We tag it with "static" so other protects/unprotects with different tags don't affect this protection.
 		e.connMgr.Protect(addr.ID, staticPeerTag)

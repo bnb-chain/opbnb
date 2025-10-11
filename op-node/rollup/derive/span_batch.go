@@ -363,11 +363,24 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 
 	var blockInterval uint64
 	var millisecondTimestamp bool
+	var isFourierfork bool
 	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime >= genesisTimestamp {
 		secondSinceVolta := *rollupCfg.VoltaTime - genesisTimestamp
 		if b.relTimestamp >= secondSinceVolta {
-			blockInterval = rollup.MillisecondBlockIntervalVolta
 			millisecondTimestamp = true
+			// check if batch time stamp has passed fourier fork
+			if rollupCfg.FourierTime != nil && *rollupCfg.FourierTime >= genesisTimestamp {
+				// Convert Fourier threshold to milliseconds since genesis for comparison
+				msSinceFourier := (*rollupCfg.FourierTime - genesisTimestamp) * 1000
+				if b.relTimestamp >= msSinceFourier {
+					blockInterval = rollup.MillisecondBlockIntervalFourier
+					isFourierfork = true
+				} else {
+					blockInterval = rollup.MillisecondBlockIntervalVolta
+				}
+			} else {
+				blockInterval = rollup.MillisecondBlockIntervalVolta
+			}
 		} else {
 			blockInterval = rollupCfg.BlockTime * 1000
 		}
@@ -389,16 +402,25 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			// relTimestamp is second timestamp before volta
 			batch.Timestamp = genesisTimestamp*1000 + b.relTimestamp*1000 + blockInterval*uint64(i)
 		}
+
 		batch.EpochNum = rollup.Epoch(blockOriginNums[i])
 		for j := 0; j < int(b.blockTxCounts[i]); j++ {
 			batch.Transactions = append(batch.Transactions, fullTxs[txIdx])
 			txIdx++
 		}
+
 		spanBatch.Batches = append(spanBatch.Batches, &batch)
 	}
 	if millisecondTimestamp {
-		log.Debug("succeed to build span batch with milliseconds timestamp", "rel timestamp", b.relTimestamp,
-			"first l1 origin", spanBatch.GetStartEpochNum(), "block count", spanBatch.GetBlockCount())
+		log.Debug("succeed to build span batch with milliseconds timestamp",
+			"rel timestamp", b.relTimestamp,
+			"genesis timestamp", genesisTimestamp,
+			"start timestamp", spanBatch.GetTimestamp(),
+			"end timestamp", spanBatch.GetBlockTimestamp(spanBatch.GetBlockCount()-1),
+			"is_fourier", isFourierfork,
+			"is_millisecond", millisecondTimestamp,
+			"first l1 origin", spanBatch.GetStartEpochNum(),
+			"block count", spanBatch.GetBlockCount())
 	}
 	return &spanBatch, nil
 }
@@ -585,11 +607,6 @@ func (b *SpanBatch) ToRawSpanBatch(cfg *rollup.Config) (*RawSpanBatch, error) {
 	} else {
 		relTs = span_start.Timestamp - b.GenesisTimestamp
 	}
-	log.Debug("succeed to make raw span_batch",
-		"span_start_timestamp", span_start.Timestamp,
-		"rel_timestamp", relTs,
-		"genesis_timestamp", b.GenesisTimestamp,
-		"is_volta", cfg.IsVolta(span_start.Timestamp))
 
 	return &RawSpanBatch{
 		spanBatchPrefix: spanBatchPrefix{

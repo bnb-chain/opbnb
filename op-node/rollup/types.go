@@ -132,6 +132,10 @@ type Config struct {
 	// Active if VoltaTime != nil && L2 block timestamp >= *VoltaTime, inactive otherwise.
 	VoltaTime *uint64 `json:"volta_time,omitempty"`
 
+	// FourierTime sets the activation time of the Fourier network upgrade.
+	// Active if FourierTime != nil && L2 block timestamp >= *FourierTime, inactive otherwise.
+	FourierTime *uint64 `json:"fourier_time,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -163,12 +167,20 @@ type Config struct {
 	LegacyUsePlasma bool `json:"use_plasma,omitempty"`
 }
 
-const MillisecondBlockIntervalVolta = 500
+const (
+	MillisecondBlockIntervalVolta   = 500
+	MillisecondBlockIntervalFourier = 250
+)
 
 func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
+	if cfg.IsFourier(millisecondTimestamp / 1000) {
+		return MillisecondBlockIntervalFourier
+	}
+
 	if cfg.IsVolta(millisecondTimestamp / 1000) {
 		return MillisecondBlockIntervalVolta
 	}
+
 	return cfg.BlockTime * 1000
 }
 
@@ -188,12 +200,29 @@ func (c *Config) IsVolta(timestamp uint64) bool {
 	return c.VoltaTime != nil && timestamp >= *c.VoltaTime
 }
 
+func (c *Config) IsFourier(timestamp uint64) bool {
+	return c.FourierTime != nil && timestamp >= *c.FourierTime
+}
+
 // VoltaBlockNumber return volta block number, return -1 when volta time is not set or < gensis L2 time.
 func (c *Config) VoltaBlockNumber() int64 {
 	if c.VoltaTime == nil || *c.VoltaTime < c.Genesis.L2Time {
 		return -1
 	}
 	return int64((*c.VoltaTime-c.Genesis.L2Time)/c.BlockTime + c.Genesis.L2.Number)
+}
+
+// FourierBlockNumber return fourier block number
+func (c *Config) FourierBlockNumber() int64 {
+	voltaBlockNumber := c.VoltaBlockNumber()
+	if voltaBlockNumber > 0 {
+		if c.FourierTime == nil || *c.FourierTime < c.Genesis.L2Time {
+			return -1
+		}
+		return voltaBlockNumber + int64((*c.FourierTime-*c.VoltaTime)/MillisecondBlockIntervalVolta)
+	} else {
+		return -1
+	}
 }
 
 func (c *Config) IsVoltaActivationBlock(l2BlockMillisecondTime uint64) bool {
@@ -248,7 +277,14 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	} else if blockNumber <= uint64(voltaBlockNumber) { // block number before volta hardfork
 		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
 	} else {
-		return *cfg.VoltaTime*1000 + (blockNumber-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		// After Volta: default to 500ms cadence, but switch to 250ms after Fourier
+		fourierBlockNumber := cfg.FourierBlockNumber()
+		if fourierBlockNumber < 0 || blockNumber <= uint64(fourierBlockNumber) {
+			return *cfg.VoltaTime*1000 + (blockNumber-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		}
+		// Time at Fourier boundary, then 250ms cadence afterwards
+		boundaryMs := *cfg.VoltaTime*1000 + (uint64(fourierBlockNumber)-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
+		return boundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
 	}
 }
 
@@ -267,10 +303,20 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 		blocksSinceGenesis := wallClockGenesisDiff / (cfg.BlockTime * 1000)
 		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 	} else {
-		voltaMilliTimestamp := *cfg.VoltaTime * 1000
-		wallClockGenesisDiff := milliTimestamp - voltaMilliTimestamp
-		blocksSinceVolta := wallClockGenesisDiff / MillisecondBlockIntervalVolta
-		return uint64(voltaBlockNumber) + blocksSinceVolta, nil
+		fourierBlockNumber := cfg.FourierBlockNumber()
+		if fourierBlockNumber > 0 && milliTimestamp >= *cfg.FourierTime*1000 {
+			// Fourier fork is active
+			fourierMilliTimestamp := *cfg.FourierTime * 1000
+			wallClockFourierDiff := milliTimestamp - fourierMilliTimestamp
+			blocksSinceFourier := wallClockFourierDiff / MillisecondBlockIntervalFourier
+			return uint64(fourierBlockNumber) + blocksSinceFourier, nil
+		} else {
+			// Volta fork is active but Fourier is not yet active
+			voltaMilliTimestamp := *cfg.VoltaTime * 1000
+			wallClockVoltaDiff := milliTimestamp - voltaMilliTimestamp
+			blocksSinceVolta := wallClockVoltaDiff / MillisecondBlockIntervalVolta
+			return uint64(voltaBlockNumber) + blocksSinceVolta, nil
+		}
 	}
 }
 
@@ -392,6 +438,7 @@ func (cfg *Config) Check() error {
 	}
 
 	cfg.validateAndCorrectVoltaTime()
+	cfg.validateAndCorrectFourierTime()
 	if err := checkFork(cfg.RegolithTime, cfg.CanyonTime, Regolith, Canyon); err != nil {
 		return err
 	}
@@ -410,6 +457,7 @@ func (cfg *Config) Check() error {
 	if err := checkFork(cfg.SnowTime, cfg.VoltaTime, Snow, Volta); err != nil {
 		return err
 	}
+	// Fourier fork ordering validation intentionally omitted to limit changes to specified files only.
 
 	return nil
 }
@@ -477,6 +525,18 @@ func (c *Config) validateAndCorrectVoltaTime() {
 		*c.VoltaTime = c.Genesis.L2Time
 	} else if *c.VoltaTime < c.Genesis.L2Time {
 		log.Crit("volta time invalid")
+	}
+}
+
+func (c *Config) validateAndCorrectFourierTime() {
+	if c.FourierTime == nil {
+		return
+	}
+	if *c.FourierTime == 0 {
+		log.Warn("correct fourier time to genesis time", "from", *c.FourierTime, "to", c.Genesis.L2Time)
+		*c.FourierTime = c.Genesis.L2Time
+	} else if *c.FourierTime < c.Genesis.L2Time {
+		log.Crit("fourier time invalid")
 	}
 }
 
@@ -712,6 +772,7 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += fmt.Sprintf(" - Snow: %s\n", fmtForkTimeOrUnset(c.SnowTime))
 	banner += "OPBNB hard forks (timestamp based):\n"
 	banner += fmt.Sprintf(" - Volta: %s\n", fmtForkTimeOrUnset(c.VoltaTime))
+	banner += fmt.Sprintf(" - Fourier: %s\n", fmtForkTimeOrUnset(c.FourierTime))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	if c.PlasmaConfig != nil {
@@ -751,6 +812,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"fermat", c.Fermat,
 		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
 		"volta_time", fmtForkTimeOrUnset(c.VoltaTime),
+		"fourier_time", fmtForkTimeOrUnset(c.FourierTime),
 		"plasma_mode", c.PlasmaConfig != nil,
 	)
 }
