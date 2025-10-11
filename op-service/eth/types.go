@@ -361,7 +361,7 @@ func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecon
 // [0][1] represent l2 millisecond's mill part.
 func (pa *PayloadAttributes) SetBlockIntervalCount(blockIntervalCount uint64) {
 	if blockIntervalCount > 255 {
-		log.Crit("failed to get block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
+		log.Crit("overflow block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
 	}
 	pa.PrevRandao[3] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
 }
