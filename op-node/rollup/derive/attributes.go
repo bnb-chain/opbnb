@@ -187,7 +187,8 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		log.Debug("succeed to build payload attributes after fork",
 			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
 			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number,
-			"is_fourier", ba.rollupCfg.IsFourier(nextL2MilliTime/1000))
+			"is_fourier", ba.rollupCfg.IsFourier(nextL2MilliTime/1000),
+			"blockIntervalCount", blockIntervalCount, "pa.PrevRandao", pa.PrevRandao)
 	}
 	return pa, nil
 }
