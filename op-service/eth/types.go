@@ -351,7 +351,7 @@ func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecon
 		pa.PrevRandao[0] = milliPartBytes[30]
 		pa.PrevRandao[1] = milliPartBytes[31]
 
-		if blockIntervalCount == 0 || blockIntervalCount > 255 {
+		if blockIntervalCount > 255 {
 			log.Crit("failed to get block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
 		}
 		// count must occupy only one byte.
