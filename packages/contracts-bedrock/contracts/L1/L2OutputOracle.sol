@@ -62,7 +62,7 @@ contract L2OutputOracle is Initializable, Semver {
     /**
      * @notice The L2 block number of Volta Hardfork.
      */
-    uint256 public constant VOLTA_BLOCK_NUMBER = 53450677;
+    uint256 public constant VOLTA_BLOCK_NUMBER = 1;
 
     /**
      * @notice The time between L2 blocks in milliseconds after Fourier Hardfork.
@@ -72,7 +72,7 @@ contract L2OutputOracle is Initializable, Semver {
     /**
      * @notice The L2 block number of Fourier Hardfork.
      */
-    uint256 public constant FOURIER_BLOCK_NUMBER = 0;
+    uint256 public constant FOURIER_BLOCK_NUMBER = 8402;
 
     /**
      * @notice Emitted when an output is proposed.
@@ -373,11 +373,11 @@ contract L2OutputOracle is Initializable, Semver {
             l2Timestamp = computeL2Timestamp(_l2BlockNumber);
             currentTimestamp = block.timestamp;
         } else if (_l2BlockNumber <= FOURIER_BLOCK_NUMBER) {
-            // After Volta but before Fourier: use milliseconds
+            // After Volta but before Fourier: use 500 milliseconds per block
             l2Timestamp = computeL2TimestampAfterVolta(_l2BlockNumber);
             currentTimestamp = block.timestamp * 1000;
         } else {
-            // After Fourier Hardfork: use milliseconds
+            // After Fourier Hardfork: use 250 milliseconds per block
             l2Timestamp = computeL2TimestampAfterFourier(_l2BlockNumber);
             currentTimestamp = block.timestamp * 1000;
         }
