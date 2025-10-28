@@ -49,7 +49,8 @@ type channelManager struct {
 	// if set to true, prevents production of any new channel frames
 	closed bool
 
-	isVolta bool
+	isVolta   bool
+	isFourier bool
 }
 
 func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config) *channelManager {
@@ -263,11 +264,19 @@ func (s *channelManager) processBlocks() error {
 		latestL2ref eth.L2BlockRef
 	)
 	for i, block := range s.blocks {
+
+		if !s.isFourier && s.rollupCfg.IsFourier(block.Time()) && s.currentChannel.InputBytes() != 0 {
+			s.currentChannel.Close()
+			s.isFourier = true
+			s.isVolta = true
+			log.Info("before fourier fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
+			break
+		}
 		if !s.isVolta && s.rollupCfg.IsVolta(block.Time()) && s.currentChannel.InputBytes() != 0 {
 			// the current channel is before volta fork.
 			s.currentChannel.Close()
 			s.isVolta = true
-			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "block_time", block.Time())
+			log.Info("before volta fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
 			break
 		}
 
@@ -365,11 +374,17 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 		return ErrReorg
 	}
 
+	if s.tip == (common.Hash{}) && s.rollupCfg.IsFourier(block.Time()) {
+		// set fourier flag at startup
+		s.isFourier = true
+		s.isVolta = true
+		log.Info("succeed to set is_fourier flag", "l2_block_time", block.Time(), "l2_block_num", block.Number())
+	}
+
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsVolta(block.Time()) {
 		// set volta flag at startup
 		s.isVolta = true
-		log.Info("succeed to set is_volta flag", "block_time", block.Time(),
-			"l2 block num", block.Number())
+		log.Info("succeed to set is_volta flag", "l2_block_time", block.Time(), "l2_block_num", block.Number())
 	}
 
 	s.metr.RecordL2BlockInPendingQueue(block)

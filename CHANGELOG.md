@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.5.4
+
+This release introduces the implementation of Fourier Hardfork, effectively reducing the block time from 500 milliseconds to an impressive 250 milliseconds.
+This enhancement significantly improves transaction efficiency and overall network performance, allowing for faster processing and a more seamless experience for users.
+
+It is set to be activated on both the opBNB Mainnet and Testnet environments according to the following schedule:
+
+- Testnet: Nov-06-2025 03:00 AM +UTC
+- Mainnet: Early-Dec-2025
+
+All mainnet and testnet nodes must upgrade to this release before the hardfork time.
+Also note that the `op-geth` should be upgraded to v0.5.8 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.8) for more details.
+
+### What's Changed
+
+#### FEATURE
+* [\#305](https://github.com/bnb-chain/opbnb/pull/305) support Fourier hardfork
+
+### Docker Images
+- ghcr.io/bnb-chain/op-node:v0.5.4
+- ghcr.io/bnb-chain/op-batcher:v0.5.4
+- ghcr.io/bnb-chain/op-proposer:v0.5.4
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.3...v0.5.4
+
+
 ## v0.5.3-hotfix
 
 This release is a hotfix that modifies the `SeqWindowSize` configuration.

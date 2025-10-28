@@ -129,7 +129,7 @@ var OPBNBMainnet = rollup.Config{
 	},
 	BlockTime:              1,
 	MaxSequencerDrift:      600,
-	SeqWindowSize:          57600,
+	SeqWindowSize:          96000,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(56),
 	L2ChainID:              big.NewInt(204),
@@ -166,7 +166,7 @@ var OPBNBTestnet = rollup.Config{
 	},
 	BlockTime:              1,
 	MaxSequencerDrift:      600,
-	SeqWindowSize:          57600,
+	SeqWindowSize:          96000,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(97),
 	L2ChainID:              big.NewInt(5611),
@@ -181,6 +181,7 @@ var OPBNBTestnet = rollup.Config{
 	EcotoneTime:            u64Ptr(1715754600),   // May-15-2024 06:30 AM +UTC
 	FjordTime:              u64Ptr(1725948000),   // Sep-10-2024 06:00 AM +UTC
 	VoltaTime:              u64Ptr(1743562800),   // Apr-02-2025 03:00 AM +UTC
+	FourierTime:            u64Ptr(1762398000),   // Nov-06-2025 03:00 AM +UTC
 }
 
 var OPBNBQANet = rollup.Config{
@@ -203,7 +204,7 @@ var OPBNBQANet = rollup.Config{
 	},
 	BlockTime:              1,
 	MaxSequencerDrift:      600,
-	SeqWindowSize:          57600,
+	SeqWindowSize:          96000,
 	ChannelTimeout:         1200,
 	L1ChainID:              big.NewInt(714),
 	L2ChainID:              big.NewInt(1081),
