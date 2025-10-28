@@ -43,6 +43,7 @@ const (
 	Fjord    ForkName = "fjord"
 	Snow     ForkName = "snow"
 	Volta    ForkName = "volta"
+	Fourier  ForkName = "fourier"
 	Interop  ForkName = "interop"
 	None     ForkName = "none"
 )
