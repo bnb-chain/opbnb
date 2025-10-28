@@ -457,7 +457,9 @@ func (cfg *Config) Check() error {
 	if err := checkFork(cfg.SnowTime, cfg.VoltaTime, Snow, Volta); err != nil {
 		return err
 	}
-	// Fourier fork ordering validation intentionally omitted to limit changes to specified files only.
+	if err := checkFork(cfg.VoltaTime, cfg.FourierTime, Volta, Fourier); err != nil {
+		return err
+	}
 
 	return nil
 }
