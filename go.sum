@@ -184,8 +184,8 @@ github.com/bnb-chain/fastssz v0.1.2 h1:vTcXw5SwCtRYnl/BEclujiml7GXiVOZ74tub4GHpv
 github.com/bnb-chain/fastssz v0.1.2/go.mod h1:KcabV+OEw2QwgyY8Fc88ZG79CKYkFdu0kKWyfA3dI6o=
 github.com/bnb-chain/greenfield-cometbft v1.0.0 h1:0r6hOJWD/+es0gxP/exKuN/krgXAr3LCn5/XlcgDWr8=
 github.com/bnb-chain/greenfield-cometbft v1.0.0/go.mod h1:f35mk/r5ab6yvzlqEWZt68LfUje68sYgMpVlt2CUYMk=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20250418091555-2b39d61b7cbf h1:7Ry/NtfhCFelZRVhw5cPwveX8uVFchalL+qhUcn5CMA=
-github.com/bnb-chain/op-geth v1.101315.2-0.0.20250418091555-2b39d61b7cbf/go.mod h1:hyHrrcHkUe3lRwfJs+JGrbOHp+pRdheRk+ren4TPhF8=
+github.com/bnb-chain/op-geth v1.101315.2-0.0.20251103131439-c51e91a217c5 h1:E5He1qqFAr8dP+ImwDZ6ZVSk+sqZZWS0O8tfJdgg284=
+github.com/bnb-chain/op-geth v1.101315.2-0.0.20251103131439-c51e91a217c5/go.mod h1:T1sVGwAA96KwS72B62aRTvlM/a+byeIAx9Akh18eWDQ=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
@@ -404,8 +404,6 @@ github.com/ferranbt/fastssz v0.0.0-20210120143747-11b9eff30ea9/go.mod h1:DyEu2iu
 github.com/ferranbt/fastssz v0.0.0-20210905181407-59cf6761a7d5 h1:6dVcS0LktRSyEEgldFY4N9J17WjUoiJStttH+RZj0Wo=
 github.com/ferranbt/fastssz v0.0.0-20210905181407-59cf6761a7d5/go.mod h1:S8yiDeAXy8f88W4Ul+0dBMPx49S05byYbmZD6Uv94K4=
 github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5/go.mod h1:VvhXpOYNQvB+uIk2RvXzuaQtkQJzzIx6lSBe1xv7hi0=
-github.com/fjl/memsize v0.0.2 h1:27txuSD9or+NZlnOWdKUxeBzTAUkWCVh+4Gf2dWFOzA=
-github.com/fjl/memsize v0.0.2/go.mod h1:VvhXpOYNQvB+uIk2RvXzuaQtkQJzzIx6lSBe1xv7hi0=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/flynn/noise v1.0.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
 github.com/flynn/noise v1.1.0 h1:KjPQoQCEFdZDiP03phOvGi11+SVVhBG2wOWAorLsstg=
