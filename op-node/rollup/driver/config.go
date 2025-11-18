@@ -1,7 +1,12 @@
 package driver
 
 type Config struct {
+	// L1FinalizedConfDepth enables using L1 finalized block as the latest head for opBNB sequencer and derivation.
+	// When enabled, VerifierConfDepth and SequencerConfDepth will be ignored.
+	L1FinalizedConfDepth bool `json:"l1_finalized_conf_depth"`
+
 	// VerifierConfDepth is the distance to keep from the L1 head when reading L1 data for L2 derivation.
+	// Ignored when L1FinalizedConfDepth is enabled.
 	VerifierConfDepth uint64 `json:"verifier_conf_depth"`
 
 	// SequencerConfDepth is the distance to keep from the L1 head as origin when sequencing new L2 blocks.
@@ -9,6 +14,7 @@ type Config struct {
 	// - not adopt a L1 origin within the allowed time (rollup.Config.MaxSequencerDrift)
 	// - not adopt a L1 origin that can be included on L1 within the allowed range (rollup.Config.SeqWindowSize)
 	// and thus fail to produce a block with anything more than deposits.
+	// Ignored when L1FinalizedConfDepth is enabled.
 	SequencerConfDepth uint64 `json:"sequencer_conf_depth"`
 
 	// SequencerEnabled is true when the driver should sequence new blocks.

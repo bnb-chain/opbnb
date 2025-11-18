@@ -221,9 +221,16 @@ var (
 	}
 	VerifierL1Confs = &cli.Uint64Flag{
 		Name:     "verifier.l1-confs",
-		Usage:    "(Deprecated) Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
+		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
 		EnvVars:  prefixEnvVars("VERIFIER_L1_CONFS"),
 		Value:    15,
+		Category: L1RPCCategory,
+	}
+	L1FinalizedConfDepth = &cli.BoolFlag{
+		Name:     "l1-finalized-confs",
+		Usage:    "Use L1 finalized block as the latest head for opBNB sequencer and derivation. When enabled, verifier.l1-confs and sequencer.l1-confs will be ignored.",
+		EnvVars:  prefixEnvVars("L1_FINALIZED_CONFS"),
+		Value:    false,
 		Category: L1RPCCategory,
 	}
 	SequencerEnabledFlag = &cli.BoolFlag{
@@ -259,7 +266,7 @@ var (
 	}
 	SequencerL1Confs = &cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
-		Usage:    "(Deprecated) Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
+		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
 		EnvVars:  prefixEnvVars("SEQUENCER_L1_CONFS"),
 		Value:    15,
 		Category: SequencerCategory,
@@ -439,6 +446,7 @@ var optionalFlags = []cli.Flag{
 	L1BlobRpcRateLimit,
 	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
+	L1FinalizedConfDepth,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
