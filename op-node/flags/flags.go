@@ -226,6 +226,13 @@ var (
 		Value:    15,
 		Category: L1RPCCategory,
 	}
+	L1FinalizedConfDepth = &cli.BoolFlag{
+		Name:     "l1-finalized-confs",
+		Usage:    "Use L1 finalized block as the latest head for opBNB sequencer and derivation. When enabled, verifier.l1-confs and sequencer.l1-confs will be ignored.",
+		EnvVars:  prefixEnvVars("L1_FINALIZED_CONFS"),
+		Value:    false,
+		Category: L1RPCCategory,
+	}
 	SequencerEnabledFlag = &cli.BoolFlag{
 		Name:     "sequencer.enabled",
 		Usage:    "Enable sequencing of new L2 blocks. A separate batch submitter has to be deployed to publish the data for verifiers.",
@@ -439,6 +446,7 @@ var optionalFlags = []cli.Flag{
 	L1BlobRpcRateLimit,
 	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
+	L1FinalizedConfDepth,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,

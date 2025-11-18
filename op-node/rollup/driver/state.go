@@ -307,6 +307,10 @@ func (s *Driver) eventLoop() {
 						s.l1State.HandleNewL1HeadBlock(newL1Head)
 						reqStep() // a new L1 head may mean we have the data to not get an EOF again.
 						continue
+					case newL1Finalized := <-s.l1FinalizedSig: // sequencerStep may depend on this when FindL1Origin
+						s.l1State.HandleNewL1FinalizedBlock(newL1Finalized)
+						reqStep() // a new L1 finalized may mean we have the data to not get an EOF again.
+						continue
 					default:
 						// immediately do sequencerStep if time is ready
 						if err := sequencerStep(); err != nil {
@@ -341,6 +345,10 @@ func (s *Driver) eventLoop() {
 			case newL1Head := <-s.l1HeadSig: // sequencerStep may depend on this when FindL1Origin
 				s.l1State.HandleNewL1HeadBlock(newL1Head)
 				reqStep() // a new L1 head may mean we have the data to not get an EOF again.
+				continue
+			case newL1Finalized := <-s.l1FinalizedSig: // sequencerStep may depend on this when FindL1Origin
+				s.l1State.HandleNewL1FinalizedBlock(newL1Finalized)
+				reqStep() // a new L1 finalized may mean we have the data to not get an EOF again.
 				continue
 			case respCh := <-s.stopSequencer:
 				if s.driverConfig.SequencerStopped {
