@@ -586,7 +586,7 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaNotActive_GenesisBlock",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         nil,
 			fourierTime:       nil,
 			blockNumber:       0,
@@ -597,22 +597,22 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaNotActive_AfterGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         nil,
 			fourierTime:       nil,
 			blockNumber:       5,
-			expectedMilliTime: 1010000, // 1000*1000 + 5*2*1000
+			expectedMilliTime: 1005000, // 1000*1000 + 5*1*1000
 			description:       "Volta not active, block 5",
 		},
 		{
 			name:              "VoltaNotActive_NonZeroGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   100,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         nil,
 			fourierTime:       nil,
 			blockNumber:       105,
-			expectedMilliTime: 1010000, // 1000*1000 + (105-100)*2*1000
+			expectedMilliTime: 1005000, // 1000*1000 + (105-100)*1*1000
 			description:       "Volta not active, genesis block 100, query block 105",
 		},
 
@@ -621,7 +621,7 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaAtGenesis_FourierNotActive_GenesisBlock",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000), // Same as genesis
 			fourierTime:       nil,
 			blockNumber:       0,
@@ -632,18 +632,18 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaAtGenesis_FourierNotActive_AfterGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
 			fourierTime:       nil,
 			blockNumber:       10,
-			expectedMilliTime: 1050000, // 1000*1000 + (10-0)*500
+			expectedMilliTime: 1005000, // 1000*1000 + (10-0)*500 = 1000000 + 5000
 			description:       "Volta at genesis, Fourier not active, block 10 (500ms cadence)",
 		},
 		{
 			name:              "VoltaAtGenesis_FourierAtGenesis_GenesisBlock",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
 			fourierTime:       uint64Ptr(1000), // Same as genesis
 			blockNumber:       0,
@@ -654,45 +654,45 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaAtGenesis_FourierAtGenesis_AfterGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
 			fourierTime:       uint64Ptr(1000),
 			blockNumber:       10,
-			expectedMilliTime: 1025000, // 1000*1000 + (10-0)*250
+			expectedMilliTime: 1002500, // 1000*1000 + (10-0)*250 = 1000000 + 2500
 			description:       "Both Volta and Fourier at genesis, block 10 (250ms cadence)",
 		},
 		{
 			name:              "VoltaAtGenesis_FourierLater_BeforeFourier",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
-			fourierTime:       uint64Ptr(2000), // Fourier at 2000 seconds, block = 0 + (2000-1000)*1000/500 = 2000
-			blockNumber:       1000,
-			expectedMilliTime: 1500000, // 1000*1000 + (1000-0)*500
-			description:       "Volta at genesis, Fourier later, block 1000 (before Fourier, 500ms cadence)",
+			fourierTime:       uint64Ptr(2000), // Fourier at block 0 + (2000-1000)/500 = 2
+			blockNumber:       1,
+			expectedMilliTime: 1000500, // 1000*1000 + (1-0)*500
+			description:       "Volta at genesis, Fourier later, block 1 (before Fourier, 500ms cadence)",
 		},
 		{
 			name:              "VoltaAtGenesis_FourierLater_AfterFourier",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
-			fourierTime:       uint64Ptr(2000), // Fourier at block 2000
-			blockNumber:       3000,
-			expectedMilliTime: 2250000, // 1000*1000 + (2000-0)*500 + (3000-2000)*250 = 1000000 + 1000000 + 250000
-			description:       "Volta at genesis, Fourier later, block 3000 (after Fourier, 250ms cadence)",
+			fourierTime:       uint64Ptr(2000), // Fourier at block 2
+			blockNumber:       10,
+			expectedMilliTime: 1003000, // 1000*1000 + (2-0)*500 + (10-2)*250 = 1000000 + 1000 + 2000
+			description:       "Volta at genesis, Fourier later, block 10 (after Fourier, 250ms cadence)",
 		},
 		{
 			name:              "VoltaAtGenesis_FourierLater_NonZeroGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   100,
-			blockTime:         2,
+			blockTime:         1,
 			voltaTime:         uint64Ptr(1000),
-			fourierTime:       uint64Ptr(2000), // Fourier at block 100 + 2000 = 2100
-			blockNumber:       200,
-			expectedMilliTime: 1500000, // 1000*1000 + (200-100)*500
-			description:       "Volta at genesis, Fourier later, genesis block 100, query block 200",
+			fourierTime:       uint64Ptr(2000), // Fourier at block 100 + (2000-1000)/500 = 102
+			blockNumber:       101,
+			expectedMilliTime: 1000500, // 1000*1000 + (101-100)*500
+			description:       "Volta at genesis, Fourier later, genesis block 100, query block 101",
 		},
 
 		// Case 3: Volta activates after genesis (voltaBlockNumber > 0)
@@ -700,67 +700,67 @@ func TestMillisecondTimestampForBlock(t *testing.T) {
 			name:              "VoltaAfterGenesis_BeforeVolta",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at 2000 seconds = block 500 (2s cadence: (2000-1000)/2)
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at 2000 seconds = block 1000 (1s cadence: (2000-1000)/1)
 			fourierTime:       nil,
-			blockNumber:       250,
-			expectedMilliTime: 1500000, // 1000*1000 + (250-0)*2*1000
-			description:       "Volta after genesis, block 250 (before Volta, 2s cadence)",
+			blockNumber:       500,
+			expectedMilliTime: 1500000, // 1000*1000 + (500-0)*1*1000
+			description:       "Volta after genesis, block 500 (before Volta, 1s cadence)",
 		},
 		{
 			name:              "VoltaAfterGenesis_AtVolta",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at block 500
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at block 1000
 			fourierTime:       nil,
-			blockNumber:       500,
+			blockNumber:       1000,
 			expectedMilliTime: 2000000, // 2000*1000
-			description:       "Volta after genesis, block 500 (at Volta activation)",
+			description:       "Volta after genesis, block 1000 (at Volta activation)",
 		},
 		{
 			name:              "VoltaAfterGenesis_AfterVolta_NoFourier",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at block 500
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at block 1000
 			fourierTime:       nil,
-			blockNumber:       1000,
-			expectedMilliTime: 2250000, // 2000*1000 + (1000-500)*500
-			description:       "Volta after genesis, block 1000 (after Volta, no Fourier, 500ms cadence)",
+			blockNumber:       1500,
+			expectedMilliTime: 2250000, // 2000*1000 + (1500-1000)*500
+			description:       "Volta after genesis, block 1500 (after Volta, no Fourier, 500ms cadence)",
 		},
 		{
 			name:              "VoltaAfterGenesis_AfterVolta_BeforeFourier",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at block 500
-			fourierTime:       uint64Ptr(3000), // Fourier at block 500 + (3000-2000)*1000/500 = 500 + 2000 = 2500
-			blockNumber:       1500,
-			expectedMilliTime: 2500000, // 2000*1000 + (1500-500)*500
-			description:       "Volta after genesis, block 1500 (after Volta, before Fourier, 500ms cadence)",
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at block 1000
+			fourierTime:       uint64Ptr(3000), // Fourier at block 1000 + (3000-2000)/500 = 1002
+			blockNumber:       1001,
+			expectedMilliTime: 2000500, // 2000*1000 + (1001-1000)*500
+			description:       "Volta after genesis, block 1001 (after Volta, before Fourier, 500ms cadence)",
 		},
 		{
 			name:              "VoltaAfterGenesis_AfterVolta_AfterFourier",
 			genesisL2Time:     1000,
 			genesisL2Number:   0,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at block 500
-			fourierTime:       uint64Ptr(3000), // Fourier at block 2500
-			blockNumber:       3500,
-			expectedMilliTime: 3250000, // 2000*1000 + (2500-500)*500 + (3500-2500)*250 = 2000000 + 1000000 + 250000
-			description:       "Volta after genesis, block 3500 (after Volta, after Fourier, 250ms cadence)",
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at block 1000
+			fourierTime:       uint64Ptr(3000), // Fourier at block 1002
+			blockNumber:       1010,
+			expectedMilliTime: 2003000, // 2000*1000 + (1002-1000)*500 + (1010-1002)*250 = 2000000 + 1000 + 2000
+			description:       "Volta after genesis, block 1010 (after Volta, after Fourier, 250ms cadence)",
 		},
 		{
 			name:              "VoltaAfterGenesis_NonZeroGenesis",
 			genesisL2Time:     1000,
 			genesisL2Number:   100,
-			blockTime:         2,
-			voltaTime:         uint64Ptr(2000), // Volta at block 100 + (2000-1000)/2 = 600
+			blockTime:         1,
+			voltaTime:         uint64Ptr(2000), // Volta at block 100 + (2000-1000)/1 = 1100
 			fourierTime:       nil,
-			blockNumber:       700,
-			expectedMilliTime: 2050000, // 2000*1000 + (700-600)*500
-			description:       "Volta after genesis, genesis block 100, query block 700",
+			blockNumber:       1200,
+			expectedMilliTime: 2050000, // 2000*1000 + (1200-1100)*500
+			description:       "Volta after genesis, genesis block 100, query block 1200",
 		},
 	}
 
