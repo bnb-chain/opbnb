@@ -221,7 +221,7 @@ var (
 	}
 	VerifierL1Confs = &cli.Uint64Flag{
 		Name:     "verifier.l1-confs",
-		Usage:    "Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
+		Usage:    "(Deprecated) Number of L1 blocks to keep distance from the L1 head before deriving L2 data from. Reorgs are supported, but may be slow to perform.",
 		EnvVars:  prefixEnvVars("VERIFIER_L1_CONFS"),
 		Value:    15,
 		Category: L1RPCCategory,
@@ -259,7 +259,7 @@ var (
 	}
 	SequencerL1Confs = &cli.Uint64Flag{
 		Name:     "sequencer.l1-confs",
-		Usage:    "Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
+		Usage:    "(Deprecated) Number of L1 blocks to keep distance from the L1 head as a sequencer for picking an L1 origin.",
 		EnvVars:  prefixEnvVars("SEQUENCER_L1_CONFS"),
 		Value:    15,
 		Category: SequencerCategory,

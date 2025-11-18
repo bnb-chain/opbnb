@@ -154,9 +154,9 @@ func NewDriver(
 ) *Driver {
 	l1 = NewMeteredL1Fetcher(l1, metrics)
 	l1State := NewL1State(log, metrics)
-	sequencerConfDepth := NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Head, l1)
+	sequencerConfDepth := NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Finalized, l1)
 	findL1Origin := NewL1OriginSelector(log, cfg, sequencerConfDepth)
-	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)
+	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Finalized, l1)
 	engine := derive.NewEngineController(l2, log, metrics, cfg, syncCfg, driverCfg.SequencerCombinedEngine)
 	clSync := clsync.NewCLSync(log, cfg, metrics, engine)
 

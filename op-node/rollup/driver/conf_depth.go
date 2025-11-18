@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -16,12 +17,12 @@ import (
 type confDepth struct {
 	// everything fetched by hash is trusted already, so we implement those by embedding the fetcher
 	derive.L1Fetcher
-	l1Head func() eth.L1BlockRef
-	depth  uint64
+	l1Finalized func() eth.L1BlockRef
+	depth       uint64
 }
 
-func NewConfDepth(depth uint64, l1Head func() eth.L1BlockRef, fetcher derive.L1Fetcher) *confDepth {
-	return &confDepth{L1Fetcher: fetcher, l1Head: l1Head, depth: depth}
+func NewConfDepth(depth uint64, l1Finalized func() eth.L1BlockRef, fetcher derive.L1Fetcher) *confDepth {
+	return &confDepth{L1Fetcher: fetcher, l1Finalized: l1Finalized, depth: depth}
 }
 
 // L1BlockRefByNumber is used for L1 traversal and for finding a safe common point between the L2 engine and L1 chain.
@@ -32,13 +33,20 @@ func (c *confDepth) L1BlockRefByNumber(ctx context.Context, num uint64) (eth.L1B
 	// and instantly return the origin by number from the buffer if we can.
 
 	// Don't apply the conf depth if l1Head is empty (as it is during the startup case before the l1State is initialized).
-	l1Head := c.l1Head()
-	if l1Head == (eth.L1BlockRef{}) {
+	l1Finalized := c.l1Finalized()
+	if l1Finalized == (eth.L1BlockRef{}) {
+		// if l1Finalized is empty, wait for it to be set, temporarily return not found
+		log.Warn("Conf depth is waiting for L1 finalized block to be set")
+		return eth.L1BlockRef{}, ethereum.NotFound
+	}
+	if num == l1Finalized.Number {
+		log.Info("Conf depth get L1 block number is equal to finalized block number", "num", num, "finalized", l1Finalized)
+		return l1Finalized, nil
+	}
+	if num < l1Finalized.Number {
 		return c.L1Fetcher.L1BlockRefByNumber(ctx, num)
 	}
-	if num == 0 || c.depth == 0 || num+c.depth <= l1Head.Number {
-		return c.L1Fetcher.L1BlockRefByNumber(ctx, num)
-	}
+	log.Error("Conf depth get L1 block number is greater than finalized block number", "num", num, "finalized", l1Finalized)
 	return eth.L1BlockRef{}, ethereum.NotFound
 }
 
