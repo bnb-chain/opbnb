@@ -215,7 +215,7 @@ func (c *Config) VoltaBlockNumber() int64 {
 // FourierBlockNumber return fourier block number
 func (c *Config) FourierBlockNumber() int64 {
 	voltaBlockNumber := c.VoltaBlockNumber()
-	if voltaBlockNumber > 0 {
+	if voltaBlockNumber >= 0 {
 		if c.FourierTime == nil || *c.FourierTime < c.Genesis.L2Time {
 			return -1
 		}
@@ -270,22 +270,42 @@ func (cfg *Config) ValidateL2Config(ctx context.Context, client L2Client, skipL2
 
 func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 	voltaBlockNumber := cfg.VoltaBlockNumber()
-	if voltaBlockNumber < 0 { // not active volta hardfork
+
+	// Volta not active or block number before Volta hardfork, use original block time
+	if voltaBlockNumber < 0 || blockNumber <= uint64(voltaBlockNumber) {
 		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
-	} else if voltaBlockNumber == 0 { // active volta hardfork in genesis
-		return *cfg.VoltaTime*1000 + blockNumber*MillisecondBlockIntervalVolta
-	} else if blockNumber <= uint64(voltaBlockNumber) { // block number before volta hardfork
-		return cfg.Genesis.L2Time*1000 + (blockNumber-cfg.Genesis.L2.Number)*cfg.BlockTime*1000
-	} else {
-		// After Volta: default to 500ms cadence, but switch to 250ms after Fourier
-		fourierBlockNumber := cfg.FourierBlockNumber()
-		if fourierBlockNumber < 0 || blockNumber <= uint64(fourierBlockNumber) {
-			return *cfg.VoltaTime*1000 + (blockNumber-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
-		}
-		// Time at Fourier boundary, then 250ms cadence afterwards
-		boundaryMs := *cfg.VoltaTime*1000 + (uint64(fourierBlockNumber)-uint64(voltaBlockNumber))*MillisecondBlockIntervalVolta
-		return boundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
 	}
+
+	// Volta is active, calculate time from Volta activation
+	voltaBaseTime := *cfg.VoltaTime * 1000
+
+	// Calculate blocks since Volta activation
+	// If Volta activates at genesis (voltaBlockNumber == 0), use Genesis.L2.Number as base
+	// Otherwise, use voltaBlockNumber as base
+	var blocksSinceVolta uint64
+	if voltaBlockNumber == 0 {
+		blocksSinceVolta = blockNumber - cfg.Genesis.L2.Number
+	} else {
+		blocksSinceVolta = blockNumber - uint64(voltaBlockNumber)
+	}
+
+	fourierBlockNumber := cfg.FourierBlockNumber()
+	// Check Fourier activation
+	if fourierBlockNumber < 0 || blockNumber <= uint64(fourierBlockNumber) {
+		// Fourier not active, use Volta's 500ms cadence
+		return voltaBaseTime + blocksSinceVolta*MillisecondBlockIntervalVolta
+	}
+
+	// After Fourier activation, use Fourier's 250ms cadence
+	// Calculate blocks from Volta to Fourier
+	var blocksToFourier uint64
+	if voltaBlockNumber == 0 {
+		blocksToFourier = uint64(fourierBlockNumber) - cfg.Genesis.L2.Number
+	} else {
+		blocksToFourier = uint64(fourierBlockNumber) - uint64(voltaBlockNumber)
+	}
+	boundaryMs := voltaBaseTime + blocksToFourier*MillisecondBlockIntervalVolta
+	return boundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
