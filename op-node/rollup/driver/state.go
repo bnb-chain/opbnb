@@ -202,7 +202,7 @@ func (s *Driver) eventLoop() {
 
 	defer s.driverCancel()
 
-	go s.handleL1Finalized()
+	go s.l1FinalizedEventLoop()
 
 	// stepReqCh is used to request that the driver attempts to step forward by one L1 block.
 	stepReqCh := make(chan struct{}, 1)
@@ -310,10 +310,6 @@ func (s *Driver) eventLoop() {
 						s.l1State.HandleNewL1HeadBlock(newL1Head)
 						reqStep() // a new L1 head may mean we have the data to not get an EOF again.
 						continue
-					// case newL1Finalized := <-s.l1FinalizedSig: // sequencerStep may depend on this when FindL1Origin
-					// 	s.l1State.HandleNewL1FinalizedBlock(newL1Finalized)
-					// 	reqStep() // a new L1 finalized may mean we have the data to not get an EOF again.
-					// 	continue
 					default:
 						// immediately do sequencerStep if time is ready
 						if err := sequencerStep(); err != nil {
@@ -349,10 +345,6 @@ func (s *Driver) eventLoop() {
 				s.l1State.HandleNewL1HeadBlock(newL1Head)
 				reqStep() // a new L1 head may mean we have the data to not get an EOF again.
 				continue
-			// case newL1Finalized := <-s.l1FinalizedSig: // sequencerStep may depend on this when FindL1Origin
-			// 	s.l1State.HandleNewL1FinalizedBlock(newL1Finalized)
-			// 	reqStep() // a new L1 finalized may mean we have the data to not get an EOF again.
-			// 	continue
 			case respCh := <-s.stopSequencer:
 				if s.driverConfig.SequencerStopped {
 					respCh <- hashAndError{err: ErrSequencerAlreadyStopped}
@@ -518,7 +510,7 @@ func (s *Driver) eventLoop() {
 	}
 }
 
-func (s *Driver) handleL1Finalized() {
+func (s *Driver) l1FinalizedEventLoop() {
 	for {
 		select {
 		case newL1Finalized := <-s.l1FinalizedSig:
