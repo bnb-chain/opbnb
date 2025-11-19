@@ -324,7 +324,7 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 		return cfg.Genesis.L2.Number + blocksSinceGenesis, nil
 	} else {
 		fourierBlockNumber := cfg.FourierBlockNumber()
-		if fourierBlockNumber > 0 && milliTimestamp >= *cfg.FourierTime*1000 {
+		if fourierBlockNumber >= 0 && milliTimestamp >= *cfg.FourierTime*1000 {
 			// Fourier fork is active
 			fourierMilliTimestamp := *cfg.FourierTime * 1000
 			wallClockFourierDiff := milliTimestamp - fourierMilliTimestamp
