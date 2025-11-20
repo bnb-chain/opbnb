@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/op-node/chaincfg"
 	plasma "github.com/ethereum-optimism/optimism/op-plasma"
@@ -91,10 +92,12 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 			ListenAddr: ctx.String(flags.MetricsAddrFlag.Name),
 			ListenPort: ctx.Int(flags.MetricsPortFlag.Name),
 		},
-		Pprof:                       oppprof.ReadCLIConfig(ctx),
-		P2P:                         p2pConfig,
-		P2PSigner:                   p2pSignerSetup,
-		L1EpochPollInterval:         ctx.Duration(flags.L1EpochPollIntervalFlag.Name),
+		Pprof:     oppprof.ReadCLIConfig(ctx),
+		P2P:       p2pConfig,
+		P2PSigner: p2pSignerSetup,
+		// BSC block interval is 450 ms, so we set the poll interval to 1 second
+		// L1EpochPollInterval:         ctx.Duration(flags.L1EpochPollIntervalFlag.Name),
+		L1EpochPollInterval:         time.Second * 1,
 		RuntimeConfigReloadInterval: ctx.Duration(flags.RuntimeConfigReloadIntervalFlag.Name),
 		Heartbeat: node.HeartbeatConfig{
 			Enabled: ctx.Bool(flags.HeartbeatEnabledFlag.Name),
