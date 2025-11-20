@@ -216,39 +216,39 @@ func checkSpanBatch(ctx context.Context, cfg *rollup.Config, log log.Logger, l1B
 	if batch.GetTimestamp() < nextMilliTimestamp {
 		if batch.GetTimestamp() > l2SafeHead.MillisecondTimestamp() {
 			// batch timestamp cannot be between safe head and next timestamp
-			log.Warn("batch has misaligned timestamp, block time is too short")
+			log.Warn("batch has misaligned timestamp, block time is too short", "batch_timestamp", batch.GetTimestamp(), "next_timestamp", nextMilliTimestamp, "l2_safe_head_timestamp", l2SafeHead.MillisecondTimestamp(), "parent_block", parentBlock)
 			return BatchDrop
 		}
 
 		milliSecondsDistance := l2SafeHead.MillisecondTimestamp() - batch.GetTimestamp()
 		if !cfg.IsFourier(l2SafeHead.MillisecondTimestamp() / 1000) {
 			if milliSecondsDistance%rollup.MillisecondBlockIntervalVolta != 0 {
-				log.Warn("batch has misaligned timestamp, not overlapped exactly")
+				log.Warn("batch has misaligned timestamp, not overlapped exactly", "batch_timestamp", batch.GetTimestamp(), "next_timestamp", nextMilliTimestamp, "l2_safe_head_timestamp", l2SafeHead.MillisecondTimestamp(), "parent_block", parentBlock)
 				return BatchDrop
 			}
 		} else {
 			// block interval has changed after fourier fork
 			if milliSecondsDistance%rollup.MillisecondBlockIntervalFourier != 0 {
-				log.Warn("batch has misaligned timestamp after fourier fork, not overlapped exactly")
+				log.Warn("batch has misaligned timestamp after fourier fork, not overlapped exactly", "batch_timestamp", batch.GetTimestamp(), "next_timestamp", nextMilliTimestamp, "l2_safe_head_timestamp", l2SafeHead.MillisecondTimestamp(), "parent_block", parentBlock)
 				return BatchDrop
 			}
 		}
 		currentNum, err := cfg.TargetBlockNumber(batch.GetTimestamp())
 		if err != nil {
-			log.Warn("failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err)
+			log.Warn("failed to computer batch number", "batch_ms_time", batch.GetTimestamp(), "err", err, "parent_block", parentBlock)
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
 		parentNum = currentNum - 1
 		parentBlock, err = l2Fetcher.L2BlockRefByNumber(ctx, parentNum)
 		if err != nil {
-			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err)
+			log.Warn("failed to fetch L2 block", "number", parentNum, "err", err, "parent_block", parentBlock)
 			// unable to validate the batch for now. retry later.
 			return BatchUndecided
 		}
 	}
 	if !batch.CheckParentHash(parentBlock.Hash) {
-		log.Warn("ignoring batch with mismatching parent hash", "parent_block", parentBlock.Hash)
+		log.Warn("ignoring batch with mismatching parent hash", "parent_block", parentBlock, "l2_safe_head", l2SafeHead)
 		return BatchDrop
 	}
 

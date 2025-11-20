@@ -219,7 +219,7 @@ func (c *Config) FourierBlockNumber() int64 {
 		if c.FourierTime == nil || *c.FourierTime < c.Genesis.L2Time {
 			return -1
 		}
-		return voltaBlockNumber + int64((*c.FourierTime-*c.VoltaTime)/MillisecondBlockIntervalVolta)
+		return voltaBlockNumber + int64((*c.FourierTime*1000-*c.VoltaTime*1000)/MillisecondBlockIntervalVolta)
 	} else {
 		return -1
 	}
