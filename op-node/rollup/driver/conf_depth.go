@@ -74,14 +74,11 @@ func (c *confDepthByL1Finalized) L1BlockRefByNumber(ctx context.Context, num uin
 		log.Warn("Conf depth is waiting for L1 finalized block to be set")
 		return eth.L1BlockRef{}, ethereum.NotFound
 	}
-	if num == l1Finalized.Number {
-		log.Info("Conf depth get L1 block number is equal to finalized block number", "num", num, "finalized", l1Finalized)
-		return l1Finalized, nil
-	}
-	if num < l1Finalized.Number {
+
+	if num+c.depth <= l1Finalized.Number {
 		return c.L1Fetcher.L1BlockRefByNumber(ctx, num)
 	}
-	log.Error("Conf depth get L1 block number is greater than finalized block number", "num", num, "finalized", l1Finalized)
+	log.Error("Conf depth get L1 block number is greater than finalized block number", "num", num, "depth", c.depth, "finalized", l1Finalized)
 	return eth.L1BlockRef{}, ethereum.NotFound
 }
 
