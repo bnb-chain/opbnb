@@ -275,7 +275,7 @@ var (
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
 		EnvVars:  prefixEnvVars("L1_EPOCH_POLL_INTERVAL"),
-		Value:    time.Second * 3 * 15,
+		Value:    time.Second * 1,
 		Category: L1RPCCategory,
 	}
 	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{

@@ -223,6 +223,7 @@ func (eq *EngineQueue) Step(ctx context.Context) error {
 	}
 	eq.origin = newOrigin
 
+	eq.log.Error("start NextAttributes", "pending_safe_head", eq.ec.PendingSafeL2Head())
 	if next, err := eq.prev.NextAttributes(ctx, eq.ec.PendingSafeL2Head()); err == io.EOF {
 		return io.EOF
 	} else if err != nil {
@@ -321,6 +322,7 @@ func (eq *EngineQueue) Reset(ctx context.Context, _ eth.L1BlockRef, _ eth.System
 	eq.ec.SetUnsafeHead(unsafe)
 	eq.ec.SetSafeHead(safe)
 	eq.ec.SetPendingSafeL2Head(safe)
+	eq.log.Error("Reset SetPendingSafeL2Head", "pending_safe_head", safe)
 	eq.ec.SetFinalizedHead(finalized)
 	eq.ec.SetBackupUnsafeL2Head(eth.L2BlockRef{}, false)
 	eq.attributesHandler.SetAttributes(nil)

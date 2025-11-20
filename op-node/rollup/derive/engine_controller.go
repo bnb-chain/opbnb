@@ -151,6 +151,7 @@ func (e *EngineController) SetFinalizedHead(r eth.L2BlockRef) {
 // SetPendingSafeL2Head implements LocalEngineControl.
 func (e *EngineController) SetPendingSafeL2Head(r eth.L2BlockRef) {
 	e.metrics.RecordL2Ref("l2_pending_safe", r)
+	log.Error("SetPendingSafeL2Head", "pending_safe_head", r)
 	e.pendingSafeHead = r
 }
 
@@ -295,6 +296,7 @@ func (e *EngineController) ConfirmPayload(ctx context.Context, agossip async.Asy
 	if e.buildingSafe {
 		e.metrics.RecordL2Ref("l2_pending_safe", ref)
 		e.pendingSafeHead = ref
+		e.log.Error("ConfirmPayload set pending safe head", "pending_safe_head", e.pendingSafeHead)
 		if updateSafe {
 			e.safeHead = ref
 			e.metrics.RecordL2Ref("l2_safe", ref)
