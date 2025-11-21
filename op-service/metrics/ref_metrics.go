@@ -83,6 +83,7 @@ func MakeRefMetrics(ns string, factory Factory) RefMetrics {
 			"type",
 		}),
 		LatencySeen: make(map[string]common.Hash),
+		mu:          new(sync.Mutex),
 	}
 }
 
