@@ -454,6 +454,7 @@ var optionalFlags = []cli.Flag{
 	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
 	L1FinalizedConfDepth,
+	IsP2PNodeFlag,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
