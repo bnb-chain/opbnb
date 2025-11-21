@@ -416,6 +416,13 @@ var (
 		Value:    time.Second * 1,
 		Category: SequencerCategory,
 	}
+	IsP2PNodeFlag = &cli.BoolFlag{
+		Name:     "l2.p2p-node",
+		Usage:    "active the op-geth a P2P node.",
+		EnvVars:  prefixEnvVars("L2_P2P_NODE"),
+		Value:    false,
+		Category: OperationsCategory,
+	}
 )
 
 var requiredFlags = []cli.Flag{

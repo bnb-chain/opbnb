@@ -215,6 +215,7 @@ func NewDriverConfig(ctx *cli.Context) *driver.Config {
 		SequencerMaxSafeLag:     ctx.Uint64(flags.SequencerMaxSafeLagFlag.Name),
 		SequencerPriority:       ctx.Bool(flags.SequencerPriorityFlag.Name),
 		SequencerCombinedEngine: ctx.Bool(flags.SequencerCombinedEngineFlag.Name),
+		L2P2PNode:               ctx.Bool(flags.IsP2PNodeFlag.Name),
 	}
 }
 
