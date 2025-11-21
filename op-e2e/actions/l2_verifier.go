@@ -82,7 +82,7 @@ func NewL2Verifier(t Testing, log log.Logger, l1 derive.L1Fetcher, blobsSrc deri
 		finalizer = finality.NewFinalizer(log, cfg, l1, engine)
 	}
 
-	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, eng)
+	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, eng, false)
 
 	pipeline := derive.NewDerivationPipeline(log, cfg, l1, blobsSrc, plasmaSrc, eng, engine, metrics,
 		syncCfg, safeHeadListener, finalizer, attributesHandler)

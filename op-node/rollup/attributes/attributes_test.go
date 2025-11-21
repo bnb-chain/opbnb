@@ -182,7 +182,7 @@ func TestAttributesHandler(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
 		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-		ah := NewAttributesHandler(logger, cfg, ec, eng)
+		ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 		defer eng.AssertExpectations(t)
 
 		ec.SetPendingSafeL2Head(refA1Alt)
@@ -196,7 +196,7 @@ func TestAttributesHandler(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
 		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-		ah := NewAttributesHandler(logger, cfg, ec, eng)
+		ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 		defer eng.AssertExpectations(t)
 
 		ec.SetPendingSafeL2Head(refA0Alt)
@@ -211,7 +211,7 @@ func TestAttributesHandler(t *testing.T) {
 			logger := testlog.Logger(t, log.LevelInfo)
 			eng := &testutils.MockEngine{}
 			ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-			ah := NewAttributesHandler(logger, cfg, ec, eng)
+			ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 
 			ec.SetUnsafeHead(refA1)
 			ec.SetSafeHead(refA0)
@@ -265,7 +265,7 @@ func TestAttributesHandler(t *testing.T) {
 				logger := testlog.Logger(t, log.LevelInfo)
 				eng := &testutils.MockEngine{}
 				ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-				ah := NewAttributesHandler(logger, cfg, ec, eng)
+				ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 
 				ec.SetUnsafeHead(refA1)
 				ec.SetSafeHead(refA0)
@@ -324,7 +324,7 @@ func TestAttributesHandler(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
 		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-		ah := NewAttributesHandler(logger, cfg, ec, eng)
+		ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 
 		ec.SetUnsafeHead(refA0)
 		ec.SetSafeHead(refA0)
@@ -375,7 +375,7 @@ func TestAttributesHandler(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
 		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-		ah := NewAttributesHandler(logger, cfg, ec, eng)
+		ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 
 		ec.SetUnsafeHead(refA0)
 		ec.SetSafeHead(refA0)
@@ -399,7 +399,7 @@ func TestAttributesHandler(t *testing.T) {
 		logger := testlog.Logger(t, log.LevelInfo)
 		eng := &testutils.MockEngine{}
 		ec := derive.NewEngineController(eng, logger, metrics.NoopMetrics, cfg, &sync.Config{SyncMode: sync.CLSync}, false)
-		ah := NewAttributesHandler(logger, cfg, ec, eng)
+		ah := NewAttributesHandler(logger, cfg, ec, eng, false)
 		defer eng.AssertExpectations(t)
 
 		require.Equal(t, ah.Proceed(context.Background()), io.EOF, "no attributes to process")
