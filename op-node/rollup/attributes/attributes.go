@@ -98,7 +98,9 @@ func (eq *AttributesHandler) Proceed(ctx context.Context) error {
 		return nil
 	} else if eq.ec.PendingSafeL2Head().Number == eq.ec.UnsafeL2Head().Number {
 		if eq.l2P2PNode {
-			eq.log.Warn("pending_safe_l2_head_number is equal to unsafe_l2_head_number for p2p node waiting l2 block from gossip", "p2p_node", eq.l2P2PNode, "pending_safe_l2_head_number", eq.ec.PendingSafeL2Head().Number, "unsafe_l2_head_number", eq.ec.UnsafeL2Head().Number)
+			eq.log.Warn("pending_safe_l2_head_number is equal to unsafe_l2_head_number for p2p node waiting l2 block from gossip",
+				"p2p_node", eq.l2P2PNode, "pending_safe_l2_head_number", eq.ec.PendingSafeL2Head().Number,
+				"unsafe_l2_head_number", eq.ec.UnsafeL2Head().Number)
 			return nil
 		}
 		if err := eq.forceNextSafeAttributes(ctx, eq.attributes); err != nil {
