@@ -59,7 +59,7 @@ func NewDriver(logger log.Logger, cfg *rollup.Config, l1Source derive.L1Fetcher,
 		SkipSyncStartCheck: false,
 		ELTriggerGap:       0,
 	}, false)
-	attributesHandler := attributes.NewAttributesHandler(logger, cfg, engine, l2Source)
+	attributesHandler := attributes.NewAttributesHandler(logger, cfg, engine, l2Source, false)
 	pipeline := derive.NewDerivationPipeline(logger, cfg, l1Source, l1BlobsSource, plasma.Disabled, l2Source, engine, metrics.NoopMetrics, &sync.Config{}, safedb.Disabled, NoopFinalizer{}, attributesHandler)
 	pipeline.Reset()
 	return &Driver{

@@ -176,7 +176,7 @@ func NewDriver(
 		finalizer = finality.NewFinalizer(log, cfg, l1, engine)
 	}
 
-	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2)
+	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2, driverCfg.L2P2PNode)
 	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, engine,
 		metrics, syncCfg, safeHeadListener, finalizer, attributesHandler)
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2)

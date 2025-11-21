@@ -31,4 +31,7 @@ type Config struct {
 	SequencerPriority bool `json:"sequencer_priority"`
 
 	SequencerCombinedEngine bool `json:"sequencer_combined_engine"`
+
+	// L2P2PNode is true when the op-geth is a P2P node.
+	L2P2PNode bool `json:"l2_p2p_node"`
 }
