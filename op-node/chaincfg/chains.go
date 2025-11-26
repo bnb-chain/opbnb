@@ -144,6 +144,7 @@ var OPBNBMainnet = rollup.Config{
 	EcotoneTime:            u64Ptr(1718871600),  // Jun-20-2024 08:20 AM +UTC
 	FjordTime:              u64Ptr(1727157600),  // Sep-24-2024 06:00 AM +UTC
 	VoltaTime:              u64Ptr(1745204400),  // Apr-21-2025 03:00 AM +UTC
+	FourierTime:            u64Ptr(1767754800),  // Jan-07-2026 03:00 AM +UTC
 }
 
 var OPBNBTestnet = rollup.Config{
