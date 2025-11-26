@@ -7,7 +7,7 @@ This release confirm the time of Mainnet Fourier Hardfork, effectively reducing 
 - Mainnet: Jan-07-2026 03:00:00 AM +UTC
 
 All mainnet and nodes must upgrade to this release before the hardfork time.
-Also note that the `op-geth` should be upgraded to v0.5.8 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.8) for more details.
+Also note that the `op-geth` should be upgraded to v0.5.9 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.9) for more details.
 
 ### What's Changed
 
