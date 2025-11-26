@@ -1,5 +1,6 @@
 # Changelog
 
+
 ## v0.5.5
 
 This release confirm the time of Mainnet Fourier Hardfork, effectively reducing the block time from 500 milliseconds to an impressive 250 milliseconds.
