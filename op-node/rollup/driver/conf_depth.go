@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup/derive"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -43,3 +44,41 @@ func (c *confDepth) L1BlockRefByNumber(ctx context.Context, num uint64) (eth.L1B
 }
 
 var _ derive.L1Fetcher = (*confDepth)(nil)
+
+// confDepth is an util that wraps the L1 input fetcher used in the pipeline,
+// and hides the part of the L1 chain with insufficient confirmations.
+//
+// At 0 depth the l1 head is completely ignored.
+type confDepthByL1Finalized struct {
+	// everything fetched by hash is trusted already, so we implement those by embedding the fetcher
+	derive.L1Fetcher
+	l1Finalized func() eth.L1BlockRef
+	depth       uint64
+}
+
+func NewConfDepthByL1Finalized(depth uint64, l1Finalized func() eth.L1BlockRef, fetcher derive.L1Fetcher) *confDepthByL1Finalized {
+	return &confDepthByL1Finalized{L1Fetcher: fetcher, l1Finalized: l1Finalized, depth: depth}
+}
+
+// L1BlockRefByNumber is used for L1 traversal and for finding a safe common point between the L2 engine and L1 chain.
+// Any block numbers that are within confirmation depth of the L1 head are mocked to be "not found",
+// effectively hiding the uncertain part of the L1 chain.
+func (c *confDepthByL1Finalized) L1BlockRefByNumber(ctx context.Context, num uint64) (eth.L1BlockRef, error) {
+	// TODO: performance optimization: buffer the l1Unsafe, invalidate any reorged previous buffer content,
+	// and instantly return the origin by number from the buffer if we can.
+
+	// Don't apply the conf depth if l1Head is empty (as it is during the startup case before the l1State is initialized).
+	l1Finalized := c.l1Finalized()
+	if l1Finalized == (eth.L1BlockRef{}) {
+		// if l1Finalized is empty, wait for it to be set, temporarily return not found
+		log.Warn("Conf depth is waiting for L1 finalized block to be set")
+		return eth.L1BlockRef{}, ethereum.NotFound
+	}
+
+	if num+c.depth <= l1Finalized.Number {
+		return c.L1Fetcher.L1BlockRefByNumber(ctx, num)
+	}
+	return eth.L1BlockRef{}, ethereum.NotFound
+}
+
+var _ derive.L1Fetcher = (*confDepthByL1Finalized)(nil)

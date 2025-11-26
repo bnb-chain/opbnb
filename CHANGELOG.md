@@ -1,5 +1,33 @@
 # Changelog
 
+
+## v0.5.5
+
+This release confirm the time of Mainnet Fourier Hardfork, effectively reducing the block time from 500 milliseconds to an impressive 250 milliseconds.
+
+- Mainnet: Jan-07-2026 03:00:00 AM +UTC
+
+All mainnet and nodes must upgrade to this release before the hardfork time.
+Also note that the `op-geth` should be upgraded to v0.5.9 accordingly, check [this](https://github.com/bnb-chain/op-geth/releases/tag/v0.5.9) for more details.
+
+### What's Changed
+
+* [\#319](https://github.com/bnb-chain/opbnb/pull/319)  feat: replace l1 head with l1 finalized block as sequencer and derivation head
+* [\#320](https://github.com/bnb-chain/opbnb/pull/320) fix: support compile opbnb in golang1.24.x and Windows OS
+* [\#324](https://github.com/bnb-chain/opbnb/pull/324) fix: safe stop during long time stop
+* [\#325](https://github.com/bnb-chain/opbnb/pull/325) fix: p2p node derivation occur empty root
+* [\#326](https://github.com/bnb-chain/opbnb/pull/326) fix: solve ref-metrics map concurrent use
+* [\#328](https://github.com/bnb-chain/opbnb/pull/328) fix: add Mainnet Fourier hardfork timestamp
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.5
+- ghcr.io/bnb-chain/op-batcher:v0.5.5
+- ghcr.io/bnb-chain/op-proposer:v0.5.5
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.4...v0.5.5
+
+
 ## v0.5.4
 
 This release introduces the implementation of Fourier Hardfork, effectively reducing the block time from 500 milliseconds to an impressive 250 milliseconds.

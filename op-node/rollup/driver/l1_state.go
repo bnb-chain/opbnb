@@ -60,6 +60,11 @@ func (s *L1State) HandleNewL1SafeBlock(safe eth.L1BlockRef) {
 func (s *L1State) HandleNewL1FinalizedBlock(finalized eth.L1BlockRef) {
 	s.log.Info("New L1 finalized block", "l1_finalized", finalized)
 	s.metrics.RecordL1Ref("l1_finalized", finalized)
+
+	if s.l1Finalized.Number > finalized.Number {
+		s.log.Error("New L1 finalized block is less than the current finalized block", "l1_finalized", finalized, "current_l1_finalized", s.l1Finalized)
+	}
+
 	s.l1Finalized = finalized
 }
 

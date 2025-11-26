@@ -154,9 +154,18 @@ func NewDriver(
 ) *Driver {
 	l1 = NewMeteredL1Fetcher(l1, metrics)
 	l1State := NewL1State(log, metrics)
-	sequencerConfDepth := NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Head, l1)
+
+	var sequencerConfDepth derive.L1Fetcher
+	var verifConfDepth derive.L1Fetcher
+	if driverCfg.L1FinalizedConfDepth {
+		sequencerConfDepth = NewConfDepthByL1Finalized(driverCfg.SequencerConfDepth, l1State.L1Finalized, l1)
+		verifConfDepth = NewConfDepthByL1Finalized(driverCfg.VerifierConfDepth, l1State.L1Finalized, l1)
+	} else {
+		sequencerConfDepth = NewConfDepth(driverCfg.SequencerConfDepth, l1State.L1Head, l1)
+		verifConfDepth = NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)
+	}
+
 	findL1Origin := NewL1OriginSelector(log, cfg, sequencerConfDepth)
-	verifConfDepth := NewConfDepth(driverCfg.VerifierConfDepth, l1State.L1Head, l1)
 	engine := derive.NewEngineController(l2, log, metrics, cfg, syncCfg, driverCfg.SequencerCombinedEngine)
 	clSync := clsync.NewCLSync(log, cfg, metrics, engine)
 
@@ -167,7 +176,7 @@ func NewDriver(
 		finalizer = finality.NewFinalizer(log, cfg, l1, engine)
 	}
 
-	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2)
+	attributesHandler := attributes.NewAttributesHandler(log, cfg, engine, l2, driverCfg.L2P2PNode)
 	derivationPipeline := derive.NewDerivationPipeline(log, cfg, verifConfDepth, l1Blobs, plasma, l2, engine,
 		metrics, syncCfg, safeHeadListener, finalizer, attributesHandler)
 	attrBuilder := derive.NewFetchingAttributesBuilder(cfg, l1, l2)

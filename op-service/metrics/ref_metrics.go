@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"encoding/binary"
+	"sync"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -29,6 +30,7 @@ type RefMetrics struct {
 	// hash of the last seen block per name, so we don't reduce/increase latency on updates of the same data,
 	// and only count the first occurrence
 	LatencySeen map[string]common.Hash
+	mu          *sync.Mutex // by pointer reference, since RefMetrics is copied
 }
 
 var _ RefMetricer = (*RefMetrics)(nil)
@@ -81,10 +83,14 @@ func MakeRefMetrics(ns string, factory Factory) RefMetrics {
 			"type",
 		}),
 		LatencySeen: make(map[string]common.Hash),
+		mu:          new(sync.Mutex),
 	}
 }
 
 func (m *RefMetrics) RecordRef(layer string, name string, num uint64, timestamp uint64, h common.Hash) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.RefsNumber.WithLabelValues(layer, name).Set(float64(num))
 	if timestamp != 0 {
 		m.RefsTime.WithLabelValues(layer, name).Set(float64(timestamp))

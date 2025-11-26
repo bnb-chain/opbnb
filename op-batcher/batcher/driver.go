@@ -330,7 +330,7 @@ func (l *BatchSubmitter) loop() {
 				case <-economicDATicker.C:
 					newEconomicDAType, err := l.getEconomicDAType(l.shutdownCtx)
 					if err != nil {
-						l.Log.Error("getEconomicDAType failed: %w", err)
+						l.Log.Error("Failed to get economic DA type", "err", err)
 						continue
 					}
 					if newEconomicDAType != economicDAType {

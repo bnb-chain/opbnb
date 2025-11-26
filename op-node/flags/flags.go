@@ -226,6 +226,13 @@ var (
 		Value:    15,
 		Category: L1RPCCategory,
 	}
+	L1FinalizedConfDepth = &cli.BoolFlag{
+		Name:     "l1-finalized-confs",
+		Usage:    "Use L1 finalized block as the latest head for opBNB sequencer and derivation. When enabled, verifier.l1-confs and sequencer.l1-confs will be ignored.",
+		EnvVars:  prefixEnvVars("L1_FINALIZED_CONFS"),
+		Value:    false,
+		Category: L1RPCCategory,
+	}
 	SequencerEnabledFlag = &cli.BoolFlag{
 		Name:     "sequencer.enabled",
 		Usage:    "Enable sequencing of new L2 blocks. A separate batch submitter has to be deployed to publish the data for verifiers.",
@@ -268,7 +275,7 @@ var (
 		Name:     "l1.epoch-poll-interval",
 		Usage:    "Poll interval for retrieving new L1 epoch updates such as safe and finalized block changes. Disabled if 0 or negative.",
 		EnvVars:  prefixEnvVars("L1_EPOCH_POLL_INTERVAL"),
-		Value:    time.Second * 3 * 15,
+		Value:    time.Second * 1,
 		Category: L1RPCCategory,
 	}
 	RuntimeConfigReloadIntervalFlag = &cli.DurationFlag{
@@ -409,6 +416,13 @@ var (
 		Value:    time.Second * 1,
 		Category: SequencerCategory,
 	}
+	IsP2PNodeFlag = &cli.BoolFlag{
+		Name:     "l2.p2p-node",
+		Usage:    "active the op-geth a P2P node.",
+		EnvVars:  prefixEnvVars("L2_P2P_NODE"),
+		Value:    false,
+		Category: OperationsCategory,
+	}
 )
 
 var requiredFlags = []cli.Flag{
@@ -439,6 +453,8 @@ var optionalFlags = []cli.Flag{
 	L1BlobRpcRateLimit,
 	L1BlobRpcMaxBatchSize,
 	VerifierL1Confs,
+	L1FinalizedConfDepth,
+	IsP2PNodeFlag,
 	SequencerEnabledFlag,
 	SequencerStoppedFlag,
 	SequencerMaxSafeLagFlag,
