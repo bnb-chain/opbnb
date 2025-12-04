@@ -27,6 +27,8 @@ import (
 
 var ErrAlreadyStopped = errors.New("already stopped")
 
+const zkDisputeGameType = 3
+
 type ProposerConfig struct {
 	// How frequently to poll L2 for new finalized outputs
 	PollInterval   time.Duration
@@ -38,6 +40,7 @@ type ProposerConfig struct {
 	L2OutputOracleAddr     *common.Address
 	DisputeGameFactoryAddr *common.Address
 	DisputeGameType        uint32
+	IsZKDisputeGame        bool
 
 	// AllowNonFinalized enables the proposal of safe, but non-finalized L2 blocks.
 	// The L1 block-hash embedded in the proposal TX is checked and should ensure the proposal
@@ -45,7 +48,11 @@ type ProposerConfig struct {
 	// This option is not necessary when higher proposal latency is acceptable and L1 is healthy.
 	AllowNonFinalized bool
 
-	WaitNodeSync bool
+	WaitNodeSync                    bool
+	AnchorStateRegistryAddr         *common.Address
+	ZKProposalBatchSize             uint64
+	ZKParentGameAddress             string
+	ZKProposalLastGameCachePathFlag string
 }
 
 type ProposerService struct {
@@ -74,7 +81,12 @@ type ProposerService struct {
 // ProposerServiceFromCLIConfig creates a new ProposerService from a CLIConfig.
 // The service components are fully started, except for the driver,
 // which will not be submitting state (if it was configured to) until the Start part of the lifecycle.
-func ProposerServiceFromCLIConfig(ctx context.Context, version string, cfg *CLIConfig, log log.Logger) (*ProposerService, error) {
+func ProposerServiceFromCLIConfig(
+	ctx context.Context,
+	version string,
+	cfg *CLIConfig,
+	log log.Logger,
+) (*ProposerService, error) {
 	var ps ProposerService
 	if err := ps.initFromCLIConfig(ctx, version, cfg, log); err != nil {
 		return nil, errors.Join(err, ps.Stop(ctx)) // try to clean up our failed initialization attempt
@@ -82,7 +94,12 @@ func ProposerServiceFromCLIConfig(ctx context.Context, version string, cfg *CLIC
 	return &ps, nil
 }
 
-func (ps *ProposerService) initFromCLIConfig(ctx context.Context, version string, cfg *CLIConfig, log log.Logger) error {
+func (ps *ProposerService) initFromCLIConfig(
+	ctx context.Context,
+	version string,
+	cfg *CLIConfig,
+	log log.Logger,
+) error {
 	ps.Version = version
 	ps.Log = log
 
@@ -221,6 +238,17 @@ func (ps *ProposerService) initDGF(cfg *CLIConfig) {
 	ps.DisputeGameFactoryAddr = &dgfAddress
 	ps.ProposalInterval = cfg.ProposalInterval
 	ps.DisputeGameType = cfg.DisputeGameType
+	if cfg.DisputeGameType == zkDisputeGameType {
+		ps.IsZKDisputeGame = true
+		address, err := opservice.ParseAddress(cfg.AnchorStateRegistryAddr)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse anchor state registry address: %w", err))
+		}
+		ps.AnchorStateRegistryAddr = &address
+		ps.ZKProposalBatchSize = cfg.ZKProposalBatchSize
+		ps.ZKParentGameAddress = cfg.ZKParentGameAddress
+		ps.ZKProposalLastGameCachePathFlag = cfg.ZKProposalLastGameCachePathFlag
+	}
 }
 
 func (ps *ProposerService) initDriver() error {

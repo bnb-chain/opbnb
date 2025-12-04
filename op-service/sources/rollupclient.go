@@ -2,7 +2,10 @@ package sources
 
 import (
 	"context"
+	"io"
 
+	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
+	"github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/exp/slog"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +28,28 @@ func (r *RollupClient) OutputAtBlock(ctx context.Context, blockNum uint64) (*eth
 	var output *eth.OutputResponse
 	err := r.rpc.CallContext(ctx, &output, "optimism_outputAtBlock", hexutil.Uint64(blockNum))
 	return output, err
+}
+
+func (r *RollupClient) BatchOutputAtBlock(ctx context.Context, blocks []uint64) ([]*eth.OutputResponse, error) {
+	var result []*eth.OutputResponse
+	batchCall := batching.NewIterativeBatchCall[uint64, *eth.OutputResponse](blocks, func(block uint64) (*eth.OutputResponse, rpc.BatchElem) {
+		var response eth.OutputResponse
+		elem := rpc.BatchElem{
+			Method: "optimism_outputAtBlock",
+			Args:   []interface{}{hexutil.Uint64(block)},
+			Result: &response,
+		}
+		result = append(result, &response)
+		return &response, elem
+	}, r.rpc.BatchCallContext, r.rpc.CallContext, 100)
+	for {
+		if err := batchCall.Fetch(ctx); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+	}
+	return batchCall.Result()
 }
 
 func (r *RollupClient) SafeHeadAtL1Block(ctx context.Context, blockNum uint64) (*eth.SafeHeadResponse, error) {
