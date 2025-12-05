@@ -85,9 +85,6 @@ interface IFaultDisputeGame is IDisputeGame {
     /// @return numRemainingChildren_ The number of children that still need to be checked to resolve the subgame.
     function getNumToResolve(uint256 _claimIndex) external view returns (uint256 numRemainingChildren_);
 
-    /// @notice The l2BlockNumber of the disputed output root in the `L2OutputOracle`.
-    function l2BlockNumber() external view returns (uint256 l2BlockNumber_);
-
     /// @notice Starting output root and block number of the game.
     function startingOutputRoot() external view returns (Hash startingRoot_, uint256 l2BlockNumber_);
 

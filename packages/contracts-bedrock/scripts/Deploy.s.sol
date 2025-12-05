@@ -38,6 +38,7 @@ import { FaultDisputeGame } from "src/dispute/FaultDisputeGame.sol";
 import { PermissionedDisputeGame } from "src/dispute/PermissionedDisputeGame.sol";
 import { DelayedWETH } from "src/dispute/weth/DelayedWETH.sol";
 import { AnchorStateRegistry } from "src/dispute/AnchorStateRegistry.sol";
+import { ZkFaultProofConfig } from "src/dispute/ZkFaultProofConfig.sol";
 import { PreimageOracle } from "src/cannon/PreimageOracle.sol";
 import { MIPS } from "src/cannon/MIPS.sol";
 import { L1ERC721Bridge } from "src/L1/L1ERC721Bridge.sol";
@@ -57,6 +58,9 @@ import { LibStateDiff } from "scripts/libraries/LibStateDiff.sol";
 import { EIP1967Helper } from "test/mocks/EIP1967Helper.sol";
 import { ForgeArtifacts } from "scripts/ForgeArtifacts.sol";
 import { Process } from "scripts/libraries/Process.sol";
+
+import { SP1VerifierGateway } from "sp1-contracts/src/SP1VerifierGateway.sol";
+import { SP1Verifier } from "sp1-contracts/src/v3.0.0-rc4/SP1VerifierPlonk.sol";
 
 /// @title Deploy
 /// @notice Script used to deploy a bedrock system. The entire system is deployed within the `run` function.
@@ -152,6 +156,7 @@ contract Deploy is Deployer {
             DisputeGameFactory: mustGetAddress("DisputeGameFactoryProxy"),
             DelayedWETH: mustGetAddress("DelayedWETHProxy"),
             AnchorStateRegistry: mustGetAddress("AnchorStateRegistryProxy"),
+            ZkFaultProofConfig: mustGetAddress("ZkFaultProofConfigProxy"),
             OptimismMintableERC20Factory: mustGetAddress("OptimismMintableERC20FactoryProxy"),
             OptimismPortal: mustGetAddress("OptimismPortalProxy"),
             OptimismPortal2: mustGetAddress("OptimismPortalProxy"),
@@ -171,6 +176,7 @@ contract Deploy is Deployer {
             DisputeGameFactory: getAddress("DisputeGameFactoryProxy"),
             DelayedWETH: getAddress("DelayedWETHProxy"),
             AnchorStateRegistry: getAddress("AnchorStateRegistryProxy"),
+            ZkFaultProofConfig: getAddress("ZkFaultProofConfigProxy"),
             OptimismMintableERC20Factory: getAddress("OptimismMintableERC20FactoryProxy"),
             OptimismPortal: getAddress("OptimismPortalProxy"),
             OptimismPortal2: getAddress("OptimismPortalProxy"),
@@ -370,6 +376,7 @@ contract Deploy is Deployer {
         deployERC1967Proxy("L2OutputOracleProxy");
         deployERC1967Proxy("DelayedWETHProxy");
         deployERC1967Proxy("AnchorStateRegistryProxy");
+        deployERC1967Proxy("ZkFaultProofConfigProxy");
 
         transferAddressManagerOwnership(); // to the ProxyAdmin
     }
@@ -392,6 +399,8 @@ contract Deploy is Deployer {
         deployPreimageOracle();
         deployMips();
         deployAnchorStateRegistry();
+        deployZkFaultProofConfig();
+        deploySp1VerifierSuite();
     }
 
     /// @notice Initialize all of the implementations
@@ -415,6 +424,7 @@ contract Deploy is Deployer {
         initializeDisputeGameFactory();
         initializeDelayedWETH();
         initializeAnchorStateRegistry();
+        initializeZkFaultProofConfig();
     }
 
     /// @notice Add Plasma setup to the OP chain
@@ -813,6 +823,29 @@ contract Deploy is Deployer {
         addr_ = address(anchorStateRegistry);
     }
 
+    function deployZkFaultProofConfig() public broadcast returns (address addr_) {
+        console.log("Deploying ZkFaultProofConfig implementation");
+        ZkFaultProofConfig config = new ZkFaultProofConfig{ salt: _implSalt() }();
+        save("ZkFaultProofConfig", address(config));
+        console.log("ZkFaultProofConfig deployed at %s", address(config));
+
+        addr_ = address(config);
+    }
+
+    function deploySp1VerifierSuite() public broadcast returns (address addr_) {
+        console.log("Deploying SP1VerifierGateway implementation");
+        SP1VerifierGateway suite = new SP1VerifierGateway();
+        save("SP1VerifierGateway", address(suite));
+        console.log("SP1VerifierGateway deployed at %s", address(suite));
+
+
+        addr_ = address(suite);
+        console.log("Deploying PlonkVerifier implementation");
+
+        address verifier = address(new SP1Verifier());
+        suite.addRoute(verifier);
+    }
+
     /// @notice Deploy the SystemConfig
     function deploySystemConfig() public broadcast returns (address addr_) {
         console.log("Deploying SystemConfig implementation");
@@ -957,7 +990,7 @@ contract Deploy is Deployer {
         address anchorStateRegistryProxy = mustGetAddress("AnchorStateRegistryProxy");
         address anchorStateRegistry = mustGetAddress("AnchorStateRegistry");
 
-        AnchorStateRegistry.StartingAnchorRoot[] memory roots = new AnchorStateRegistry.StartingAnchorRoot[](5);
+        AnchorStateRegistry.StartingAnchorRoot[] memory roots = new AnchorStateRegistry.StartingAnchorRoot[](6);
         roots[0] = AnchorStateRegistry.StartingAnchorRoot({
             gameType: GameTypes.CANNON,
             outputRoot: OutputRoot({
@@ -987,6 +1020,13 @@ contract Deploy is Deployer {
             })
         });
         roots[4] = AnchorStateRegistry.StartingAnchorRoot({
+            gameType: GameTypes.ZKFAULT,
+            outputRoot: OutputRoot({
+                root: Hash.wrap(cfg.faultGameGenesisOutputRoot()),
+                l2BlockNumber: cfg.faultGameGenesisBlock()
+            })
+        });
+        roots[5] = AnchorStateRegistry.StartingAnchorRoot({
             gameType: GameTypes.FAST,
             outputRoot: OutputRoot({
                 root: Hash.wrap(cfg.faultGameGenesisOutputRoot()),
@@ -1002,6 +1042,30 @@ contract Deploy is Deployer {
 
         string memory version = AnchorStateRegistry(payable(anchorStateRegistryProxy)).version();
         console.log("AnchorStateRegistry version: %s", version);
+    }
+
+    function initializeZkFaultProofConfig() public broadcast {
+        console.log("Upgrading and initializing ZkFaultProofConfig proxy");
+        address zkFaultProofConfigProxy = mustGetAddress("ZkFaultProofConfigProxy");
+        address zkFaultProofConfig = mustGetAddress("ZkFaultProofConfig");
+        address sp1VerifierGateway = mustGetAddress("SP1VerifierGateway");
+
+        _upgradeAndCallViaSafe({
+            _proxy: payable(zkFaultProofConfigProxy),
+            _implementation: zkFaultProofConfig,
+            _innerCallData: abi.encodeCall(ZkFaultProofConfig.initialize, (
+                cfg.finalSystemOwner(),
+                cfg.blockDistance(),
+                cfg.l2ChainID(),
+                cfg.aggregationVkey(),
+                cfg.rangeVkeyCommitment(),
+                sp1VerifierGateway,
+                cfg.rollupConfigHash()
+            ))
+        });
+
+        string memory version = ZkFaultProofConfig(payable(zkFaultProofConfigProxy)).version();
+        console.log("ZkFaultProofConfig version: %s", version);
     }
 
     /// @notice Initialize the SystemConfig

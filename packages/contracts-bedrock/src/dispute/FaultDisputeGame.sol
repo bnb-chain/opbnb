@@ -470,7 +470,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         numRemainingChildren_ = challengeIndicesLen - checkpoint.subgameIndex;
     }
 
-    /// @inheritdoc IFaultDisputeGame
+    /// @inheritdoc IDisputeGame
     function l2BlockNumber() public pure returns (uint256 l2BlockNumber_) {
         l2BlockNumber_ = _getArgUint256(0x54);
     }
