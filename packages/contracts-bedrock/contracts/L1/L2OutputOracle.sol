@@ -72,7 +72,7 @@ contract L2OutputOracle is Initializable, Semver {
     /**
      * @notice The L2 block number of Fourier Hardfork.
      */
-    uint256 public constant FOURIER_BLOCK_NUMBER = 0;
+    uint256 public constant FOURIER_BLOCK_NUMBER = 98551477;
 
     /**
      * @notice Emitted when an output is proposed.
