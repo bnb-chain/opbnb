@@ -12,11 +12,15 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/txmgr"
 	"github.com/ethereum-optimism/optimism/op-service/txmgr/metrics"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/urfave/cli/v2"
 )
 
-type ContractCreator[T any] func(context.Context, contractMetrics.ContractMetricer, common.Address, *batching.MultiCaller) (T, error)
+type ContractCreator[T any] func(
+	context.Context,
+	contractMetrics.ContractMetricer,
+	common.Address,
+	*batching.MultiCaller,
+) (T, error)
 
 func AddrFromFlag(flagName string) func(ctx *cli.Context) (common.Address, error) {
 	return func(ctx *cli.Context) (common.Address, error) {
@@ -29,7 +33,11 @@ func AddrFromFlag(flagName string) func(ctx *cli.Context) (common.Address, error
 }
 
 // NewContractWithTxMgr creates a new contract and a transaction manager.
-func NewContractWithTxMgr[T any](ctx *cli.Context, getAddr func(ctx *cli.Context) (common.Address, error), creator ContractCreator[T]) (T, txmgr.TxManager, error) {
+func NewContractWithTxMgr[T any](
+	ctx *cli.Context,
+	getAddr func(ctx *cli.Context) (common.Address, error),
+	creator ContractCreator[T],
+) (T, txmgr.TxManager, error) {
 	var contract T
 	caller, txMgr, err := newClientsFromCLI(ctx)
 	if err != nil {
@@ -45,7 +53,12 @@ func NewContractWithTxMgr[T any](ctx *cli.Context, getAddr func(ctx *cli.Context
 }
 
 // newContractFromCLI creates a new contract from the CLI context.
-func newContractFromCLI[T any](ctx *cli.Context, getAddr func(ctx *cli.Context) (common.Address, error), caller *batching.MultiCaller, creator ContractCreator[T]) (T, error) {
+func newContractFromCLI[T any](
+	ctx *cli.Context,
+	getAddr func(ctx *cli.Context) (common.Address, error),
+	caller *batching.MultiCaller,
+	creator ContractCreator[T],
+) (T, error) {
 	var contract T
 	gameAddr, err := getAddr(ctx)
 	if err != nil {
@@ -78,7 +91,7 @@ func newClientsFromCLI(ctx *cli.Context) (*batching.MultiCaller, txmgr.TxManager
 	}
 	defer l1Client.Close()
 
-	caller := batching.NewMultiCaller(l1Client.(*ethclient.Client).Client(), batching.DefaultBatchSize)
+	caller := batching.NewMultiCaller(l1Client.Client(), batching.DefaultBatchSize)
 	txMgrConfig := txmgr.ReadCLIConfig(ctx)
 	txMgr, err := txmgr.NewSimpleTxManager("challenger", logger, &metrics.NoopTxMetrics{}, txMgrConfig)
 	if err != nil {

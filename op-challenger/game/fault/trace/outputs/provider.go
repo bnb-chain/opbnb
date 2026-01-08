@@ -23,6 +23,7 @@ var _ types.TraceProvider = (*OutputTraceProvider)(nil)
 type OutputRollupClient interface {
 	OutputAtBlock(ctx context.Context, blockNum uint64) (*eth.OutputResponse, error)
 	SafeHeadAtL1Block(ctx context.Context, l1BlockNum uint64) (*eth.SafeHeadResponse, error)
+	BatchOutputAtBlock(ctx context.Context, blockNums []uint64) ([]*eth.OutputResponse, error)
 }
 
 // OutputTraceProvider is a [types.TraceProvider] implementation that uses
@@ -38,7 +39,15 @@ type OutputTraceProvider struct {
 	gameDepth      types.Depth
 }
 
-func NewTraceProvider(logger log.Logger, prestateProvider types.PrestateProvider, rollupProvider OutputRollupClient, l2Client utils.L2HeaderSource, l1Head eth.BlockID, gameDepth types.Depth, prestateBlock, poststateBlock uint64) *OutputTraceProvider {
+func NewTraceProvider(
+	logger log.Logger,
+	prestateProvider types.PrestateProvider,
+	rollupProvider OutputRollupClient,
+	l2Client utils.L2HeaderSource,
+	l1Head eth.BlockID,
+	gameDepth types.Depth,
+	prestateBlock, poststateBlock uint64,
+) *OutputTraceProvider {
 	return &OutputTraceProvider{
 		PrestateProvider: prestateProvider,
 		logger:           logger,
@@ -94,7 +103,10 @@ func (o *OutputTraceProvider) Get(ctx context.Context, pos types.Position) (comm
 }
 
 // GetStepData is not supported in the [OutputTraceProvider].
-func (o *OutputTraceProvider) GetStepData(_ context.Context, _ types.Position) (prestate []byte, proofData []byte, preimageData *types.PreimageOracleData, err error) {
+func (o *OutputTraceProvider) GetStepData(
+	_ context.Context,
+	_ types.Position,
+) (prestate []byte, proofData []byte, preimageData *types.PreimageOracleData, err error) {
 	return nil, nil, nil, ErrGetStepData
 }
 
