@@ -136,6 +136,10 @@ type Config struct {
 	// Active if FourierTime != nil && L2 block timestamp >= *FourierTime, inactive otherwise.
 	FourierTime *uint64 `json:"fourier_time,omitempty"`
 
+	// LaplaceTime sets the activation time of the Laplace network upgrade.
+	// Active if LaplaceTime != nil && L2 block timestamp >= *LaplaceTime, inactive otherwise.
+	LaplaceTime *uint64 `json:"laplace_time,omitempty"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 
@@ -170,9 +174,14 @@ type Config struct {
 const (
 	MillisecondBlockIntervalVolta   = 500
 	MillisecondBlockIntervalFourier = 250
+	MillisecondBlockIntervalLaplace = 100
 )
 
 func (cfg *Config) MillisecondBlockInterval(millisecondTimestamp uint64) uint64 {
+	if cfg.IsLaplace(millisecondTimestamp / 1000) {
+		return MillisecondBlockIntervalLaplace
+	}
+
 	if cfg.IsFourier(millisecondTimestamp / 1000) {
 		return MillisecondBlockIntervalFourier
 	}
@@ -204,6 +213,10 @@ func (c *Config) IsFourier(timestamp uint64) bool {
 	return c.FourierTime != nil && timestamp >= *c.FourierTime
 }
 
+func (c *Config) IsLaplace(timestamp uint64) bool {
+	return c.LaplaceTime != nil && timestamp >= *c.LaplaceTime
+}
+
 // VoltaBlockNumber return volta block number, return -1 when volta time is not set or < gensis L2 time.
 func (c *Config) VoltaBlockNumber() int64 {
 	if c.VoltaTime == nil || *c.VoltaTime < c.Genesis.L2Time {
@@ -220,6 +233,19 @@ func (c *Config) FourierBlockNumber() int64 {
 			return -1
 		}
 		return voltaBlockNumber + int64((*c.FourierTime*1000-*c.VoltaTime*1000)/MillisecondBlockIntervalVolta)
+	} else {
+		return -1
+	}
+}
+
+// LaplaceBlockNumber return Laplace block number
+func (c *Config) LaplaceBlockNumber() int64 {
+	fourierBlockNumber := c.FourierBlockNumber()
+	if fourierBlockNumber >= 0 {
+		if c.LaplaceTime == nil || *c.LaplaceTime < c.Genesis.L2Time {
+			return -1
+		}
+		return fourierBlockNumber + int64((*c.LaplaceTime*1000-*c.FourierTime*1000)/MillisecondBlockIntervalFourier)
 	} else {
 		return -1
 	}
@@ -296,16 +322,27 @@ func (cfg *Config) MillisecondTimestampForBlock(blockNumber uint64) uint64 {
 		return voltaBaseTime + blocksSinceVolta*MillisecondBlockIntervalVolta
 	}
 
-	// After Fourier activation, use Fourier's 250ms cadence
-	// Calculate blocks from Volta to Fourier
+	// After Fourier activation, calculate the millisecond boundary at Fourier activation
 	var blocksToFourier uint64
 	if voltaBlockNumber == 0 {
 		blocksToFourier = uint64(fourierBlockNumber) - cfg.Genesis.L2.Number
 	} else {
 		blocksToFourier = uint64(fourierBlockNumber) - uint64(voltaBlockNumber)
 	}
-	boundaryMs := voltaBaseTime + blocksToFourier*MillisecondBlockIntervalVolta
-	return boundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
+	fourierBoundaryMs := voltaBaseTime + blocksToFourier*MillisecondBlockIntervalVolta
+
+	laplaceBlockNumber := cfg.LaplaceBlockNumber()
+	// Check Laplace activation
+	if laplaceBlockNumber < 0 || blockNumber <= uint64(laplaceBlockNumber) {
+		// Laplace not active, use Fourier's 250ms cadence
+		return fourierBoundaryMs + (blockNumber-uint64(fourierBlockNumber))*MillisecondBlockIntervalFourier
+	}
+
+	// After Laplace activation, use Laplace's 100ms cadence
+	// Calculate the millisecond boundary at Laplace activation
+	blocksToLaplace := uint64(laplaceBlockNumber) - uint64(fourierBlockNumber)
+	laplaceBoundaryMs := fourierBoundaryMs + blocksToLaplace*MillisecondBlockIntervalFourier
+	return laplaceBoundaryMs + (blockNumber-uint64(laplaceBlockNumber))*MillisecondBlockIntervalLaplace
 }
 
 func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err error) {
@@ -326,7 +363,16 @@ func (cfg *Config) TargetBlockNumber(milliTimestamp uint64) (num uint64, err err
 	} else {
 		fourierBlockNumber := cfg.FourierBlockNumber()
 		if fourierBlockNumber >= 0 && milliTimestamp >= *cfg.FourierTime*1000 {
-			// Fourier fork is active
+			// Fourier fork is active, check Laplace
+			laplaceBlockNumber := cfg.LaplaceBlockNumber()
+			if laplaceBlockNumber >= 0 && milliTimestamp >= *cfg.LaplaceTime*1000 {
+				// Laplace fork is active
+				laplaceMilliTimestamp := *cfg.LaplaceTime * 1000
+				wallClockLaplaceDiff := milliTimestamp - laplaceMilliTimestamp
+				blocksSinceLaplace := wallClockLaplaceDiff / MillisecondBlockIntervalLaplace
+				return uint64(laplaceBlockNumber) + blocksSinceLaplace, nil
+			}
+			// Fourier fork is active but Laplace is not yet active
 			fourierMilliTimestamp := *cfg.FourierTime * 1000
 			wallClockFourierDiff := milliTimestamp - fourierMilliTimestamp
 			blocksSinceFourier := wallClockFourierDiff / MillisecondBlockIntervalFourier
@@ -460,6 +506,8 @@ func (cfg *Config) Check() error {
 
 	cfg.validateAndCorrectVoltaTime()
 	cfg.validateAndCorrectFourierTime()
+	cfg.validateAndCorrectLaplaceTime()
+
 	if err := checkFork(cfg.RegolithTime, cfg.CanyonTime, Regolith, Canyon); err != nil {
 		return err
 	}
@@ -479,6 +527,9 @@ func (cfg *Config) Check() error {
 		return err
 	}
 	if err := checkFork(cfg.VoltaTime, cfg.FourierTime, Volta, Fourier); err != nil {
+		return err
+	}
+	if err := checkFork(cfg.FourierTime, cfg.LaplaceTime, Fourier, Laplace); err != nil {
 		return err
 	}
 
@@ -560,6 +611,18 @@ func (c *Config) validateAndCorrectFourierTime() {
 		*c.FourierTime = c.Genesis.L2Time
 	} else if *c.FourierTime < c.Genesis.L2Time {
 		log.Crit("fourier time invalid")
+	}
+}
+
+func (c *Config) validateAndCorrectLaplaceTime() {
+	if c.LaplaceTime == nil {
+		return
+	}
+	if *c.LaplaceTime == 0 {
+		log.Warn("correct laplace time to genesis time", "from", *c.LaplaceTime, "to", c.Genesis.L2Time)
+		*c.LaplaceTime = c.Genesis.L2Time
+	} else if *c.LaplaceTime < c.Genesis.L2Time {
+		log.Crit("laplace time invalid")
 	}
 }
 
@@ -796,6 +859,7 @@ func (c *Config) Description(l2Chains map[string]string) string {
 	banner += "OPBNB hard forks (timestamp based):\n"
 	banner += fmt.Sprintf(" - Volta: %s\n", fmtForkTimeOrUnset(c.VoltaTime))
 	banner += fmt.Sprintf(" - Fourier: %s\n", fmtForkTimeOrUnset(c.FourierTime))
+	banner += fmt.Sprintf(" - Laplace: %s\n", fmtForkTimeOrUnset(c.LaplaceTime))
 	// Report the protocol version
 	banner += fmt.Sprintf("Node supports up to OP-Stack Protocol Version: %s\n", OPStackSupport)
 	if c.PlasmaConfig != nil {
@@ -836,6 +900,7 @@ func (c *Config) LogDescription(log log.Logger, l2Chains map[string]string) {
 		"snow_time", fmtForkTimeOrUnset(c.SnowTime),
 		"volta_time", fmtForkTimeOrUnset(c.VoltaTime),
 		"fourier_time", fmtForkTimeOrUnset(c.FourierTime),
+		"laplace_time", fmtForkTimeOrUnset(c.LaplaceTime),
 		"plasma_mode", c.PlasmaConfig != nil,
 	)
 }

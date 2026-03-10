@@ -182,7 +182,17 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 
 	isMillisecondTime := ba.rollupCfg.IsVolta(nextL2MilliTime / 1000)
 	pa.SetMillisecondTimestamp(nextL2MilliTime, isMillisecondTime)
-	if ba.rollupCfg.IsFourier(nextL2MilliTime / 1000) {
+	if ba.rollupCfg.IsLaplace(nextL2MilliTime / 1000) {
+		// Laplace+: use 25ms as unit, write to PrevRandao[4] to avoid breaking Fourier encoding at [3].
+		blockIntervalCount := ba.rollupCfg.MillisecondBlockInterval(nextL2MilliTime) / eth.BlockMillisecondsIntervalUintV2
+		pa.SetBlockIntervalCountV2(blockIntervalCount + 1)
+		log.Debug("succeed to build payload attributes after fork",
+			"timestamp_ms", nextL2MilliTime, "seconds-timestamp", pa.Timestamp,
+			"l1 origin", l1Info.NumberU64(), "l2 parent block", l2Parent.Number,
+			"is_laplace", true,
+			"blockIntervalCount", blockIntervalCount, "pa.PrevRandao", pa.PrevRandao)
+	} else if ba.rollupCfg.IsFourier(nextL2MilliTime / 1000) {
+		// Fourier only: use 250ms as unit, write to PrevRandao[3].
 		blockIntervalCount := ba.rollupCfg.MillisecondBlockInterval(nextL2MilliTime) / eth.BlockMillisecondsIntervalUint
 		pa.SetBlockIntervalCount(blockIntervalCount + 1)
 		log.Debug("succeed to build payload attributes after fork",

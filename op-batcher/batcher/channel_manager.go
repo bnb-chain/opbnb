@@ -51,6 +51,7 @@ type channelManager struct {
 
 	isVolta   bool
 	isFourier bool
+	isLaplace bool
 }
 
 func NewChannelManager(log log.Logger, metr metrics.Metricer, cfg ChannelConfig, rollupCfg *rollup.Config) *channelManager {
@@ -265,6 +266,14 @@ func (s *channelManager) processBlocks() error {
 	)
 	for i, block := range s.blocks {
 
+		if !s.isLaplace && s.rollupCfg.IsLaplace(block.Time()) && s.currentChannel.InputBytes() != 0 {
+			s.currentChannel.Close()
+			s.isLaplace = true
+			s.isFourier = true
+			s.isVolta = true
+			log.Info("before Laplace fork channel", "channel_id", s.currentChannel.ID(), "l2_block_time", block.Time(), "l2_block_num", block.Number())
+			break
+		}
 		if !s.isFourier && s.rollupCfg.IsFourier(block.Time()) && s.currentChannel.InputBytes() != 0 {
 			s.currentChannel.Close()
 			s.isFourier = true
@@ -372,6 +381,13 @@ func (s *channelManager) AddL2Block(block *types.Block) error {
 	defer s.mu.Unlock()
 	if s.tip != (common.Hash{}) && s.tip != block.ParentHash() {
 		return ErrReorg
+	}
+
+	if s.tip == (common.Hash{}) && s.rollupCfg.IsLaplace(block.Time()) {
+		s.isLaplace = true
+		s.isFourier = true
+		s.isVolta = true
+		log.Info("succeed to set is_laplace flag", "l2_block_time", block.Time(), "l2_block_num", block.Number())
 	}
 
 	if s.tip == (common.Hash{}) && s.rollupCfg.IsFourier(block.Time()) {
