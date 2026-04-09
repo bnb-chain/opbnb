@@ -50,10 +50,9 @@ func AttributesMatchBlock(rollupCfg *rollup.Config, attrs *eth.PayloadAttributes
 		}
 	}
 	if attrs.GasLimit == nil {
-		return fmt.Errorf("expected gaslimit in attributes to not be nil, expected %d", block.GasLimit)
-	}
-	if *attrs.GasLimit != block.GasLimit {
-		return fmt.Errorf("gas limit does not match. expected %d. got: %d", *attrs.GasLimit, block.GasLimit)
+		l.Warn("expected gaslimit in attributes to not be nil", "blockNumber", block.BlockNumber, "blockHash", block.BlockHash, "parentHash", block.ParentHash, "blockGasLimit", block.GasLimit)
+	} else if *attrs.GasLimit != block.GasLimit {
+		l.Warn("gas limit does not match", "blockNumber", block.BlockNumber, "blockHash", block.BlockHash, "parentHash", block.ParentHash, "expected", *attrs.GasLimit, "got", block.GasLimit)
 	}
 	if withdrawalErr := checkWithdrawalsMatch(attrs.Withdrawals, block.Withdrawals); withdrawalErr != nil {
 		return withdrawalErr
