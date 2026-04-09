@@ -175,7 +175,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		SuggestedFeeRecipient: predeploys.SequencerFeeVaultAddr,
 		Transactions:          txs,
 		NoTxPool:              true,
-		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
+		GasLimit:              func() *eth.Uint64Quantity { v := eth.Uint64Quantity(50000000); return &v }(),
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
 	}
