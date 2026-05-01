@@ -360,6 +360,16 @@ var (
 		Value:   86400,
 		EnvVars: prefixEnvVars("EL_TRIGGER_GAP"),
 	}
+	CatchUpFlag = &cli.BoolFlag{
+		Name: "catch-up",
+		Usage: "When enabled, op-node defers gossip subscription on startup until op-geth's unsafe head " +
+			"has caught up to the live tip via L1 derivation. This avoids the driver/alt-sync activity loop " +
+			"that occurs when an RPC node restarts with a large unsafe-head gap. " +
+			"Recommended for RPC and verifier nodes; not needed for sequencer nodes.",
+		EnvVars:  prefixEnvVars("CATCH_UP"),
+		Value:    false,
+		Category: RollupCategory,
+	}
 	/* Deprecated Flags */
 	L2EngineSyncEnabled = &cli.BoolFlag{
 		Name:    "l2.engine-sync",
@@ -440,6 +450,7 @@ var optionalFlags = []cli.Flag{
 	SyncModeFlag,
 	FastnodeMode,
 	ELTriggerGap,
+	CatchUpFlag,
 	RPCListenAddr,
 	RPCListenPort,
 	L1TrustRPC,

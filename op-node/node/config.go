@@ -77,6 +77,13 @@ type Config struct {
 
 	// Plasma DA config
 	Plasma plasma.CLIConfig
+
+	// CatchUp toggles the optional pre-gossip catch-up phase at startup.
+	// When true, op-node defers enabling gossip until op-geth's unsafe head has caught up
+	// to the live tip via L1 derivation, preventing the driver/alt-sync activity loop
+	// that otherwise occurs after restarts with a large unsafe-head gap.
+	// Recommended for RPC and verifier nodes; sequencer nodes should leave it disabled.
+	CatchUp bool
 }
 
 type RPCConfig struct {

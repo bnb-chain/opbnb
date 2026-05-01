@@ -290,7 +290,7 @@ func NewSyncClient(log log.Logger, cfg *rollup.Config, newStream newStreamFn, rc
 		payloadByNumber:     PayloadByNumberProtocolID(cfg.L2ChainID),
 		peers:               make(map[peer.ID]context.CancelFunc),
 		quarantineByNum:     make(map[uint64]common.Hash),
-		rangeRequests:       make(chan rangeRequest, 16), // blocking
+		rangeRequests:       make(chan rangeRequest), // blocking
 		activeRangeRequests: newRequestIdMap(),
 		peerRequests:        make(chan peerRequest, 128),
 		results:             make(chan syncResult, 128),

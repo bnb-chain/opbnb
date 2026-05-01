@@ -79,10 +79,50 @@ type OpNode struct {
 
 	closed atomic.Bool
 
+	// catchUpEnabled mirrors cfg.CatchUp; controls whether Start() runs the pre-gossip catch-up phase.
+	catchUpEnabled bool
+
+	// gossipReady gates incoming gossip payloads during the startup catch-up phase.
+	// While false, gossip payloads received via OnUnsafeL2Payload are silently dropped
+	// to prevent the clSync queue from accumulating orphan payloads (parent != op-geth.UnsafeL2Head)
+	// while op-geth's unsafe head is still being advanced via L1 derivation.
+	// Set to true once catch-up completes (or is disabled / times out).
+	gossipReady atomic.Bool
+
+	// firstPayloadAllowed lets exactly one gossip payload pass through OnUnsafeL2Payload
+	// while gossipReady is still false. This is required when running in ELSync mode:
+	// the engineController initial state is syncStatusWillStartEL, which causes
+	// IsEngineSyncing() to return true and prevents the driver eventLoop from running
+	// derivation (the stepReqCh handler short-circuits with `continue`). Until at least
+	// one payload reaches Driver.OnUnsafeL2Payload -> InsertUnsafePayload, the engine's
+	// "Skipping EL sync" finalized-block check never fires and syncStatus is stuck.
+	// Allowing exactly one payload through unblocks that transition and lets derivation
+	// drive op-geth forward during the catch-up phase. After this single payload,
+	// subsequent payloads continue to be dropped until gossipReady is flipped to true.
+	firstPayloadAllowed atomic.Bool
+
 	// cancels execution prematurely, e.g. to halt. This may be nil.
 	cancel context.CancelCauseFunc
 	halted atomic.Bool
 }
+
+// Startup catch-up parameters. Hardcoded; tweak here if needed.
+const (
+	// catchUpLagThreshold is how close op-geth's unsafe head timestamp must be
+	// to the current wall-clock time before gossip is enabled.
+	// On opBNB (~500ms blocks) 30s ≈ 60 blocks of remaining gap, well below the
+	// threshold that triggers the activity loop in tested scenarios.
+	catchUpLagThreshold = 30 * time.Second
+
+	// catchUpMaxWait is the absolute maximum time we are willing to defer gossip.
+	// If catch-up does not complete within this window (e.g. L1 derivation is unhealthy),
+	// gossip is enabled regardless and the system degrades to the pre-fix behavior
+	// rather than blocking forever.
+	catchUpMaxWait = 10 * time.Minute
+
+	// catchUpPollInterval is how often we re-check op-geth's unsafe head during catch-up.
+	catchUpPollInterval = 5 * time.Second
+)
 
 // The OpNode handles incoming gossip
 var _ p2p.GossipIn = (*OpNode)(nil)
@@ -96,11 +136,17 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 	}
 
 	n := &OpNode{
-		log:        log,
-		appVersion: appVersion,
-		metrics:    m,
-		rollupHalt: cfg.RollupHalt,
-		cancel:     cfg.Cancel,
+		log:            log,
+		appVersion:     appVersion,
+		metrics:        m,
+		rollupHalt:     cfg.RollupHalt,
+		cancel:         cfg.Cancel,
+		catchUpEnabled: cfg.CatchUp,
+	}
+	// If catch-up is disabled, gossip should be processed immediately as before.
+	// Set the gate to "ready" up front so OnUnsafeL2Payload behaves identically to the pre-fix code path.
+	if !n.catchUpEnabled {
+		n.gossipReady.Store(true)
 	}
 	// not a context leak, gossipsub is closed with a context.
 	n.resourcesCtx, n.resourcesClose = context.WithCancel(context.Background())
@@ -115,6 +161,72 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 		return nil, err
 	}
 	return n, nil
+}
+
+// waitForOpGethCatchUp blocks until op-geth's unsafe head timestamp is within
+// catchUpLagThreshold of the current time, or until catchUpMaxWait elapses.
+//
+// Background:
+// On RPC node restart, op-geth's unsafe head is frozen at the pre-restart height for
+// the duration of the pod outage. When op-node comes back up and immediately subscribes
+// to gossip, incoming gossip payloads have a parent that does not match op-geth's
+// stale unsafe head; the clSync queue accumulates orphan payloads. The driver's
+// checkForGapInUnsafeQueue then triggers alt-sync via an unbuffered rangeRequests
+// channel, while alt-sync's mainLoop -- when promoting results back via receivePayload
+// -- itself blocks on the driver's unsafeL2Payloads channel (buf=10). The two goroutines
+// form a livelock that only releases through ctx timeouts, leaving the unsafe head
+// stalled for some time.
+//
+// This function defers gossip subscription (via the gossipReady gate) until the L1
+// derivation pipeline has advanced op-geth's unsafe head close enough to the live tip
+// that no significant gap exists when gossip is finally enabled, eliminating the
+// activity loop's preconditions at the source.
+//
+// Returns nil on successful catch-up; returns an error on context cancellation or timeout.
+// In case of timeout, the caller should still enable gossip and degrade gracefully.
+func (n *OpNode) waitForOpGethCatchUp(ctx context.Context) error {
+	n.log.Info("starting op-geth catch-up phase before enabling gossip",
+		"lag_threshold", catchUpLagThreshold,
+		"max_wait", catchUpMaxWait,
+	)
+
+	deadline := time.Now().Add(catchUpMaxWait)
+	ticker := time.NewTicker(catchUpPollInterval)
+	defer ticker.Stop()
+
+	for {
+		// Query op-geth's current unsafe head.
+		queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		unsafeHead, err := n.l2Source.L2BlockRefByLabel(queryCtx, eth.Unsafe)
+		cancel()
+
+		if err != nil {
+			n.log.Warn("Failed to query op-geth unsafe head during catch-up, will retry", "error", err)
+		} else {
+			headTime := time.Unix(int64(unsafeHead.Time), 0)
+			lag := time.Since(headTime)
+
+			// Treat negative lag (clock skew or future-timestamp head) as caught up.
+			if lag < catchUpLagThreshold {
+				n.log.Info("op-geth caught up; enabling gossip", "unsafe_head", unsafeHead.Number, "lag", lag)
+				return nil
+			}
+
+			n.log.Info("op-geth still catching up via L1 derivation", "unsafe_head", unsafeHead.Number,
+				"lag", lag, "deadline_in", time.Until(deadline))
+		}
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("startup catch-up timeout after %v", catchUpMaxWait)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			continue
+		}
+	}
 }
 
 func (n *OpNode) init(ctx context.Context, cfg *Config, snapshotLog log.Logger) error {
@@ -484,6 +596,24 @@ func (n *OpNode) Start(ctx context.Context) error {
 		n.log.Error("Could not start a rollup node", "err", err)
 		return err
 	}
+
+	// Optionally defer enabling gossip until op-geth's unsafe head has caught up to the live tip
+	// via the L1 derivation pipeline. This avoids the driver/alt-sync livelock that occurs when
+	// gossip floods in with payloads whose parent does not match op-geth's stale unsafe head.
+	// Disabled by default; enable via --catch-up for RPC / verifier nodes.
+	// See waitForOpGethCatchUp for full background.
+	if n.catchUpEnabled {
+		if err := n.waitForOpGethCatchUp(ctx); err != nil {
+			// Catch-up failed (e.g. timeout, L1 derivation unhealthy). Enable gossip anyway
+			// to avoid blocking the node forever; the system degrades to the pre-fix behavior.
+			n.log.Warn("startup catch-up did not complete cleanly; enabling gossip anyway", "err", err)
+		}
+		n.gossipReady.Store(true)
+		n.log.Info("gossip enabled; op-node fully active")
+	}
+	// If catch-up is disabled, gossipReady was already set to true in New(),
+	// so OnUnsafeL2Payload behaves identically to the pre-fix code path.
+
 	log.Info("Rollup node started")
 	return nil
 }
@@ -543,6 +673,32 @@ func (n *OpNode) PublishL2Payload(ctx context.Context, envelope *eth.ExecutionPa
 }
 
 func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *eth.ExecutionPayloadEnvelope) error {
+	// Drop gossip payloads received during the startup catch-up phase.
+	// While op-geth's unsafe head is still catching up via L1 derivation, accepting
+	// real-time gossip payloads would fill the clSync queue with orphan payloads
+	// (parent != op-geth.UnsafeL2Head) and trigger the driver/alt-sync livelock.
+	// Gossip is re-enabled once waitForOpGethCatchUp completes.
+	// Any payloads dropped here are recovered by gossipsub mesh re-broadcasts and
+	// alt-sync backfill once gossipReady is set.
+	//
+	// Exception: the very first payload is always let through, regardless of catch-up
+	// state. In ELSync mode this is required to trigger the WillStartEL → FinishedEL
+	// transition inside InsertUnsafePayload (the "Skipping EL sync ..." finalized-block
+	// check). Without this, IsEngineSyncing() stays true and derivation is blocked
+	// from running during catch-up, defeating the purpose of the wait. In CLSync mode
+	// this single payload simply enters the clSync queue and is harmless.
+	if !n.gossipReady.Load() {
+		if !n.firstPayloadAllowed.Swap(true) {
+			n.log.Info("allowing first gossip payload through during catch-up to unblock engine sync state",
+				"id", envelope.ExecutionPayload.ID(), "peer", from)
+			// fall through to the regular processing path below
+		} else {
+			n.log.Debug("dropping gossip payload during startup catch-up phase",
+				"id", envelope.ExecutionPayload.ID(), "peer", from)
+			return nil
+		}
+	}
+
 	// ignore if it's from ourselves
 	if n.p2pNode != nil && from == n.p2pNode.Host().ID() {
 		return nil
