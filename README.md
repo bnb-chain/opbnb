@@ -50,3 +50,4 @@ You can also join the conversation, connect with other projects, and ask questio
 ## License
 
 All files within this repository are licensed under the [MIT License](https://github.com/bnb-chain/opbnb/blob/master/LICENSE) unless stated otherwise.
+
