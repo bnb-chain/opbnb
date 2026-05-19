@@ -600,7 +600,7 @@ func (n *OpNode) Start(ctx context.Context) error {
 	// Optionally defer enabling gossip until op-geth's unsafe head has caught up to the live tip
 	// via the L1 derivation pipeline. This avoids the driver/alt-sync livelock that occurs when
 	// gossip floods in with payloads whose parent does not match op-geth's stale unsafe head.
-	// Disabled by default; enable via --catch-up for RPC / verifier nodes.
+	// Disabled by default; enable via --startup.catch-up for RPC nodes.
 	// See waitForOpGethCatchUp for full background.
 	if n.catchUpEnabled {
 		if err := n.waitForOpGethCatchUp(ctx); err != nil {
