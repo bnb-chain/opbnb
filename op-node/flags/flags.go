@@ -362,11 +362,13 @@ var (
 	}
 	StartupDeferGossipFlag = &cli.BoolFlag{
 		Name: "startup.defer-gossip",
-		Usage: "Defers P2P gossip processing during startup until op-geth's unsafe head has caught up to" +
-			"the live tip via L1 derivation. This avoids the driver/alt-sync activity loop that occurs when an RPC node" +
-			"restarts with a large unsafe-head gap. Recommended for RPC and bridge nodes; not needed for sequencer and P2P nodes.",
+		Usage: "Defers P2P gossip processing during startup until op-geth's unsafe head has caught up to " +
+			"the live tip via L1 derivation. This avoids the driver/alt-sync activity loop that occurs when a node " +
+			"restarts with a large unsafe-head gap. Default enabled for all node types (rpc / bridge / sequencer / p2p); " +
+			"the catch-up loop returns quickly when no gap exists, so the cost is negligible for nodes that don't need it. " +
+			"Set to false to opt out and restore the pre-fix startup behavior.",
 		EnvVars:  prefixEnvVars("STARTUP_DEFER_GOSSIP"),
-		Value:    false,
+		Value:    true,
 		Category: RollupCategory,
 	}
 	/* Deprecated Flags */

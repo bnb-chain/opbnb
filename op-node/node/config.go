@@ -78,11 +78,14 @@ type Config struct {
 	// Plasma DA config
 	Plasma plasma.CLIConfig
 
-	// StartupDeferGossip toggles the optional pre-gossip catch-up phase at startup.
-	// When true, op-node defers enabling gossip until op-geth's unsafe head has caught up
-	// to the live tip via L1 derivation, preventing the driver/alt-sync activity loop
-	// that otherwise occurs after restarts with a large unsafe-head gap.
-	// Recommended for RPC and bridge nodes; sequencer and P2P nodes should leave it disabled.
+	// StartupDeferGossip toggles the pre-gossip catch-up phase at startup.
+	// When true (the default), op-node defers enabling gossip until op-geth's unsafe head
+	// has caught up to the live tip via L1 derivation, preventing the driver/alt-sync
+	// activity loop that otherwise occurs after restarts with a large unsafe-head gap.
+	// Enabled by default for all node types (rpc / bridge / sequencer / p2p); the catch-up
+	// loop returns immediately when op-geth is already at the live tip, so the cost for
+	// nodes that don't need it (e.g. a healthy sequencer) is negligible. Set to false only
+	// to deliberately restore the pre-fix startup behavior.
 	StartupDeferGossip bool
 }
 

@@ -141,8 +141,12 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 		deferGossipEnabled: cfg.StartupDeferGossip,
 	}
 
-	// If defer gossip is disabled, gossip should be processed immediately as before.
-	// Set the gate to "ready" up front so OnUnsafeL2Payload behaves identically to the pre-fix code path.
+	// Opt-out path: if the operator has explicitly disabled the startup defer-gossip phase
+	// (--startup.defer-gossip=false), flip the gate to "ready" immediately so that
+	// OnUnsafeL2Payload processes gossip without delay, matching the pre-fix code path exactly.
+	// In the default path (deferGossipEnabled=true), gossipReady stays at its zero value
+	// (false) here and is flipped to true at the end of Start() after waitForOpGethCatchUp
+	// completes (or times out).
 	if !n.deferGossipEnabled {
 		n.gossipReady.Store(true)
 	}
@@ -602,8 +606,6 @@ func (n *OpNode) Start(ctx context.Context) error {
 		n.gossipReady.Store(true)
 		n.log.Info("Gossip enabled; op-node fully active")
 	}
-	// If defer gossip is disabled, gossipReady was already set to true in New(),
-	// so OnUnsafeL2Payload behaves identically to the pre-fix code path.
 
 	log.Info("Rollup node started")
 	return nil
@@ -664,7 +666,19 @@ func (n *OpNode) PublishL2Payload(ctx context.Context, envelope *eth.ExecutionPa
 }
 
 func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *eth.ExecutionPayloadEnvelope) error {
-	// If defer gossip is enabled, drop gossip payloads received during the startup catch-up phase.
+	// ignore if it's from ourselves.
+	// Note: this check intentionally runs BEFORE the gossipReady gate so that self-published
+	// payloads (sequencer publishing its own blocks via gossipsub, which loops back to the
+	// local subscriber) do not consume the firstPayloadAllowed slot. Without this ordering,
+	// a sequencer running in ELSync mode could waste its only "free" payload on a self-loop,
+	// leaving syncStatus stuck at WillStartEL.
+	if n.p2pNode != nil && from == n.p2pNode.Host().ID() {
+		return nil
+	}
+
+	// Drop external gossip payloads received during the startup catch-up phase, except
+	// for the very first payload which is needed to trigger the ELSync syncStatus
+	// transition inside InsertUnsafePayload (see firstPayloadAllowed comment on OpNode).
 	if !n.gossipReady.Load() {
 		if !n.firstPayloadAllowed.Swap(true) {
 			n.log.Info("Allowing first gossip payload through during catch-up to unblock engine sync state",
@@ -675,11 +689,6 @@ func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *
 				"id", envelope.ExecutionPayload.ID())
 			return nil
 		}
-	}
-
-	// ignore if it's from ourselves
-	if n.p2pNode != nil && from == n.p2pNode.Host().ID() {
-		return nil
 	}
 
 	n.tracer.OnUnsafeL2Payload(ctx, from, envelope)
