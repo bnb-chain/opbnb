@@ -108,20 +108,20 @@ type OpNode struct {
 
 // Startup catch-up parameters. Hardcoded; tweak here if needed.
 const (
-	// catchUpLagThreshold is how close op-geth's unsafe head timestamp must be
+	// catchupLagThreshold is how close op-geth's unsafe head timestamp must be
 	// to the current wall-clock time before gossip is enabled.
-	// On opBNB (~500ms blocks) 30s ≈ 60 blocks of remaining gap, well below the
+	// On opBNB (~250ms blocks) 10s ≈ 40 blocks of remaining gap, well below the
 	// threshold that triggers the activity loop in tested scenarios.
-	catchUpLagThreshold = 30 * time.Second
+	catchupLagThreshold = 10 * time.Second
 
-	// catchUpMaxWait is the absolute maximum time we are willing to defer gossip.
+	// catchupMaxWait is the absolute maximum time we are willing to defer gossip.
 	// If catch-up does not complete within this window (e.g. L1 derivation is unhealthy),
 	// gossip is enabled regardless and the system degrades to the pre-fix behavior
 	// rather than blocking forever.
-	catchUpMaxWait = 10 * time.Minute
+	catchupMaxWait = 10 * time.Minute
 
-	// catchUpPollInterval is how often we re-check op-geth's unsafe head during catch-up.
-	catchUpPollInterval = 5 * time.Second
+	// catchupPollInterval is how often we re-check op-geth's unsafe head during catch-up.
+	catchupPollInterval = 5 * time.Second
 )
 
 // The OpNode handles incoming gossip
@@ -185,13 +185,11 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 // Returns nil on successful catch-up; returns an error on context cancellation or timeout.
 // In case of timeout, the caller should still enable gossip and degrade gracefully.
 func (n *OpNode) waitForOpGethCatchUp(ctx context.Context) error {
-	n.log.Info("starting op-geth catch-up phase before enabling gossip",
-		"lag_threshold", catchUpLagThreshold,
-		"max_wait", catchUpMaxWait,
-	)
+	n.log.Info("Starting op-geth catch-up phase before enabling gossip", "lag_threshold", catchupLagThreshold,
+		"max_wait", catchupMaxWait)
 
-	deadline := time.Now().Add(catchUpMaxWait)
-	ticker := time.NewTicker(catchUpPollInterval)
+	deadline := time.Now().Add(catchupMaxWait)
+	ticker := time.NewTicker(catchupPollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -207,7 +205,7 @@ func (n *OpNode) waitForOpGethCatchUp(ctx context.Context) error {
 			lag := time.Since(headTime)
 
 			// Treat negative lag (clock skew or future-timestamp head) as caught up.
-			if lag < catchUpLagThreshold {
+			if lag < catchupLagThreshold {
 				n.log.Info("op-geth caught up; enabling gossip", "unsafe_head", unsafeHead.Number, "lag", lag)
 				return nil
 			}
@@ -217,7 +215,7 @@ func (n *OpNode) waitForOpGethCatchUp(ctx context.Context) error {
 		}
 
 		if time.Now().After(deadline) {
-			return fmt.Errorf("startup catch-up timeout after %v", catchUpMaxWait)
+			return fmt.Errorf("startup catch-up timeout after %v", catchupMaxWait)
 		}
 
 		select {
@@ -606,10 +604,10 @@ func (n *OpNode) Start(ctx context.Context) error {
 		if err := n.waitForOpGethCatchUp(ctx); err != nil {
 			// Catch-up failed (e.g. timeout, L1 derivation unhealthy). Enable gossip anyway
 			// to avoid blocking the node forever; the system degrades to the pre-fix behavior.
-			n.log.Warn("startup catch-up did not complete cleanly; enabling gossip anyway", "err", err)
+			n.log.Warn("Startup catch-up did not complete cleanly; enabling gossip anyway", "err", err)
 		}
 		n.gossipReady.Store(true)
-		n.log.Info("gossip enabled; op-node fully active")
+		n.log.Info("Gossip enabled; op-node fully active")
 	}
 	// If catch-up is disabled, gossipReady was already set to true in New(),
 	// so OnUnsafeL2Payload behaves identically to the pre-fix code path.
@@ -689,12 +687,12 @@ func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *
 	// this single payload simply enters the clSync queue and is harmless.
 	if !n.gossipReady.Load() {
 		if !n.firstPayloadAllowed.Swap(true) {
-			n.log.Info("allowing first gossip payload through during catch-up to unblock engine sync state",
-				"id", envelope.ExecutionPayload.ID(), "peer", from)
+			n.log.Info("Allowing first gossip payload through during catch-up to unblock engine sync state",
+				"peer", from, "id", envelope.ExecutionPayload.ID())
 			// fall through to the regular processing path below
 		} else {
-			n.log.Debug("dropping gossip payload during startup catch-up phase",
-				"id", envelope.ExecutionPayload.ID(), "peer", from)
+			n.log.Debug("Dropping gossip payload during startup catch-up phase", "peer", from,
+				"id", envelope.ExecutionPayload.ID())
 			return nil
 		}
 	}
