@@ -79,8 +79,8 @@ type OpNode struct {
 
 	closed atomic.Bool
 
-	// catchUpEnabled mirrors cfg.CatchUp; controls whether Start() runs the pre-gossip catch-up phase.
-	catchUpEnabled bool
+	// deferGossipEnabled mirrors cfg.StartupDeferGossip; controls whether Start() runs the pre-gossip catch-up phase.
+	deferGossipEnabled bool
 
 	// gossipReady gates incoming gossip payloads during the startup catch-up phase.
 	// While false, gossip payloads received via OnUnsafeL2Payload are silently dropped
@@ -106,13 +106,10 @@ type OpNode struct {
 	halted atomic.Bool
 }
 
-// Startup catch-up parameters. Hardcoded; tweak here if needed.
 const (
 	// catchupLagThreshold is how close op-geth's unsafe head timestamp must be
 	// to the current wall-clock time before gossip is enabled.
-	// On opBNB (~250ms blocks) 10s ≈ 40 blocks of remaining gap, well below the
-	// threshold that triggers the activity loop in tested scenarios.
-	catchupLagThreshold = 10 * time.Second
+	catchupLagThreshold = 30 * time.Second
 
 	// catchupMaxWait is the absolute maximum time we are willing to defer gossip.
 	// If catch-up does not complete within this window (e.g. L1 derivation is unhealthy),
@@ -136,16 +133,17 @@ func New(ctx context.Context, cfg *Config, log log.Logger, snapshotLog log.Logge
 	}
 
 	n := &OpNode{
-		log:            log,
-		appVersion:     appVersion,
-		metrics:        m,
-		rollupHalt:     cfg.RollupHalt,
-		cancel:         cfg.Cancel,
-		catchUpEnabled: cfg.CatchUp,
+		log:                log,
+		appVersion:         appVersion,
+		metrics:            m,
+		rollupHalt:         cfg.RollupHalt,
+		cancel:             cfg.Cancel,
+		deferGossipEnabled: cfg.StartupDeferGossip,
 	}
-	// If catch-up is disabled, gossip should be processed immediately as before.
+
+	// If defer gossip is disabled, gossip should be processed immediately as before.
 	// Set the gate to "ready" up front so OnUnsafeL2Payload behaves identically to the pre-fix code path.
-	if !n.catchUpEnabled {
+	if !n.deferGossipEnabled {
 		n.gossipReady.Store(true)
 	}
 	// not a context leak, gossipsub is closed with a context.
@@ -595,12 +593,7 @@ func (n *OpNode) Start(ctx context.Context) error {
 		return err
 	}
 
-	// Optionally defer enabling gossip until op-geth's unsafe head has caught up to the live tip
-	// via the L1 derivation pipeline. This avoids the driver/alt-sync livelock that occurs when
-	// gossip floods in with payloads whose parent does not match op-geth's stale unsafe head.
-	// Disabled by default; enable via --startup.catch-up for RPC nodes.
-	// See waitForOpGethCatchUp for full background.
-	if n.catchUpEnabled {
+	if n.deferGossipEnabled {
 		if err := n.waitForOpGethCatchUp(ctx); err != nil {
 			// Catch-up failed (e.g. timeout, L1 derivation unhealthy). Enable gossip anyway
 			// to avoid blocking the node forever; the system degrades to the pre-fix behavior.
@@ -609,7 +602,7 @@ func (n *OpNode) Start(ctx context.Context) error {
 		n.gossipReady.Store(true)
 		n.log.Info("Gossip enabled; op-node fully active")
 	}
-	// If catch-up is disabled, gossipReady was already set to true in New(),
+	// If defer gossip is disabled, gossipReady was already set to true in New(),
 	// so OnUnsafeL2Payload behaves identically to the pre-fix code path.
 
 	log.Info("Rollup node started")
@@ -671,20 +664,7 @@ func (n *OpNode) PublishL2Payload(ctx context.Context, envelope *eth.ExecutionPa
 }
 
 func (n *OpNode) OnUnsafeL2Payload(ctx context.Context, from peer.ID, envelope *eth.ExecutionPayloadEnvelope) error {
-	// Drop gossip payloads received during the startup catch-up phase.
-	// While op-geth's unsafe head is still catching up via L1 derivation, accepting
-	// real-time gossip payloads would fill the clSync queue with orphan payloads
-	// (parent != op-geth.UnsafeL2Head) and trigger the driver/alt-sync livelock.
-	// Gossip is re-enabled once waitForOpGethCatchUp completes.
-	// Any payloads dropped here are recovered by gossipsub mesh re-broadcasts and
-	// alt-sync backfill once gossipReady is set.
-	//
-	// Exception: the very first payload is always let through, regardless of catch-up
-	// state. In ELSync mode this is required to trigger the WillStartEL → FinishedEL
-	// transition inside InsertUnsafePayload (the "Skipping EL sync ..." finalized-block
-	// check). Without this, IsEngineSyncing() stays true and derivation is blocked
-	// from running during catch-up, defeating the purpose of the wait. In CLSync mode
-	// this single payload simply enters the clSync queue and is harmless.
+	// If defer gossip is enabled, drop gossip payloads received during the startup catch-up phase.
 	if !n.gossipReady.Load() {
 		if !n.firstPayloadAllowed.Swap(true) {
 			n.log.Info("Allowing first gossip payload through during catch-up to unblock engine sync state",

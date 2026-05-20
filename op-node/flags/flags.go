@@ -360,12 +360,12 @@ var (
 		Value:   86400,
 		EnvVars: prefixEnvVars("EL_TRIGGER_GAP"),
 	}
-	StartupCatchUpFlag = &cli.BoolFlag{
-		Name: "startup.catch-up",
-		Usage: "When enabled, op-node defers gossip subscription during startup until op-geth's unsafe head " +
-			"has caught up to the live tip via L1 derivation. This avoids the driver/alt-sync activity loop " +
-			"that occurs when an RPC node restarts with a large unsafe-head gap. Recommended for RPC nodes; not needed for sequencer nodes.",
-		EnvVars:  prefixEnvVars("STARTUP_CATCH_UP"),
+	StartupDeferGossipFlag = &cli.BoolFlag{
+		Name: "startup.defer-gossip",
+		Usage: "Defers P2P gossip processing during startup until op-geth's unsafe head has caught up to" +
+			"the live tip via L1 derivation. This avoids the driver/alt-sync activity loop that occurs when an RPC node" +
+			"restarts with a large unsafe-head gap. Recommended for RPC and bridge nodes; not needed for sequencer and P2P nodes.",
+		EnvVars:  prefixEnvVars("STARTUP_DEFER_GOSSIP"),
 		Value:    false,
 		Category: RollupCategory,
 	}
@@ -449,7 +449,7 @@ var optionalFlags = []cli.Flag{
 	SyncModeFlag,
 	FastnodeMode,
 	ELTriggerGap,
-	StartupCatchUpFlag,
+	StartupDeferGossipFlag,
 	RPCListenAddr,
 	RPCListenPort,
 	L1TrustRPC,

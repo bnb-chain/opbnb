@@ -116,7 +116,7 @@ func NewConfig(ctx *cli.Context, log log.Logger) (*node.Config, error) {
 
 		Plasma: plasma.ReadCLIConfig(ctx),
 
-		CatchUp: ctx.Bool(flags.StartupCatchUpFlag.Name),
+		StartupDeferGossip: ctx.Bool(flags.StartupDeferGossipFlag.Name),
 	}
 
 	if err := cfg.LoadPersisted(log); err != nil {
