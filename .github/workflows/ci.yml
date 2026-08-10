@@ -20,11 +20,15 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: op-node
-          version: v1.63.4
-          args: -E goimports,sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m -e "errors.As" -e "errors.Is"
+          version: v2.4.0
+          args: -E sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m
+
+      - name: goimports
+        working-directory: op-node
+        run: golangci-lint fmt --diff --enable=goimports
 
   op-batcher-lint:
     runs-on: ubuntu-latest
@@ -39,11 +43,15 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: op-batcher
-          version: v1.63.4
-          args: -E goimports,sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m -e "errors.As" -e "errors.Is"
+          version: v2.4.0
+          args: -E sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m
+
+      - name: goimports
+        working-directory: op-batcher
+        run: golangci-lint fmt --diff --enable=goimports
 
   op-proposer-lint:
     runs-on: ubuntu-latest
@@ -58,11 +66,15 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: op-proposer
-          version: v1.63.4
-          args: -E goimports,sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m -e "errors.As" -e "errors.Is"
+          version: v2.4.0
+          args: -E sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m
+
+      - name: goimports
+        working-directory: op-proposer
+        run: golangci-lint fmt --diff --enable=goimports
 
   op-service-lint:
     runs-on: ubuntu-latest
@@ -77,11 +89,15 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
           working-directory: op-service
-          version: v1.63.4
-          args: -E goimports,sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m -e "errors.As" -e "errors.Is"
+          version: v2.4.0
+          args: -E sqlclosecheck,bodyclose,asciicheck,misspell,errorlint --timeout 15m
+
+      - name: goimports
+        working-directory: op-service
+        run: golangci-lint fmt --diff --enable=goimports
 
   op-node-test:
     runs-on: ubuntu-latest
