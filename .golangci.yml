@@ -1,0 +1,22 @@
+version: "2"
+
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - "-ST*"
+        - "-QF*"
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errorlint
+        text: "errors.As"
+      - linters:
+          - errorlint
+        text: "errors.Is"

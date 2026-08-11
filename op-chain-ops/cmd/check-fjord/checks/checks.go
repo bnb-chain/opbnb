@@ -43,8 +43,9 @@ func (ae *CheckFjordConfig) RecordGasUsed(rec *types.Receipt) {
 }
 
 var (
-	rip7212Precompile = common.HexToAddress("0x0000000000000000000000000000000000000100")
-	invalid7212Data   = []byte{0x00}
+	rip7212Precompile                   = common.HexToAddress("0x0000000000000000000000000000000000000100")
+	invalid7212Data                     = []byte{0x00}
+	genesisGasPriceOracleImplementation = common.HexToAddress("0xc0d3C0d3C0d3c0D3C0D3C0d3C0d3C0D3C0D3000f")
 	// This is a valid hash, r, s, x, y params for RIP-7212 taken from:
 	// https://gist.github.com/ulerdogan/8f1714895e23a54147fc529ea30517eb
 	valid7212Data = common.FromHex("4cee90eb86eaa050036147a12d49004b6b9c72bd725d39d4785011fe190f0b4da73bd4903f0ce3b639bbbf6e8e80d16931ff4bcf5993d58468e8fb19086e8cac36dbcd03009df8c59286b162af3bd7fcc0450c9aa81be5d10d312af6c66b1d604aebd3099c618202fcfe16ae7770b0c49ab5eadf74b754204a3bb6060e44eff37618b065f9832de4ca6ca971a7a1adc826d0f7c00181a5fb2ddf79ae00b4e10e")
@@ -112,27 +113,35 @@ func CheckGasPriceOracle(ctx context.Context, env *CheckFjordConfig) error {
 	if err != nil {
 		return err
 	}
-	if gpo := common.BytesToAddress(updatedGasPriceOracleAddress); expectedGasPriceOracleAddress != gpo {
-		return fmt.Errorf("expected GasPriceOracle address %s does not match actual address %s",
-			expectedGasPriceOracleAddress, gpo)
+	gpo := common.BytesToAddress(updatedGasPriceOracleAddress)
+	if expectedGasPriceOracleAddress != gpo && genesisGasPriceOracleImplementation != gpo {
+		return fmt.Errorf("expected GasPriceOracle address %s or %s does not match actual address %s",
+			expectedGasPriceOracleAddress, genesisGasPriceOracleImplementation, gpo)
 	}
 	env.Log.Info("confirmed GasPriceOracle address meets expectation")
 
-	code, err := env.L2.CodeAt(context.Background(), expectedGasPriceOracleAddress, nil)
+	code, err := env.L2.CodeAt(context.Background(), gpo, nil)
 	if err != nil {
-		return fmt.Errorf("reading codeAt expectedGasPriceOracleAddress: %w", err)
+		return fmt.Errorf("reading codeAt GasPriceOracle implementation: %w", err)
 	}
 	if len(code) == 0 {
-		return errors.New("codeAt expectedGasPriceOracleAddress is empty")
+		return errors.New("codeAt GasPriceOracle implementation is empty")
 	}
 	codeHash := crypto.Keccak256Hash(code)
 	fjordGasPriceOracleCodeHash := common.HexToHash("0xa88fa50a2745b15e6794247614b5298483070661adacb8d32d716434ed24c6b2")
 
-	if codeHash != fjordGasPriceOracleCodeHash {
-		return fmt.Errorf("GasPriceOracle codeHash (%s) does not match expectation (%s)",
-			codeHash, fjordGasPriceOracleCodeHash)
+	// The runtime upgrade deploys the upstream Fjord bytecode at a deterministic address.
+	// Genesis activation instead uses opBNB's predeploy code namespace and is validated
+	// through the Fjord flag below and CheckAll's fee checks.
+	if gpo == expectedGasPriceOracleAddress {
+		if codeHash != fjordGasPriceOracleCodeHash {
+			return fmt.Errorf("GasPriceOracle codeHash (%s) does not match expectation (%s)",
+				codeHash, fjordGasPriceOracleCodeHash)
+		}
+		env.Log.Info("confirmed GasPriceOracle codeHash meets expectation")
+	} else {
+		env.Log.Info("confirmed genesis GasPriceOracle implementation code is present", "code_hash", codeHash)
 	}
-	env.Log.Info("confirmed GasPriceOracle codeHash meets expectation")
 
 	// Get gas price from oracle
 	gasPriceOracle, err := bindings.NewGasPriceOracleCaller(predeploys.GasPriceOracleAddr, env.L2)
