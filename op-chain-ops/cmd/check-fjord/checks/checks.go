@@ -51,6 +51,12 @@ var (
 	valid7212Data = common.FromHex("4cee90eb86eaa050036147a12d49004b6b9c72bd725d39d4785011fe190f0b4da73bd4903f0ce3b639bbbf6e8e80d16931ff4bcf5993d58468e8fb19086e8cac36dbcd03009df8c59286b162af3bd7fcc0450c9aa81be5d10d312af6c66b1d604aebd3099c618202fcfe16ae7770b0c49ab5eadf74b754204a3bb6060e44eff37618b065f9832de4ca6ca971a7a1adc826d0f7c00181a5fb2ddf79ae00b4e10e")
 )
 
+func isReceiptNotReady(err error) bool {
+	return errors.Is(err, ethereum.NotFound) ||
+		strings.Contains(err.Error(), "not found") ||
+		strings.Contains(err.Error(), "transaction indexing is in progress")
+}
+
 func CheckRIP7212(ctx context.Context, env *CheckFjordConfig) error {
 	env.Log.Info("checking rip-7212")
 	// invalid request returns empty response, this is how the spec denotes an error.
@@ -347,7 +353,7 @@ func execTx(ctx context.Context, to *common.Address, data []byte, expectRevert b
 		env.Log.Info("checking confirmation...", "txhash", signedTx.Hash())
 		receipt, err := env.L2.TransactionReceipt(context.Background(), signedTx.Hash())
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if isReceiptNotReady(err) {
 				env.Log.Info("not found yet, waiting...")
 				time.Sleep(time.Second)
 				continue
