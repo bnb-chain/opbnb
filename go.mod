@@ -44,7 +44,6 @@ require (
 	github.com/minio/minio-go/v7 v7.0.70
 	github.com/multiformats/go-base32 v0.1.0
 	github.com/multiformats/go-multiaddr v0.14.0
-	github.com/multiformats/go-multiaddr-dns v0.4.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/gomega v1.36.2
 	github.com/pkg/errors v0.9.1
@@ -193,6 +192,7 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
+	github.com/multiformats/go-multiaddr-dns v0.4.1 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
 	github.com/multiformats/go-multicodec v0.9.0 // indirect
