@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.5.6
+
+This release fixes a P2P alt-sync stall where the rollup driver and the sync client could block each other when a node restarts with a large unsafe head gap, leaving the unsafe head stuck for several minutes.
+It also upgrades security-related dependencies and building `op-node`, `op-proposer`, `op-batcher` and `op-bootnode` with Go 1.25. No hardfork is involved, so nodes can upgrade at their convenience.
+
+### MetaInfo
+
+Mandatory Update Required: No
+Target Audience: all opBNB Mainnet/Testnet users, RPC and verifier node operators benefit the most
+Procedure: simply binary replacement should be good
+Schedule(Timeline): no scheduled upgrade timeline
+
+### What's Changed
+
+* [\#346](https://github.com/bnb-chain/opbnb/pull/346) fix: build op-bootnode with Go 1.25
+* [\#343](https://github.com/bnb-chain/opbnb/pull/343) fix: buffer alt-sync range request channel to avoid driver stall
+* [\#342](https://github.com/bnb-chain/opbnb/pull/342) fix: upgrade production service security dependencies
+
+### Docker Images
+
+- ghcr.io/bnb-chain/op-node:v0.5.6
+- ghcr.io/bnb-chain/op-batcher:v0.5.6
+- ghcr.io/bnb-chain/op-proposer:v0.5.6
+
+**Full Changelog**: https://github.com/bnb-chain/opbnb/compare/v0.5.5...v0.5.6
 
 ## v0.5.5
 
