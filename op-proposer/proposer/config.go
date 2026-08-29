@@ -50,6 +50,9 @@ type CLIConfig struct {
 	// DGFAddress is the DisputeGameFactory contract address.
 	DGFAddress string
 
+	// AnchorStateRegistryAddr is the AnchorStateRegistry contract address.
+	AnchorStateRegistryAddr string
+
 	// ProposalInterval is the delay between submitting L2 output proposals when the DGFAddress is set.
 	ProposalInterval time.Duration
 
@@ -61,6 +64,12 @@ type CLIConfig struct {
 
 	// Whether to wait for the sequencer to sync to a recent block at startup.
 	WaitNodeSync bool
+	// ZKProposalBatchSize is defined as the number of block heights of outputRoot submitted in a batch when the game type is zk dispute game.
+	ZKProposalBatchSize uint64
+	// ZKParentGameAddress specifies the address of the parent game to be used at startup when the game type is a zk dispute game.
+	ZKParentGameAddress string
+	// ZKProposalLastGameCachePathFlag specifies the storage path for the last game's cache
+	ZKProposalLastGameCachePathFlag string
 }
 
 func (c *CLIConfig) Check() error {
@@ -86,6 +95,9 @@ func (c *CLIConfig) Check() error {
 	if c.DGFAddress != "" && c.ProposalInterval == 0 {
 		return errors.New("the `DisputeGameFactory` address was provided but the `ProposalInterval` was not set")
 	}
+	if c.DGFAddress != "" && c.DisputeGameType == zkDisputeGameType && c.AnchorStateRegistryAddr == "" {
+		return errors.New("when setting `DisputeGameFactory` and the game type == 3, the `AnchorStateRegistry` address must be set")
+	}
 	if c.ProposalInterval != 0 && c.DGFAddress == "" {
 		return errors.New("the `ProposalInterval` was provided but the `DisputeGameFactory` address was not set")
 	}
@@ -103,15 +115,19 @@ func NewConfig(ctx *cli.Context) *CLIConfig {
 		PollInterval: ctx.Duration(flags.PollIntervalFlag.Name),
 		TxMgrConfig:  txmgr.ReadCLIConfig(ctx),
 		// Optional Flags
-		AllowNonFinalized:            ctx.Bool(flags.AllowNonFinalizedFlag.Name),
-		RPCConfig:                    oprpc.ReadCLIConfig(ctx),
-		LogConfig:                    oplog.ReadCLIConfig(ctx),
-		MetricsConfig:                opmetrics.ReadCLIConfig(ctx),
-		PprofConfig:                  oppprof.ReadCLIConfig(ctx),
-		DGFAddress:                   ctx.String(flags.DisputeGameFactoryAddressFlag.Name),
-		ProposalInterval:             ctx.Duration(flags.ProposalIntervalFlag.Name),
-		DisputeGameType:              uint32(ctx.Uint(flags.DisputeGameTypeFlag.Name)),
-		ActiveSequencerCheckDuration: ctx.Duration(flags.ActiveSequencerCheckDurationFlag.Name),
-		WaitNodeSync:                 ctx.Bool(flags.WaitNodeSyncFlag.Name),
+		AllowNonFinalized:               ctx.Bool(flags.AllowNonFinalizedFlag.Name),
+		RPCConfig:                       oprpc.ReadCLIConfig(ctx),
+		LogConfig:                       oplog.ReadCLIConfig(ctx),
+		MetricsConfig:                   opmetrics.ReadCLIConfig(ctx),
+		PprofConfig:                     oppprof.ReadCLIConfig(ctx),
+		DGFAddress:                      ctx.String(flags.DisputeGameFactoryAddressFlag.Name),
+		AnchorStateRegistryAddr:         ctx.String(flags.AnchorStateRegistryAddressFlag.Name),
+		ProposalInterval:                ctx.Duration(flags.ProposalIntervalFlag.Name),
+		DisputeGameType:                 uint32(ctx.Uint(flags.DisputeGameTypeFlag.Name)),
+		ZKProposalBatchSize:             uint64(ctx.Uint(flags.ZKProposalBatchSizeFlag.Name)),
+		ZKParentGameAddress:             ctx.String(flags.ZKProposalParentGameAddressFlag.Name),
+		ZKProposalLastGameCachePathFlag: ctx.String(flags.ZKProposalLastGameCachePathFlag.Name),
+		ActiveSequencerCheckDuration:    ctx.Duration(flags.ActiveSequencerCheckDurationFlag.Name),
+		WaitNodeSync:                    ctx.Bool(flags.WaitNodeSyncFlag.Name),
 	}
 }

@@ -55,6 +55,11 @@ var (
 		Usage:   "Address of the DisputeGameFactory contract",
 		EnvVars: prefixEnvVars("GAME_FACTORY_ADDRESS"),
 	}
+	AnchorStateRegistryAddressFlag = &cli.StringFlag{
+		Name:    "anchor-state-registry-address",
+		Usage:   "Address of the AnchorStateRegistry contract",
+		EnvVars: prefixEnvVars("ANCHOR_STATE_REGISTRY_ADDRESS"),
+	}
 	ProposalIntervalFlag = &cli.DurationFlag{
 		Name:    "proposal-interval",
 		Usage:   "Interval between submitting L2 output proposals when the dispute game factory address is set",
@@ -65,6 +70,22 @@ var (
 		Usage:   "Dispute game type to create via the configured DisputeGameFactory",
 		Value:   0,
 		EnvVars: prefixEnvVars("GAME_TYPE"),
+	}
+	ZKProposalBatchSizeFlag = &cli.UintFlag{
+		Name:    "zk-proposal-batch-size",
+		Usage:   "When the game type is zk dispute game, you can specify how many block outputRoots are submitted per batch",
+		Value:   3600,
+		EnvVars: prefixEnvVars("ZK_PROPOSAL_BATCH_SIZE"),
+	}
+	ZKProposalParentGameAddressFlag = &cli.StringFlag{
+		Name:    "zk-proposal-parent-game-address",
+		Usage:   "When the game type is zk dispute game, you can specify the address of the parent game to use at startup",
+		EnvVars: prefixEnvVars("ZK_PROPOSAL_PARENT_GAME_ADDRESS"),
+	}
+	ZKProposalLastGameCachePathFlag = &cli.StringFlag{
+		Name:    "zk-proposal-last-game-cache-path",
+		Usage:   "When the game type is zk dispute game, you can specify a path to cache the game information from the last submission, so that you can quickly resume from where you left off after restarting",
+		EnvVars: prefixEnvVars("ZK_PROPOSAL_PARENT_GAME_ADDRESS"),
 	}
 	ActiveSequencerCheckDurationFlag = &cli.DurationFlag{
 		Name:    "active-sequencer-check-duration",
@@ -94,10 +115,14 @@ var optionalFlags = []cli.Flag{
 	AllowNonFinalizedFlag,
 	L2OutputHDPathFlag,
 	DisputeGameFactoryAddressFlag,
+	AnchorStateRegistryAddressFlag,
 	ProposalIntervalFlag,
 	DisputeGameTypeFlag,
 	ActiveSequencerCheckDurationFlag,
 	WaitNodeSyncFlag,
+	ZKProposalBatchSizeFlag,
+	ZKProposalParentGameAddressFlag,
+	ZKProposalLastGameCachePathFlag,
 }
 
 func init() {
