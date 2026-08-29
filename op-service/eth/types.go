@@ -35,7 +35,10 @@ const (
 
 var ErrBedrockScalarPaddingNotEmpty = errors.New("version 0 scalar value has non-empty padding")
 
-const BlockMillisecondsIntervalUint uint64 = 250
+const (
+	BlockMillisecondsIntervalUint   uint64 = 250 // for volta, fourier hardfork
+	BlockMillisecondsIntervalUintV2 uint64 = 25  // for Laplace hardfork
+)
 
 // InputError distinguishes an user-input error from regular rpc errors,
 // to help the (Engine) API user divert from accidental input mistakes.
@@ -356,14 +359,23 @@ func (pa *PayloadAttributes) SetMillisecondTimestamp(ts uint64, updateMilliSecon
 	}
 }
 
-// SetMillisecondTimestamp is used to set millisecond timestamp.
-// [32]byte PrevRandao
-// [0][1] represent l2 millisecond's mill part.
+// SetBlockIntervalCount is used to set block interval count for Fourier hardfork.
+// [3] stores blockIntervalCount with 250ms as unit (Volta/Fourier).
 func (pa *PayloadAttributes) SetBlockIntervalCount(blockIntervalCount uint64) {
 	if blockIntervalCount > 255 {
 		log.Crit("overflow block millisecond block interval count", "blockIntervalCount", blockIntervalCount)
 	}
 	pa.PrevRandao[3] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
+}
+
+// SetBlockIntervalCountV2 is used to set block interval count for Laplace hardfork and beyond.
+// [4] stores blockIntervalCount with 25ms as unit (Laplace+), enabling finer granularity
+// and support for future block intervals such as 75ms, 50ms, 25ms.
+func (pa *PayloadAttributes) SetBlockIntervalCountV2(blockIntervalCount uint64) {
+	if blockIntervalCount > 255 {
+		log.Crit("overflow block millisecond block interval count v2", "blockIntervalCount", blockIntervalCount)
+	}
+	pa.PrevRandao[4] = uint256.NewInt(blockIntervalCount).Bytes32()[31]
 }
 
 type ExecutePayloadStatus string

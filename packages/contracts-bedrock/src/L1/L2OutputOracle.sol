@@ -53,6 +53,12 @@ contract L2OutputOracle is Initializable, ISemver {
     /// @notice The L2 block number of Fourier Hardfork.
     uint256 public constant FOURIER_BLOCK_NUMBER = 0;
 
+    /// @notice The time between L2 blocks in milliseconds after Laplace Hardfork.
+    uint256 public constant L2_LAPLACE_MILLISECONDS_BLOCK_TIME = 100;
+
+    /// @notice The L2 block number of Laplace Hardfork.
+    uint256 public constant LAPLACE_BLOCK_NUMBER = 0;
+
     /// @notice Emitted when an output is proposed.
     /// @param outputRoot    The output root.
     /// @param l2OutputIndex The index of the output in the l2Outputs array.
@@ -344,12 +350,16 @@ contract L2OutputOracle is Initializable, ISemver {
             l2Timestamp = computeL2Timestamp(_l2BlockNumber);
             currentTimestamp = block.timestamp;
         } else if (_l2BlockNumber <= FOURIER_BLOCK_NUMBER) {
-            // After Volta but before Fourier: use milliseconds
+            // After Volta but before Fourier: use 500 milliseconds per block
             l2Timestamp = computeL2TimestampAfterVolta(_l2BlockNumber);
             currentTimestamp = block.timestamp * 1000;
-        } else {
-            // After Fourier Hardfork: use milliseconds
+        } else if (_l2BlockNumber <= LAPLACE_BLOCK_NUMBER) {
+            // After Fourier but before Laplace: use 250 milliseconds per block
             l2Timestamp = computeL2TimestampAfterFourier(_l2BlockNumber);
+            currentTimestamp = block.timestamp * 1000;
+        } else {
+            // After Laplace Hardfork: use 100 milliseconds per block
+            l2Timestamp = computeL2TimestampAfterLaplace(_l2BlockNumber);
             currentTimestamp = block.timestamp * 1000;
         }
 
@@ -386,6 +396,24 @@ contract L2OutputOracle is Initializable, ISemver {
         uint256 afterFourierBlockTime = (_l2BlockNumber - FOURIER_BLOCK_NUMBER) * L2_FOURIER_MILLISECONDS_BLOCK_TIME;
 
         uint256 totalPassedBlockTime = beforeVoltaBlockTime + voltaToFourierBlockTime + afterFourierBlockTime;
+
+        return (startingTimestamp * 1000) + totalPassedBlockTime;
+    }
+
+    /// @notice Returns the L2 timestamp corresponding to a given L2 block number after Laplace Hardfork.
+    /// @param _l2BlockNumber The L2 block number of the target block.
+    /// @return L2 timestamp of the given block in milliseconds.
+    function computeL2TimestampAfterLaplace(uint256 _l2BlockNumber) public view returns (uint256) {
+        // Time from start to Volta (1000 milliseconds per block)
+        uint256 beforeVoltaBlockTime = (VOLTA_BLOCK_NUMBER - startingBlockNumber) * l2BlockTime * 1000;
+        // Time from Volta to Fourier (500 milliseconds per block)
+        uint256 voltaToFourierBlockTime = (FOURIER_BLOCK_NUMBER - VOLTA_BLOCK_NUMBER) * L2_MILLISECONDS_BLOCK_TIME;
+        // Time from Fourier to Laplace (250 milliseconds per block)
+        uint256 fourierToLaplaceBlockTime = (LAPLACE_BLOCK_NUMBER - FOURIER_BLOCK_NUMBER) * L2_FOURIER_MILLISECONDS_BLOCK_TIME;
+        // Time from Laplace to target block (100 milliseconds per block)
+        uint256 afterLaplaceBlockTime = (_l2BlockNumber - LAPLACE_BLOCK_NUMBER) * L2_LAPLACE_MILLISECONDS_BLOCK_TIME;
+
+        uint256 totalPassedBlockTime = beforeVoltaBlockTime + voltaToFourierBlockTime + fourierToLaplaceBlockTime + afterLaplaceBlockTime;
 
         return (startingTimestamp * 1000) + totalPassedBlockTime;
     }

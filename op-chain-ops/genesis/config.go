@@ -147,6 +147,9 @@ type DeployConfig struct {
 	// L2GenesisFourierTimeOffset is the number of seconds after genesis block that the Fourier hard fork activates.
 	// Set it to 0 to activate at genesis. Nil to disable Fourier.
 	L2GenesisFourierTimeOffset *hexutil.Uint64 `json:"l2GenesisFourierTimeOffset,omitempty"`
+	// L2GenesisLaplaceTimeOffset is the number of seconds after genesis block that the Laplace hard fork activates.
+	// Set it to 0 to activate at genesis. Nil to disable Laplace.
+	L2GenesisLaplaceTimeOffset *hexutil.Uint64 `json:"l2GenesisLaplaceTimeOffset,omitempty"`
 	// L2GenesisBlockExtraData is configurable extradata. Will default to []byte("BEDROCK") if left unspecified.
 	L2GenesisBlockExtraData []byte `json:"l2GenesisBlockExtraData"`
 	// ProxyAdminOwner represents the owner of the ProxyAdmin predeploy on L2.
@@ -684,6 +687,17 @@ func (d *DeployConfig) FourierTime(genesisTime uint64) *uint64 {
 	return &v
 }
 
+func (d *DeployConfig) LaplaceTime(genesisTime uint64) *uint64 {
+	if d.L2GenesisLaplaceTimeOffset == nil {
+		return nil
+	}
+	v := uint64(0)
+	if offset := *d.L2GenesisLaplaceTimeOffset; offset > 0 {
+		v = genesisTime + uint64(offset)
+	}
+	return &v
+}
+
 func (d *DeployConfig) HaberTime(genesisTime uint64) *uint64 {
 	if d.HaberTimeOffset == nil {
 		return nil
@@ -763,6 +777,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 		SnowTime:               d.SnowTime(l1StartBlock.Time()),
 		VoltaTime:              d.VoltaTime(l1StartBlock.Time()),
 		FourierTime:            d.FourierTime(l1StartBlock.Time()),
+		LaplaceTime:            d.LaplaceTime(l1StartBlock.Time()),
 	}, nil
 }
 

@@ -364,17 +364,29 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 	var blockInterval uint64
 	var millisecondTimestamp bool
 	var isFourierfork bool
+	var isLaplacefork bool
 	if rollupCfg.VoltaTime != nil && *rollupCfg.VoltaTime >= genesisTimestamp {
 		secondSinceVolta := *rollupCfg.VoltaTime - genesisTimestamp
 		if b.relTimestamp >= secondSinceVolta {
 			millisecondTimestamp = true
-			// check if batch time stamp has passed fourier fork
+			// check if batch timestamp has passed fourier fork
 			if rollupCfg.FourierTime != nil && *rollupCfg.FourierTime >= genesisTimestamp {
 				// Convert Fourier threshold to milliseconds since genesis for comparison
 				msSinceFourier := (*rollupCfg.FourierTime - genesisTimestamp) * 1000
 				if b.relTimestamp >= msSinceFourier {
-					blockInterval = rollup.MillisecondBlockIntervalFourier
 					isFourierfork = true
+					// check if batch timestamp has passed laplace fork
+					if rollupCfg.LaplaceTime != nil && *rollupCfg.LaplaceTime >= genesisTimestamp {
+						msSinceLaplace := (*rollupCfg.LaplaceTime - genesisTimestamp) * 1000
+						if b.relTimestamp >= msSinceLaplace {
+							blockInterval = rollup.MillisecondBlockIntervalLaplace
+							isLaplacefork = true
+						} else {
+							blockInterval = rollup.MillisecondBlockIntervalFourier
+						}
+					} else {
+						blockInterval = rollup.MillisecondBlockIntervalFourier
+					}
 				} else {
 					blockInterval = rollup.MillisecondBlockIntervalVolta
 				}
@@ -418,6 +430,7 @@ func (b *RawSpanBatch) derive(rollupCfg *rollup.Config, genesisTimestamp uint64,
 			"start timestamp", spanBatch.GetTimestamp(),
 			"end timestamp", spanBatch.GetBlockTimestamp(spanBatch.GetBlockCount()-1),
 			"is_fourier", isFourierfork,
+			"is_laplace", isLaplacefork,
 			"is_millisecond", millisecondTimestamp,
 			"first l1 origin", spanBatch.GetStartEpochNum(),
 			"block count", spanBatch.GetBlockCount())

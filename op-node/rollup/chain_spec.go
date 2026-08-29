@@ -44,6 +44,7 @@ const (
 	Snow     ForkName = "snow"
 	Volta    ForkName = "volta"
 	Fourier  ForkName = "fourier"
+	Laplace  ForkName = "laplace"
 	Interop  ForkName = "interop"
 	None     ForkName = "none"
 )
