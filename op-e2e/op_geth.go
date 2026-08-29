@@ -104,7 +104,8 @@ func NewOpGeth(t testing.TB, ctx context.Context, cfg *SystemConfig) (*OpGeth, e
 	require.NoError(t, err)
 
 	// Finally create the engine client
-	rollupCfg, err := cfg.DeployConfig.RollupConfig(l1Block, l2GenesisBlock.Hash(), l2GenesisBlock.NumberU64())
+	rollupCfg, err := cfg.DeployConfig.RollupConfig(l1Block, l2GenesisBlock.Hash(), l2GenesisBlock.NumberU64(),
+		l2GenesisBlock.Header().Root)
 	require.NoError(t, err)
 	rollupCfg.Genesis = rollupGenesis
 	l2Engine, err := sources.NewEngineClient(

@@ -54,6 +54,8 @@ type Genesis struct {
 	// The L2 genesis block may not include transactions, and thus cannot encode the config values,
 	// unlike later L2 blocks.
 	SystemConfig eth.SystemConfig `json:"system_config"`
+	// The genesis state root of L2 genesis block
+	L2GenesisStateRoot common.Hash `json:"l2_genesis_state_root,omitempty"`
 }
 
 type PlasmaConfig struct {

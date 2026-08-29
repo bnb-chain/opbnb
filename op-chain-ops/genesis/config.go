@@ -708,7 +708,8 @@ func (d *DeployConfig) WrightTime(genesisTime uint64) *uint64 {
 
 // RollupConfig converts a DeployConfig to a rollup.Config. If Ecotone is active at genesis, the
 // Overhead value is considered a noop.
-func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHash common.Hash, l2GenesisBlockNumber uint64) (*rollup.Config, error) {
+func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHash common.Hash, l2GenesisBlockNumber uint64,
+	l2GenesisStateRoot common.Hash) (*rollup.Config, error) {
 	if d.OptimismPortalProxy == (common.Address{}) {
 		return nil, errors.New("OptimismPortalProxy cannot be address(0)")
 	}
@@ -742,6 +743,7 @@ func (d *DeployConfig) RollupConfig(l1StartBlock *types.Block, l2GenesisBlockHas
 				Scalar:      eth.Bytes32(d.FeeScalar()),
 				GasLimit:    uint64(d.L2GenesisBlockGasLimit),
 			},
+			L2GenesisStateRoot: l2GenesisStateRoot,
 		},
 		BlockTime:              d.L2BlockTime,
 		MaxSequencerDrift:      d.MaxSequencerDrift,
