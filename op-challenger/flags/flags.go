@@ -217,6 +217,26 @@ var (
 		EnvVars: prefixEnvVars("UNSAFE_ALLOW_INVALID_PRESTATE"),
 		Hidden:  true, // Hidden as this is an unsafe flag added only for testing purposes
 	}
+	ZKDisputeGameFlag = &cli.BoolFlag{
+		Name:    "zk-dispute-game",
+		Usage:   "Indicates that the current game type is zkDisputeGame",
+		EnvVars: prefixEnvVars("ZK_DISPUTE_GAME"),
+	}
+	ZKChallengeByProofFlag = &cli.BoolFlag{
+		Name:    "zk-challenge-by-proof",
+		Usage:   "Instruct the challenger to directly generate proof to initiate the challenge.",
+		EnvVars: prefixEnvVars("ZK_CHALLENGE_BY_PROOF"),
+	}
+	ZKResponseChallengeByProofFlag = &cli.BoolFlag{
+		Name:    "zk-response-challenge-by-proof",
+		Usage:   "Enable the automatic response feature for zk dispute game creators to reply to challenges",
+		EnvVars: prefixEnvVars("ZK_RESPONSE_CHALLENGE_BY_PROOF"),
+	}
+	ZKResponseChallengeClaimantsFlag = &cli.StringSliceFlag{
+		Name:    "zk-response-challenge-claimants",
+		Usage:   "Specify the list of claimants, only responding to challenges from ZK dispute games created by specific claimants.",
+		EnvVars: prefixEnvVars("ZK_RESPONSE_CHALLENGE_CLAIMANTS"),
+	}
 )
 
 // requiredFlags are checked by [CheckRequired]
@@ -260,6 +280,10 @@ var optionalFlags = []cli.Flag{
 	GameWindowFlag,
 	SelectiveClaimResolutionFlag,
 	UnsafeAllowInvalidPrestate,
+	ZKDisputeGameFlag,
+	ZKChallengeByProofFlag,
+	ZKResponseChallengeByProofFlag,
+	ZKResponseChallengeClaimantsFlag,
 }
 
 func init() {
@@ -348,6 +372,13 @@ func CheckRequired(ctx *cli.Context, traceTypes []config.TraceType) error {
 	if !ctx.IsSet(CannonL2Flag.Name) && !ctx.IsSet(L2EthRpcFlag.Name) {
 		return fmt.Errorf("flag %s is required", L2EthRpcFlag.Name)
 	}
+	if ctx.IsSet(ZKDisputeGameFlag.Name) {
+		for _, traceType := range traceTypes {
+			if traceType != config.TraceTypeZK {
+				return fmt.Errorf("flag %v is not allowed when the game type is zkDisputeGame", traceType)
+			}
+		}
+	}
 	for _, traceType := range traceTypes {
 		switch traceType {
 		case config.TraceTypeCannon, config.TraceTypePermissioned:
@@ -358,7 +389,7 @@ func CheckRequired(ctx *cli.Context, traceTypes []config.TraceType) error {
 			if err := CheckAsteriscFlags(ctx); err != nil {
 				return err
 			}
-		case config.TraceTypeAlphabet, config.TraceTypeFast:
+		case config.TraceTypeAlphabet, config.TraceTypeFast, config.TraceTypeZK:
 		default:
 			return fmt.Errorf("invalid trace type. must be one of %v", config.TraceTypes)
 		}
@@ -498,6 +529,16 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 	if ctx.IsSet(flags.NetworkFlagName) {
 		asteriscNetwork = ctx.String(flags.NetworkFlagName)
 	}
+	var zkClaimants []common.Address
+	if ctx.IsSet(ZKResponseChallengeClaimantsFlag.Name) {
+		for _, addrStr := range ctx.StringSlice(ZKResponseChallengeClaimantsFlag.Name) {
+			claimant, err := opservice.ParseAddress(addrStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid zk claimant: %w", err)
+			}
+			zkClaimants = append(zkClaimants, claimant)
+		}
+	}
 	return &config.Config{
 		// Required Flags
 		L1EthRpc:                        ctx.String(L1EthRpcFlag.Name),
@@ -536,5 +577,9 @@ func NewConfigFromCLI(ctx *cli.Context, logger log.Logger) (*config.Config, erro
 		PprofConfig:                     pprofConfig,
 		SelectiveClaimResolution:        ctx.Bool(SelectiveClaimResolutionFlag.Name),
 		AllowInvalidPrestate:            ctx.Bool(UnsafeAllowInvalidPrestate.Name),
+		ZKDisputeGame:                   ctx.Bool(ZKDisputeGameFlag.Name),
+		ZKChallengeByProof:              ctx.Bool(ZKChallengeByProofFlag.Name),
+		ZKResponseChallengeByProof:      ctx.Bool(ZKResponseChallengeByProofFlag.Name),
+		ZKResponseChallengeClaimants:    zkClaimants,
 	}, nil
 }

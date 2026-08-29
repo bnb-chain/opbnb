@@ -195,7 +195,11 @@ func TestGetStepData(t *testing.T) {
 	require.ErrorIs(t, err, ErrGetStepData)
 }
 
-func setupWithTestData(t *testing.T, prestateBlock, poststateBlock uint64, customGameDepth ...types.Depth) (*OutputTraceProvider, *stubRollupClient, *stubL2HeaderSource) {
+func setupWithTestData(
+	t *testing.T,
+	prestateBlock, poststateBlock uint64,
+	customGameDepth ...types.Depth,
+) (*OutputTraceProvider, *stubRollupClient, *stubL2HeaderSource) {
 	rollupClient := &stubRollupClient{
 		outputs: map[uint64]*eth.OutputResponse{
 			prestateBlock: {
@@ -248,6 +252,18 @@ func (s *stubRollupClient) SafeHeadAtL1Block(_ context.Context, l1BlockNum uint6
 			Hash:   common.Hash{0x11},
 		},
 	}, nil
+}
+
+func (s *stubRollupClient) BatchOutputAtBlock(ctx context.Context, blockNums []uint64) ([]*eth.OutputResponse, error) {
+	var result []*eth.OutputResponse
+	for _, block := range blockNums {
+		outputResponse, err := s.OutputAtBlock(ctx, block)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, outputResponse)
+	}
+	return result, nil
 }
 
 type stubL2HeaderSource struct {

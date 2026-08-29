@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching"
 	"github.com/ethereum-optimism/optimism/op-service/sources/batching/rpcblock"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/urfave/cli/v2"
 )
 
@@ -56,7 +55,7 @@ func ListClaims(ctx *cli.Context) error {
 	}
 	defer l1Client.Close()
 
-	caller := batching.NewMultiCaller(l1Client.(*ethclient.Client).Client(), batching.DefaultBatchSize)
+	caller := batching.NewMultiCaller(l1Client.Client(), batching.DefaultBatchSize)
 	contract, err := contracts.NewFaultDisputeGameContract(ctx.Context, metrics.NoopContractMetrics, gameAddr, caller)
 	if err != nil {
 		return err

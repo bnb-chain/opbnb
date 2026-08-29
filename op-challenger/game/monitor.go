@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-challenger/game/types"
 	"github.com/ethereum-optimism/optimism/op-service/clock"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"golang.org/x/exp/slices"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -44,18 +45,19 @@ type claimer interface {
 }
 
 type gameMonitor struct {
-	logger           log.Logger
-	clock            RWClock
-	source           gameSource
-	scheduler        gameScheduler
-	preimages        preimageScheduler
-	gameWindow       time.Duration
-	claimer          claimer
-	fetchBlockNumber blockNumberFetcher
-	allowedGames     []common.Address
-	l1HeadsSub       ethereum.Subscription
-	l1Source         *headSource
-	runState         sync.Mutex
+	logger                log.Logger
+	clock                 RWClock
+	source                gameSource
+	scheduler             gameScheduler
+	preimages             preimageScheduler
+	gameWindow            time.Duration
+	claimer               claimer
+	fetchBlockNumber      blockNumberFetcher
+	allowedGames          []common.Address
+	l1HeadsSub            ethereum.Subscription
+	l1Source              *headSource
+	runState              sync.Mutex
+	firstHandleOldestGame bool
 }
 
 type MinimalSubscriber interface {
@@ -81,18 +83,20 @@ func newGameMonitor(
 	fetchBlockNumber blockNumberFetcher,
 	allowedGames []common.Address,
 	l1Source MinimalSubscriber,
+	firstHandleOldestGame bool,
 ) *gameMonitor {
 	return &gameMonitor{
-		logger:           logger,
-		clock:            cl,
-		scheduler:        scheduler,
-		preimages:        preimages,
-		source:           source,
-		gameWindow:       gameWindow,
-		claimer:          claimer,
-		fetchBlockNumber: fetchBlockNumber,
-		allowedGames:     allowedGames,
-		l1Source:         &headSource{inner: l1Source},
+		logger:                logger,
+		clock:                 cl,
+		scheduler:             scheduler,
+		preimages:             preimages,
+		source:                source,
+		gameWindow:            gameWindow,
+		claimer:               claimer,
+		fetchBlockNumber:      fetchBlockNumber,
+		allowedGames:          allowedGames,
+		l1Source:              &headSource{inner: l1Source},
+		firstHandleOldestGame: firstHandleOldestGame,
 	}
 }
 
@@ -121,6 +125,11 @@ func (m *gameMonitor) progressGames(ctx context.Context, blockHash common.Hash, 
 			continue
 		}
 		gamesToPlay = append(gamesToPlay, game)
+	}
+	if m.firstHandleOldestGame {
+		slices.SortFunc(gamesToPlay, func(a, b types.GameMetadata) int {
+			return int(a.Timestamp - b.Timestamp)
+		})
 	}
 	if err := m.claimer.Schedule(blockNumber, gamesToPlay); err != nil {
 		return fmt.Errorf("failed to schedule bond claims: %w", err)
