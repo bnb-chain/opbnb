@@ -10,6 +10,7 @@ library Types {
         address DisputeGameFactory;
         address DelayedWETH;
         address AnchorStateRegistry;
+        address ZkFaultProofConfig;
         address OptimismMintableERC20Factory;
         address OptimismPortal;
         address OptimismPortal2;

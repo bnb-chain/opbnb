@@ -33,6 +33,9 @@ library GameTypes {
     /// @notice A dispute game type the uses the asterisc VM
     GameType internal constant ASTERISC = GameType.wrap(2);
 
+    /// @notice A dispute game type that uses zk fault proof
+    GameType internal constant ZKFAULT = GameType.wrap(3);
+
     /// @notice A dispute game type with short game duration for testing withdrawals.
     ///         Not intended for production use.
     GameType internal constant FAST = GameType.wrap(254);

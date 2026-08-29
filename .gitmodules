@@ -26,3 +26,6 @@
 [submodule "packages/contracts-bedrock/lib/automate"]
 	path = packages/contracts-bedrock/lib/automate
 	url = https://github.com/gelatodigital/automate
+[submodule "packages/contracts-bedrock/lib/sp1-contracts"]
+	path = packages/contracts-bedrock/lib/sp1-contracts
+	url = https://github.com/lightning-li/sp1-contracts
