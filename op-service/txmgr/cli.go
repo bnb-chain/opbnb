@@ -127,7 +127,7 @@ func CLIFlagsWithDefaults(envPrefix string, defaults DefaultFlagValues) []cli.Fl
 		},
 		&cli.Uint64Flag{
 			Name:    NumConfirmationsFlagName,
-			Usage:   "Number of confirmations which we will wait after sending a transaction",
+			Usage:   "Minimum number of confirmations to wait after sending a transaction; its block must also be L1 finalized",
 			Value:   defaults.NumConfirmations,
 			EnvVars: prefixEnvVars("NUM_CONFIRMATIONS"),
 		},
@@ -421,7 +421,8 @@ type Config struct {
 	ReceiptQueryInterval time.Duration
 
 	// NumConfirmations specifies how many blocks are need to consider a
-	// transaction confirmed.
+	// transaction confirmed. The transaction block must also belong to the L1
+	// finalized chain; this depth does not replace the finality requirement.
 	NumConfirmations uint64
 
 	// SafeAbortNonceTooLowCount specifies how many ErrNonceTooLow observations

@@ -65,6 +65,15 @@ func NewInstrumentedClient(c Client, m metrics.RPCClientMetricer) *InstrumentedC
 	}
 }
 
+// RPCGeneration forwards provider changes through the metrics wrapper. A plain
+// client without fallback has a stable generation of zero.
+func (ic *InstrumentedClient) RPCGeneration() uint64 {
+	if client, ok := ic.c.(interface{ RPCGeneration() uint64 }); ok {
+		return client.RPCGeneration()
+	}
+	return 0
+}
+
 func (ic *InstrumentedClient) Close() {
 	ic.c.Close()
 }
