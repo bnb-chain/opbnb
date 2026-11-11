@@ -1,6 +1,7 @@
 package batcher
 
 import (
+	"bytes"
 	"io"
 	"math/big"
 	"math/rand"
@@ -37,6 +38,8 @@ func TestChannelManagerBatchType(t *testing.T) {
 		{"ChannelManagerReturnsErrReorg", ChannelManagerReturnsErrReorg},
 		{"ChannelManagerReturnsErrReorgWhenDrained", ChannelManagerReturnsErrReorgWhenDrained},
 		{"ChannelManager_Clear", ChannelManager_Clear},
+		{"ChannelManager_ClearForkState", ChannelManager_ClearForkState},
+		{"ChannelManager_ForkSplitAfterReorg", ChannelManager_ForkSplitAfterReorg},
 		{"ChannelManager_TxResend", ChannelManager_TxResend},
 		{"ChannelManagerCloseBeforeFirstUse", ChannelManagerCloseBeforeFirstUse},
 		{"ChannelManagerCloseNoPendingChannel", ChannelManagerCloseNoPendingChannel},
@@ -187,6 +190,140 @@ func ChannelManager_Clear(t *testing.T, batchType uint) {
 	require.Nil(m.currentChannel)
 	require.Empty(m.channelQueue)
 	require.Empty(m.txChannels)
+}
+
+// ChannelManager_ClearForkState checks that the first block after a clear
+// initializes fork state independently of the discarded chain.
+func ChannelManager_ClearForkState(t *testing.T, batchType uint) {
+	volta, fourier := uint64(1000), uint64(2000)
+	rollupCfg := defaultTestRollupConfig
+	rollupCfg.VoltaTime, rollupCfg.FourierTime = &volta, &fourier
+
+	for _, test := range []struct {
+		name      string
+		timestamp uint64
+		volta     bool
+		fourier   bool
+	}{
+		{"BeforeVolta", volta - 1, false, false},
+		{"AtVolta", volta, true, false},
+		{"AfterVolta", volta + 1, true, false},
+		{"BeforeFourier", fourier - 1, true, false},
+		{"AtFourier", fourier, true, true},
+		{"AfterFourier", fourier + 1, true, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			m := NewChannelManager(testlog.Logger(t, log.LevelCrit), metrics.NoopMetrics,
+				channelManagerTestConfig(120_000, batchType), &rollupCfg)
+			old := newMiniL2Block(0)
+			header := old.Header()
+			header.Time = fourier + 1
+			require.NoError(t, m.AddL2Block(old.WithSeal(header)))
+			require.True(t, m.isVolta)
+			require.True(t, m.isFourier)
+
+			m.Clear(eth.BlockID{})
+			require.False(t, m.isVolta)
+			require.False(t, m.isFourier)
+
+			header.Time = test.timestamp
+			require.NoError(t, m.AddL2Block(old.WithSeal(header)))
+			require.Equal(t, test.volta, m.isVolta)
+			require.Equal(t, test.fourier, m.isFourier)
+		})
+	}
+}
+
+// ChannelManager_ForkSplitAfterReorg verifies that replaying either cadence
+// transition closes the pre-fork channel and preserves the post-fork blocks.
+func ChannelManager_ForkSplitAfterReorg(t *testing.T, batchType uint) {
+	volta, fourier := uint64(1000), uint64(2000)
+	rollupCfg := defaultTestRollupConfig
+	rollupCfg.BlockTime = 1
+	rollupCfg.VoltaTime, rollupCfg.FourierTime = &volta, &fourier
+
+	newBlock := func(timestamp uint64, number int64, parent common.Hash) *types.Block {
+		block := newMiniL2BlockWithNumberParentAndL1Information(0, big.NewInt(number), parent, 100, timestamp/1000)
+		// Use a signed user transaction so the span round-trip checks real payloads.
+		randomBlock := derivetest.RandomL2BlockWithChainId(rand.New(rand.NewSource(number)), 1, rollupCfg.L2ChainID)
+		block = block.WithBody(append(block.Transactions(), randomBlock.Transactions()[1]), nil)
+		header := block.Header()
+		header.Time = timestamp / 1000
+		header.MixDigest[0] = byte((timestamp % 1000) >> 8)
+		header.MixDigest[1] = byte(timestamp % 1000)
+		return block.WithSeal(header)
+	}
+
+	for _, test := range []struct {
+		name     string
+		fork     uint64
+		previous uint64
+		next     uint64
+	}{
+		{"Volta", volta, 1000, rollup.MillisecondBlockIntervalVolta},
+		{"Fourier", fourier, rollup.MillisecondBlockIntervalVolta, rollup.MillisecondBlockIntervalFourier},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			m := NewChannelManager(testlog.Logger(t, log.LevelCrit), metrics.NoopMetrics,
+				channelManagerTestConfig(120_000, batchType), &rollupCfg)
+			require.NoError(t, m.AddL2Block(newBlock(test.fork*1000+test.next, 10, common.Hash{})))
+
+			before := newBlock(test.fork*1000-test.previous, 1, common.Hash{})
+			at := newBlock(test.fork*1000, 2, before.Hash())
+			after := newBlock(test.fork*1000+test.next, 3, at.Hash())
+			require.ErrorIs(t, m.AddL2Block(before), ErrReorg)
+			m.Clear(eth.BlockID{})
+			for _, block := range []*types.Block{before, at, after} {
+				require.NoError(t, m.AddL2Block(block))
+			}
+
+			require.NoError(t, m.ensureChannelWithSpace(eth.BlockID{}))
+			require.NoError(t, m.processBlocks())
+			preForkChannel := m.currentChannel
+			require.ErrorIs(t, preForkChannel.FullErr(), ErrTerminated)
+			require.Equal(t, []*types.Block{before}, preForkChannel.channelBuilder.Blocks())
+			require.Equal(t, []*types.Block{at, after}, m.blocks)
+
+			require.NoError(t, m.ensureChannelWithSpace(eth.BlockID{}))
+			require.NotSame(t, preForkChannel, m.currentChannel)
+			require.NoError(t, m.processBlocks())
+			require.Empty(t, m.blocks)
+			require.False(t, m.currentChannel.IsFull())
+			require.Equal(t, []*types.Block{at, after}, m.currentChannel.channelBuilder.Blocks())
+
+			if batchType != derive.SpanBatchType {
+				return
+			}
+
+			// Decode actual emitted span data and check the post-fork cadence and transactions.
+			m.currentChannel.Close()
+			require.NoError(t, m.outputFrames())
+			var compressed bytes.Buffer
+			for m.currentChannel.channelBuilder.HasFrame() {
+				frame := m.currentChannel.channelBuilder.NextFrame()
+				frames, err := derive.ParseFrames(append([]byte{derive.DerivationVersion0}, frame.data...))
+				require.NoError(t, err)
+				require.Len(t, frames, 1)
+				compressed.Write(frames[0].Data)
+			}
+			readBatch, err := derive.BatchReader(&compressed, rollup.SafeMaxRLPBytesPerChannel, false)
+			require.NoError(t, err)
+			data, err := readBatch()
+			require.NoError(t, err)
+			span, err := derive.DeriveSpanBatch(data, &rollupCfg, rollupCfg.Genesis.L2Time, rollupCfg.L2ChainID)
+			require.NoError(t, err)
+			require.Len(t, span.Batches, 2)
+			for i, block := range []*types.Block{at, after} {
+				require.Equal(t, test.fork*1000+uint64(i)*test.next, span.Batches[i].Timestamp)
+				require.Len(t, span.Batches[i].Transactions, 1)
+				tx, err := block.Transactions()[1].MarshalBinary()
+				require.NoError(t, err)
+				require.Equal(t, tx, []byte(span.Batches[i].Transactions[0]))
+			}
+			_, err = readBatch()
+			require.ErrorIs(t, err, io.EOF)
+		})
+	}
 }
 
 func ChannelManager_TxResend(t *testing.T, batchType uint) {

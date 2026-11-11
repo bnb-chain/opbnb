@@ -72,6 +72,9 @@ func (s *channelManager) Clear(l1OriginLastClosedChannel eth.BlockID) {
 	s.blocks = s.blocks[:0]
 	s.l1OriginLastClosedChannel = l1OriginLastClosedChannel
 	s.tip = common.Hash{}
+	// Reinitialize fork state from the first block loaded after a reorg.
+	s.isVolta = false
+	s.isFourier = false
 	s.closed = false
 	s.currentChannel = nil
 	s.channelQueue = nil
