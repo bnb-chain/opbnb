@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -121,6 +123,91 @@ func setupSyncTestData(length uint64) (*rollup.Config, *syncTestData) {
 	}
 
 	return cfg, &syncTestData{payloads: payloads}
+}
+
+func TestReqRespPeerLimiter(t *testing.T) {
+	for _, cancelWait := range []bool{false, true} {
+		name := "deadline rejection"
+		if cancelWait {
+			name = "cancellation while waiting"
+		}
+		t.Run(name, func(t *testing.T) {
+			cfg, _ := setupSyncTestData(1)
+			servePayload := mockPayloadFn(func(uint64) (*eth.ExecutionPayloadEnvelope, error) {
+				return nil, ethereum.NotFound
+			})
+			srv := NewReqRespServer(cfg, servePayload, metrics.NoopMetrics)
+			srv.globalRequestsRL = rate.NewLimiter(rate.Inf, 1)
+
+			mnet, err := mocknet.FullMeshConnected(3)
+			require.NoError(t, err)
+			defer mnet.Close()
+			hosts := mnet.Hosts()
+			server, limitedPeer, healthyPeer := hosts[0], hosts[1], hosts[2]
+			streams := make(chan network.Stream, 1)
+			proto := PayloadByNumberProtocolID(cfg.L2ChainID)
+			server.SetStreamHandler(proto, func(s network.Stream) { streams <- s })
+			newRequest := func(client host.Host) network.Stream {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				stream, err := client.NewStream(ctx, server.ID(), proto)
+				require.NoError(t, err)
+				t.Cleanup(func() { _ = stream.Close() })
+				require.NoError(t, binary.Write(stream, binary.LittleEndian, uint64(0)))
+				select {
+				case s := <-streams:
+					t.Cleanup(func() { _ = s.Close() })
+					return s
+				case <-ctx.Done():
+					t.Fatal("server did not receive request stream")
+					return nil
+				}
+			}
+
+			limiter := rate.NewLimiter(rate.Every(time.Hour), 1)
+			require.True(t, limiter.Allow()) // Exhaust the peer's initial burst.
+			srv.peerRateLimits.Add(limitedPeer.ID(), &peerStat{Requests: limiter})
+			stream := newRequest(limitedPeer)
+			if cancelWait {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				result := make(chan error, 1)
+				go func() {
+					_, err := srv.handleSyncRequest(ctx, stream)
+					result <- err
+				}()
+				// A negative token balance means Wait reserved a token and is waiting.
+				require.Eventually(t, func() bool { return limiter.Tokens() < 0 }, 5*time.Second, time.Millisecond)
+				unlockedWhileWaiting := srv.peerStatsLock.TryLock()
+				if unlockedWhileWaiting {
+					srv.peerStatsLock.Unlock()
+				}
+				cancel()
+				select {
+				case err := <-result:
+					require.ErrorIs(t, err, context.Canceled)
+				case <-time.After(5 * time.Second):
+					t.Fatal("peer limiter did not stop on cancellation")
+				}
+				require.True(t, unlockedWhileWaiting, "peer limiter wait must not hold the map lock")
+			} else {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := srv.handleSyncRequest(ctx, stream)
+				require.ErrorContains(t, err, "would exceed context deadline")
+			}
+
+			require.True(t, srv.peerStatsLock.TryLock(), "peer limiter error must not leak the map lock")
+			srv.peerStatsLock.Unlock()
+			// Both a new peer and its subsequent request must still reach the data source.
+			for i := 0; i < 2; i++ {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				_, err := srv.handleSyncRequest(ctx, newRequest(healthyPeer))
+				cancel()
+				require.ErrorIs(t, err, ethereum.NotFound)
+			}
+		})
+	}
 }
 
 func TestSinglePeerSync(t *testing.T) {
