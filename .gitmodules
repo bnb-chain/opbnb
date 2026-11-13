@@ -25,4 +25,4 @@
 	url = https://github.com/ethereum-optimism/lib-keccak
 [submodule "packages/contracts-bedrock/lib/automate"]
 	path = packages/contracts-bedrock/lib/automate
-	url = https://github.com/gelatodigital/automate
+	url = https://github.com/artofbitcoin/automate

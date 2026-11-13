@@ -222,6 +222,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -257,12 +259,17 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
 
       - name: Build dependencies
         run: pnpm build
 
       - name: Make file
         run: make cannon-prestate && make devnet-allocs
+
+      - name: Test devnet CLI
+        run: PYTHONPATH=./bedrock-devnet python3 -m unittest discover -s bedrock-devnet -p 'test_*.py' -v
 
       - name: Install gotestsum
         uses: autero1/action-gotestsum@v2.0.0
