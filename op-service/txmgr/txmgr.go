@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -56,7 +57,9 @@ type TxManager interface {
 	// Send is used to create & send a transaction. It will handle increasing
 	// the gas price & ensuring that the transaction remains in the transaction pool.
 	// It can be stopped by cancelling the provided context; however, the transaction
-	// may be included on L1 even if the context is cancelled.
+	// may be included on L1 even if the context is cancelled. Confirmation requires
+	// the configured depth and membership in the L1 finalized chain; the backend
+	// must support finalized and canonical header queries.
 	//
 	// NOTE: Send can be called concurrently, the nonce will be managed internally.
 	//
@@ -578,11 +581,23 @@ func (m *SimpleTxManager) waitMined(ctx context.Context, tx *types.Transaction, 
 	}
 }
 
-// queryReceipt queries for the receipt and returns the receipt if it has passed the confirmation depth
+// queryReceipt returns a receipt only after the confirmation depth is reached
+// and its canonical block is covered by L1 finality. This assumes a trusted,
+// internally consistent RPC endpoint and L1 consensus finality safety.
 func (m *SimpleTxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendState *SendState) *types.Receipt {
 	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
+	// A monotonic generation also detects switches away from and back to the
+	// same provider. Ordinary single-node backends need no generation method.
+	unchanged := func() bool { return true }
+	if backend, ok := m.backend.(interface{ RPCGeneration() uint64 }); ok {
+		generation := backend.RPCGeneration()
+		unchanged = func() bool { return backend.RPCGeneration() == generation }
+	}
 	receipt, err := m.backend.TransactionReceipt(ctx, txHash)
+	if !unchanged() {
+		return nil
+	}
 	if errors.Is(err, ethereum.NotFound) {
 		sendState.TxNotMined(txHash)
 		m.l.Trace("Transaction not yet mined", "tx", txHash)
@@ -597,7 +612,14 @@ func (m *SimpleTxManager) queryReceipt(ctx context.Context, txHash common.Hash, 
 		return nil
 	}
 
-	// Receipt is confirmed to be valid from this point on
+	if receipt.BlockNumber == nil || !receipt.BlockNumber.IsUint64() || receipt.TxHash != txHash || receipt.BlockHash == (common.Hash{}) {
+		m.metr.RPCError()
+		m.l.Warn("Invalid transaction receipt", "tx", txHash)
+		return nil
+	}
+
+	// A receipt means the transaction was mined, but its block may still be
+	// reorged out before the confirmation check completes.
 	sendState.TxMined(txHash)
 
 	txHeight := receipt.BlockNumber.Uint64()
@@ -605,6 +627,12 @@ func (m *SimpleTxManager) queryReceipt(ctx context.Context, txHash common.Hash, 
 	if err != nil {
 		m.metr.RPCError()
 		m.l.Error("Unable to fetch tip", "err", err)
+		return nil
+	}
+
+	if tip == nil || tip.Number == nil || !tip.Number.IsUint64() {
+		m.metr.RPCError()
+		m.l.Warn("Invalid tip header")
 		return nil
 	}
 
@@ -618,24 +646,63 @@ func (m *SimpleTxManager) queryReceipt(ctx context.Context, txHash common.Hash, 
 		"block", eth.ReceiptBlockID(receipt), "tip", eth.HeaderBlockID(tip),
 		"numConfirmations", m.cfg.NumConfirmations)
 
-	// The transaction is considered confirmed when
-	// txHeight+numConfirmations-1 <= tipHeight. Note that the -1 is
-	// needed to account for the fact that confirmations have an
-	// inherent off-by-one, i.e. when using 1 confirmation the
-	// transaction should be confirmed when txHeight is equal to
-	// tipHeight. The equation is rewritten in this form to avoid
-	// underflows.
+	// Keep the configured depth in addition to finality. Subtract only after
+	// checking the ordering to avoid overflow at uint64 boundaries.
 	tipHeight := tip.Number.Uint64()
-	if txHeight+m.cfg.NumConfirmations <= tipHeight+1 {
+	if tipHeight >= txHeight && tipHeight-txHeight >= m.cfg.NumConfirmations-1 {
+		finalized, err := m.backend.HeaderByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
+		if err != nil {
+			m.metr.RPCError()
+			m.l.Warn("Unable to fetch L1 finalized head", "tx", txHash, "err", err)
+			return nil
+		}
+		if finalized == nil || finalized.Number == nil || !finalized.Number.IsUint64() {
+			m.metr.RPCError()
+			m.l.Warn("Invalid L1 finalized head", "tx", txHash)
+			return nil
+		}
+		if finalized.Number.Uint64() < txHeight {
+			m.l.Debug("Transaction block not yet finalized", "tx", txHash, "block", eth.ReceiptBlockID(receipt))
+			return nil
+		}
+		// Read the canonical block after finality covers its height. With an
+		// unchanged, consistent provider this part of the chain is now stable.
+		header, err := m.backend.HeaderByNumber(ctx, receipt.BlockNumber)
+		if !unchanged() {
+			m.l.Debug("RPC provider changed during receipt confirmation", "tx", txHash)
+			return nil
+		}
+		if ctx.Err() != nil {
+			return nil
+		}
+		if errors.Is(err, ethereum.NotFound) {
+			sendState.TxNotMined(txHash)
+			m.l.Info("Transaction receipt block not found", "tx", txHash, "block", eth.ReceiptBlockID(receipt))
+			return nil
+		} else if err != nil {
+			m.metr.RPCError()
+			m.l.Warn("Unable to verify transaction receipt block", "tx", txHash, "err", err)
+			return nil
+		}
+		if header == nil || header.Number == nil || header.Number.Cmp(receipt.BlockNumber) != 0 {
+			m.metr.RPCError()
+			m.l.Warn("Invalid transaction receipt block header", "tx", txHash)
+			return nil
+		}
+		if header.Hash() != receipt.BlockHash {
+			sendState.TxNotMined(txHash)
+			m.l.Info("Transaction receipt block is no longer canonical", "tx", txHash,
+				"block", eth.ReceiptBlockID(receipt), "canonicalBlock", eth.HeaderBlockID(header))
+			return nil
+		}
+
 		m.l.Info("Transaction confirmed", "tx", txHash,
 			"block", eth.ReceiptBlockID(receipt),
 			"effectiveGasPrice", receipt.EffectiveGasPrice)
 		return receipt
 	}
 
-	// Safe to subtract since we know the LHS above is greater.
-	confsRemaining := (txHeight + m.cfg.NumConfirmations) - (tipHeight + 1)
-	m.l.Debug("Transaction not yet confirmed", "tx", txHash, "confsRemaining", confsRemaining)
+	m.l.Debug("Transaction not yet confirmed", "tx", txHash, "txHeight", txHeight, "tipHeight", tipHeight)
 	return nil
 }
 

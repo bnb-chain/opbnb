@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
@@ -107,6 +108,7 @@ func (h testHarness) createBlobTxCandidate() TxCandidate {
 func configWithNumConfs(numConfirmations uint64) Config {
 	return Config{
 		ResubmissionTimeout:       time.Second,
+		NetworkTimeout:            10 * time.Second,
 		ReceiptQueryInterval:      50 * time.Millisecond,
 		NumConfirmations:          numConfirmations,
 		SafeAbortNonceTooLowCount: 3,
@@ -193,6 +195,7 @@ type minedTxInfo struct {
 	gasFeeCap   *big.Int
 	blobFeeCap  *big.Int
 	blockNumber uint64
+	blockHash   common.Hash
 }
 
 // mockBackend implements ReceiptSource that tracks mined transactions
@@ -205,6 +208,7 @@ type mockBackend struct {
 
 	// blockHeight tracks the current height of the chain.
 	blockHeight uint64
+	headers     map[uint64]*types.Header
 
 	// minedTxs maps the hash of a mined transaction to its details.
 	minedTxs map[common.Hash]minedTxInfo
@@ -215,6 +219,7 @@ func newMockBackend(g *gasPricer) *mockBackend {
 	return &mockBackend{
 		g:        g,
 		minedTxs: make(map[common.Hash]minedTxInfo),
+		headers:  make(map[uint64]*types.Header),
 	}
 }
 
@@ -231,11 +236,19 @@ func (b *mockBackend) mine(txHash *common.Hash, gasFeeCap, blobFeeCap *big.Int) 
 	defer b.mu.Unlock()
 
 	b.blockHeight++
+	bg := b.g.excessblobgas()
+	header := &types.Header{
+		Number:        new(big.Int).SetUint64(b.blockHeight),
+		BaseFee:       b.g.baseFee(),
+		ExcessBlobGas: &bg,
+	}
+	b.headers[b.blockHeight] = header
 	if txHash != nil {
 		b.minedTxs[*txHash] = minedTxInfo{
 			gasFeeCap:   gasFeeCap,
 			blobFeeCap:  blobFeeCap,
 			blockNumber: b.blockHeight,
+			blockHash:   header.Hash(),
 		}
 	}
 }
@@ -257,13 +270,20 @@ func (b *mockBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*typ
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	num := big.NewInt(int64(b.blockHeight))
 	if number != nil {
-		num.Set(number)
+		height := number.Uint64()
+		if number.Int64() == int64(rpc.FinalizedBlockNumber) {
+			height = b.blockHeight
+		}
+		header, ok := b.headers[height]
+		if !ok {
+			return nil, ethereum.NotFound
+		}
+		return header, nil
 	}
 	bg := b.g.excessblobgas()
 	return &types.Header{
-		Number:        num,
+		Number:        new(big.Int).SetUint64(b.blockHeight),
 		BaseFee:       b.g.baseFee(),
 		ExcessBlobGas: &bg,
 	}, nil
@@ -327,6 +347,7 @@ func (b *mockBackend) TransactionReceipt(ctx context.Context, txHash common.Hash
 		GasUsed:           txInfo.gasFeeCap.Uint64(),
 		CumulativeGasUsed: blobFeeCap,
 		BlockNumber:       big.NewInt(int64(txInfo.blockNumber)),
+		BlockHash:         txInfo.blockHash,
 	}, nil
 }
 
@@ -900,6 +921,7 @@ func (b *failingBackend) TransactionReceipt(
 	return &types.Receipt{
 		TxHash:      txHash,
 		BlockNumber: big.NewInt(1),
+		BlockHash:   b.header().Hash(),
 	}, nil
 }
 
@@ -909,11 +931,15 @@ func (b *failingBackend) HeaderByNumber(ctx context.Context, _ *big.Int) (*types
 		return nil, errRpcFailure
 	}
 
+	return b.header(), nil
+}
+
+func (b *failingBackend) header() *types.Header {
 	return &types.Header{
 		Number:        big.NewInt(1),
 		BaseFee:       b.baseFee,
 		ExcessBlobGas: b.excessBlobGas,
-	}, nil
+	}
 }
 
 func (b *failingBackend) CallContract(_ context.Context, _ ethereum.CallMsg, _ *big.Int) ([]byte, error) {
@@ -958,6 +984,7 @@ func TestWaitMinedReturnsReceiptAfterFailure(t *testing.T) {
 	mgr := &SimpleTxManager{
 		cfg: Config{
 			ResubmissionTimeout:       time.Second,
+			NetworkTimeout:            time.Second,
 			ReceiptQueryInterval:      50 * time.Millisecond,
 			NumConfirmations:          1,
 			SafeAbortNonceTooLowCount: 3,
@@ -991,6 +1018,7 @@ func doGasPriceIncrease(t *testing.T, txTipCap, txFeeCap, newTip, newBaseFee int
 	mgr := &SimpleTxManager{
 		cfg: Config{
 			ResubmissionTimeout:       time.Second,
+			NetworkTimeout:            time.Second,
 			ReceiptQueryInterval:      50 * time.Millisecond,
 			NumConfirmations:          1,
 			SafeAbortNonceTooLowCount: 3,
@@ -1163,6 +1191,7 @@ func testIncreaseGasPriceLimit(t *testing.T, lt gasPriceLimitTest) {
 	mgr := &SimpleTxManager{
 		cfg: Config{
 			ResubmissionTimeout:       time.Second,
+			NetworkTimeout:            time.Second,
 			ReceiptQueryInterval:      50 * time.Millisecond,
 			NumConfirmations:          1,
 			SafeAbortNonceTooLowCount: 3,

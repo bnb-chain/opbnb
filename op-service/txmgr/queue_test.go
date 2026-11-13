@@ -45,10 +45,7 @@ type mockBackendWithNonce struct {
 
 func newMockBackendWithNonce(g *gasPricer) *mockBackendWithNonce {
 	return &mockBackendWithNonce{
-		mockBackend: mockBackend{
-			g:        g,
-			minedTxs: make(map[common.Hash]minedTxInfo),
-		},
+		mockBackend: *newMockBackend(g),
 	}
 }
 

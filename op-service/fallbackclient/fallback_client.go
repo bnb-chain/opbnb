@@ -54,6 +54,8 @@ type FallbackClient struct {
 	lastMinuteFail    atomic.Int64
 	currentClient     atomic.Pointer[Client]
 	currentIndex      int
+	generation        uint64     // protected by generationMu
+	generationMu      sync.Mutex // held only while publishing a client switch, never during I/O
 	mx                sync.Mutex
 	log               log.Logger
 	isInFallbackState bool
@@ -96,6 +98,15 @@ func NewFallbackClient(rpc Client, urlList []string, log log.Logger, fallbackThr
 		}
 	}()
 	return fallbackClient
+}
+
+// RPCGeneration changes on every provider switch, including recovery to a
+// previously used provider. Reading under generationMu observes the client replacement
+// and its generation together, rather than an intermediate switch state.
+func (l *FallbackClient) RPCGeneration() uint64 {
+	l.generationMu.Lock()
+	defer l.generationMu.Unlock()
+	return l.generation
 }
 
 func (l *FallbackClient) BlockNumber(ctx context.Context) (uint64, error) {
@@ -414,7 +425,10 @@ func (l *FallbackClient) switchCurrentClient() {
 		return
 	}
 	lastClient := *l.currentClient.Load()
+	l.generationMu.Lock()
 	l.currentClient.Store(&newClient)
+	l.generation++
+	l.generationMu.Unlock()
 	if lastClient != l.firstClient {
 		lastClient.Close()
 	}
@@ -443,7 +457,10 @@ func (l *FallbackClient) recoverIfFirstRpcHealth() {
 			return
 		}
 		lastClient := *l.currentClient.Load()
+		l.generationMu.Lock()
 		l.currentClient.Store(&l.firstClient)
+		l.generation++
+		l.generationMu.Unlock()
 		if lastClient != l.firstClient {
 			lastClient.Close()
 		}
