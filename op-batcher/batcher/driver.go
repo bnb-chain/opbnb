@@ -701,11 +701,8 @@ func (l *BatchSubmitter) sendTransaction(ctx context.Context, txdata txData, que
 		if err != nil {
 			return err
 		}
-		//
-		baseGas := intrinsicGas - params.TxGas
-		finalGasLimit := max(baseGas, minimumGasRequired) + params.TxGas
-
-		candidate.GasLimit = finalGasLimit
+		// Both gas costs already include the base transaction gas.
+		candidate.GasLimit = max(intrinsicGas, minimumGasRequired)
 	} else {
 		candidate.GasLimit = intrinsicGas
 	}
