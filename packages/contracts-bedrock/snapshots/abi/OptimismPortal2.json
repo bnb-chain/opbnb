@@ -769,6 +769,11 @@
   },
   {
     "inputs": [],
+    "name": "GasPriceTooLow",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidDataRemainder",
     "type": "error"
   },
