@@ -427,7 +427,8 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		b, err := e.engine.L2BlockRefByLabel(ctx, eth.Finalized)
 		currentUnsafe := e.GetCurrentUnsafeHead(ctx)
 		rollupGenesisIsFinalized := b.Hash == e.rollupCfg.Genesis.L2.Hash
-		isGapSyncNeeded := ref.Number-currentUnsafe.Number > uint64(e.elTriggerGap)
+		isGapSyncNeeded := ref.Number > currentUnsafe.Number &&
+			ref.Number-currentUnsafe.Number > uint64(e.elTriggerGap)
 		if errors.Is(err, ethereum.NotFound) || rollupGenesisIsFinalized || isGapSyncNeeded {
 			e.syncStatus = syncStatusStartedEL
 			e.log.Info("Starting EL sync")
