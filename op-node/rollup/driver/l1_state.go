@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -11,15 +13,18 @@ type L1Metrics interface {
 	RecordL1Ref(name string, ref eth.L1BlockRef)
 }
 
-// L1State tracks L1 head, safe and finalized blocks. It is not safe to write and read concurrently.
+// L1State tracks L1 head, safe and finalized blocks. Access to the finalized block
+// is synchronized; head and safe block access must be serialized by the caller.
 type L1State struct {
 	log     log.Logger
 	metrics L1Metrics
 
 	// Latest recorded head, safe block and finalized block of the L1 Chain, independent of derivation work
-	l1Head      eth.L1BlockRef
-	l1Safe      eth.L1BlockRef
-	l1Finalized eth.L1BlockRef
+	l1Head eth.L1BlockRef
+	l1Safe eth.L1BlockRef
+
+	l1FinalizedMu sync.RWMutex // guards l1Finalized, shared with the finalized event loop
+	l1Finalized   eth.L1BlockRef
 }
 
 func NewL1State(log log.Logger, metrics L1Metrics) *L1State {
@@ -61,6 +66,9 @@ func (s *L1State) HandleNewL1FinalizedBlock(finalized eth.L1BlockRef) {
 	s.log.Info("New L1 finalized block", "l1_finalized", finalized)
 	s.metrics.RecordL1Ref("l1_finalized", finalized)
 
+	s.l1FinalizedMu.Lock()
+	defer s.l1FinalizedMu.Unlock()
+
 	if s.l1Finalized.Number > finalized.Number {
 		s.log.Error("New L1 finalized block is less than the current finalized block", "l1_finalized", finalized, "current_l1_finalized", s.l1Finalized)
 	}
@@ -83,5 +91,7 @@ func (s *L1State) L1Safe() eth.L1BlockRef {
 // L1Finalized returns either the stored L1 finalized block or an empty block reference
 // if the L1 finalized block has not been initialized yet.
 func (s *L1State) L1Finalized() eth.L1BlockRef {
+	s.l1FinalizedMu.RLock()
+	defer s.l1FinalizedMu.RUnlock()
 	return s.l1Finalized
 }
