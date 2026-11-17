@@ -17,14 +17,14 @@ import { GameType } from "src/dispute/lib/Types.sol";
 contract OptimismPortalBscGasPrice_Test is Test {
     event TransactionDeposited(address indexed from, address indexed to, uint256 indexed version, bytes opaqueData);
 
-    uint256 internal constant MINIMUM_GAS_PRICE = 0.05 gwei;
+    uint256 internal constant REFERENCE_GAS_PRICE = 0.05 gwei;
     OptimismPortal internal portal;
     address internal depositor;
     address internal recipient;
 
     function setUp() public {
         vm.fee(0);
-        vm.txGasPrice(MINIMUM_GAS_PRICE);
+        vm.txGasPrice(REFERENCE_GAS_PRICE);
         depositor = makeAddr("depositor");
         recipient = makeAddr("recipient");
         vm.deal(depositor, 1 ether);
@@ -52,6 +52,7 @@ contract OptimismPortalBscGasPrice_Test is Test {
     }
 
     function test_receive_preservesValueAndEvent_succeeds() external {
+        vm.txGasPrice(0.01 gwei);
         vm.expectEmit(true, true, true, true, address(portal));
         emit TransactionDeposited(
             depositor,
@@ -65,12 +66,39 @@ contract OptimismPortalBscGasPrice_Test is Test {
         assertEq(portal.balance(), 1 ether);
     }
 
-    function test_depositTransaction_belowMinimumGasPrice_reverts() external {
-        vm.txGasPrice(MINIMUM_GAS_PRICE - 1);
+    function test_depositTransaction_belowHistoricalGasPrice_succeeds() external {
+        vm.txGasPrice(0.01 gwei);
+        vm.prank(depositor, depositor);
+        uint256 gasBefore = gasleft();
+        portal.depositTransaction{ value: 1 ether }(recipient, 0, 100_000, false, "");
+        uint256 gasUsed = gasBefore - gasleft();
+
+        assertGe(gasUsed * tx.gasprice, 100_000 * 1 gwei);
+        assertEq(address(portal).balance, 1 ether);
+        (, uint64 boughtGas,) = portal.params();
+        assertEq(boughtGas, 100_000);
+    }
+
+    function test_depositTransaction_zeroGasPrice_reverts() external {
+        vm.txGasPrice(0);
         vm.expectRevert(ResourceMetering.GasPriceTooLow.selector);
         vm.prank(depositor, depositor);
         portal.depositTransaction{ value: 1 ether }(recipient, 0, 100_000, false, "");
 
+        assertEq(address(portal).balance, 0);
+        assertEq(depositor.balance, 1 ether);
+        (, uint64 boughtGas,) = portal.params();
+        assertEq(boughtGas, 0);
+    }
+
+    function test_depositTransaction_tinyGasPriceExceedsBudget_reverts() external {
+        vm.txGasPrice(1);
+        vm.prank(depositor, depositor);
+        (bool success, bytes memory reason) = address(portal).call{ gas: 1_000_000, value: 1 ether }(
+            abi.encodeCall(portal.depositTransaction, (recipient, 0, 100_000, false, bytes("")))
+        );
+        assertFalse(success);
+        assertEq(reason.length, 0, "positive prices must fail from gas exhaustion, not a price check");
         assertEq(address(portal).balance, 0);
         assertEq(depositor.balance, 1 ether);
         (, uint64 boughtGas,) = portal.params();
@@ -101,6 +129,7 @@ contract OptimismPortalBscGasPrice_Test is Test {
     }
 
     function test_depositERC20Transaction_preservesTokensAndEvent_succeeds() external {
+        vm.txGasPrice(0.01 gwei);
         MockERC20 token = new MockERC20("Test", "TST", 18);
         OptimismPortal customPortal = _deployPortal(address(token));
         token.mint(depositor, 1 ether);
@@ -125,7 +154,7 @@ contract OptimismPortalBscGasPrice_Test is Test {
         assertEq(customPortal.balance(), 1 ether);
     }
 
-    function test_depositERC20Transaction_belowMinimumGasPrice_reverts() external {
+    function test_depositERC20Transaction_zeroGasPrice_reverts() external {
         MockERC20 token = new MockERC20("Test", "TST", 18);
         OptimismPortal customPortal = _deployPortal(address(token));
         token.mint(depositor, 1 ether);
@@ -146,6 +175,7 @@ contract OptimismPortalBscGasPrice_Test is Test {
     }
 
     function test_portal2_preservesValueAndEvent_succeeds() external {
+        vm.txGasPrice(0.01 gwei);
         OptimismPortal2 portal2 = _deployPortal2();
         vm.expectEmit(true, true, true, true, address(portal2));
         emit TransactionDeposited(

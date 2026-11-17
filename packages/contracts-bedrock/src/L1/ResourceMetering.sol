@@ -14,11 +14,8 @@ abstract contract ResourceMetering is Initializable {
     /// @notice Error returned when too much gas resource is consumed.
     error OutOfGas();
 
-    /// @notice Error returned when the transaction gas price is below the metering minimum.
+    /// @notice Error returned when the transaction gas price is zero.
     error GasPriceTooLow();
-
-    /// @notice Minimum transaction gas price accepted for resource purchases.
-    uint256 internal constant MINIMUM_GAS_PRICE = 0.05 gwei;
 
     /// @notice Represents the various parameters that control the way in which resources are
     ///         metered. Corresponds to the EIP-1559 resource metering system.
@@ -81,9 +78,8 @@ abstract contract ResourceMetering is Initializable {
     /// @param _amount     Amount of the resource requested.
     /// @param _initialGas The amount of gas before any modifier execution.
     function _metered(uint64 _amount, uint256 _initialGas) internal {
-        // Enforce the price floor rather than clamping the divisor, which would undercharge
-        // lower-priced transactions. This also prevents division by zero.
-        if (tx.gasprice < MINIMUM_GAS_PRICE) revert GasPriceTooLow();
+        // Zero-priced gas cannot pay for resource purchases and cannot be used as a divisor.
+        if (tx.gasprice == 0) revert GasPriceTooLow();
 
         // Update block number and base fee if necessary.
         uint256 blockDiff = block.number - params.prevBlockNum;
