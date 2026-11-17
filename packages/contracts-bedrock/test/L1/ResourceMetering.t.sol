@@ -57,6 +57,7 @@ contract ResourceMetering_Test is Test {
 
     /// @dev Sets up the test contract.
     function setUp() public {
+        vm.txGasPrice(3 gwei);
         meter = new MeterUser();
         initialBlockNum = uint64(block.number);
     }
@@ -266,6 +267,7 @@ contract ArtifactResourceMetering_Test is Test {
 
     /// @dev Sets up the tests with constants from the ResourceMetering contract.
     function setUp() public {
+        vm.txGasPrice(3 gwei);
         vm.roll(1_000_000);
 
         MeterUser base = new MeterUser();

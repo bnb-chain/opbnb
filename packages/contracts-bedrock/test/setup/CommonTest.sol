@@ -56,6 +56,9 @@ contract CommonTest is Test, Setup, Events {
         // Make sure the base fee is non zero
         vm.fee(1 gwei);
 
+        // Resource-metered deposits enforce a transaction gas price floor.
+        vm.txGasPrice(3 gwei);
+
         // Set sane initialize block numbers
         vm.warp(deploy.cfg().l2OutputOracleStartingTimestamp() + 1);
         vm.roll(deploy.cfg().l2OutputOracleStartingBlockNumber() + 1);

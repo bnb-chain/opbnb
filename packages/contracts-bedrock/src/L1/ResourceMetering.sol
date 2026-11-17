@@ -14,6 +14,9 @@ abstract contract ResourceMetering is Initializable {
     /// @notice Error returned when too much gas resource is consumed.
     error OutOfGas();
 
+    /// @notice Error returned when the transaction gas price is zero.
+    error GasPriceTooLow();
+
     /// @notice Represents the various parameters that control the way in which resources are
     ///         metered. Corresponds to the EIP-1559 resource metering system.
     /// @custom:field prevBaseFee   Base fee from the previous block(s).
@@ -75,6 +78,9 @@ abstract contract ResourceMetering is Initializable {
     /// @param _amount     Amount of the resource requested.
     /// @param _initialGas The amount of gas before any modifier execution.
     function _metered(uint64 _amount, uint256 _initialGas) internal {
+        // Zero-priced gas cannot pay for resource purchases and cannot be used as a divisor.
+        if (tx.gasprice == 0) revert GasPriceTooLow();
+
         // Update block number and base fee if necessary.
         uint256 blockDiff = block.number - params.prevBlockNum;
 
@@ -131,15 +137,10 @@ abstract contract ResourceMetering is Initializable {
         // Determine the amount of ETH to be paid.
         uint256 resourceCost = uint256(_amount) * uint256(params.prevBaseFee);
 
-        // We currently charge for this ETH amount as an L1 gas burn, so we convert the ETH amount
-        // into gas by dividing by the L1 base fee. We assume a minimum base fee of 1 gwei to avoid
-        // division by zero for L1s that don't support 1559 or to avoid excessive gas burns during
-        // periods of extremely low L1 demand. One-day average gas fee hasn't dipped below 1 gwei
-        // during any 1 day period in the last 5 years, so should be fine.
-        //uint256 gasCost = resourceCost / Math.max(block.basefee, 1 gwei);
-
-        // BSC not support basefee
-        uint256 gasCost = resourceCost / 3 gwei;
+        // Charge the resource cost through L1 gas at the price the transaction actually pays.
+        // BSC can have a zero base fee, so neither block.basefee nor a historical fixed price
+        // is a valid divisor. Round up so conversion cannot discount the resource cost.
+        uint256 gasCost = Math.ceilDiv(resourceCost, tx.gasprice);
 
         // Give the user a refund based on the amount of gas they used to do all of the work up to
         // this point. Since we're at the end of the modifier, this should be pretty accurate. Acts
